@@ -1,0 +1,3 @@
+[submodule "pyQueST"]
+	path = pyQueST
+	url = https://github.com/rrmeister/pyquest
