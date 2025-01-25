@@ -93,7 +93,7 @@ for i in range(2**n):
     plt.plot(x_data, [y[i] for y in probabilities], label=labels[i])
 plt.xlabel('Time')
 plt.ylabel('Amplitude squared')
-plt.title('n: '+str(n)+" N: "+str(N)+" T: "+str(T), fontsize=14)
+plt.title('n:  '+str(n)+" N: "+str(N)+" T: "+str(T), fontsize=14)
 plt.suptitle('Trotterized Time Evolution (PyQuest)')
 plt.grid(True)
 plt.legend()
