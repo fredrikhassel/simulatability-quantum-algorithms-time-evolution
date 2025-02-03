@@ -10,7 +10,8 @@ if __name__ == "__main__":
     Δ = np.pi / (2**6)  # Delta parameter
     T = 1  # Total evolution time
     N = 10  # Number of Trotter steps
-    n_snapshot = 10  # Number of snapshots
+    n_snapshot = 11  # Number of snapshots
+    resamples = 10
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=numQs)
     # Initialize Hamiltonian and Trotter simulation
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     print("Measurement overhead:", te_pai.overhead)
 
     # Run the TE-PAI simulation and resample the results
-    res = [resample(data) for data in te_pai.run_te_pai(10)]
+    res = [resample(data) for data in te_pai.run_te_pai(resamples)]
     # Compute mean and standard deviation for the resampled data
     mean, std = zip(*[(np.mean(y), np.std(y)) for y in res])
 
