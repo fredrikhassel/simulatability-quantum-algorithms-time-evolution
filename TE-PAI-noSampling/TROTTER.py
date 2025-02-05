@@ -1,15 +1,13 @@
-import pai
-import sampling
-import simulator
-from functools import partial
+import SIMULATOR
 from dataclasses import dataclass
 import numpy as np
-import multiprocessing as mp
 from dataclasses import dataclass
 import numpy as np
 from scipy.stats import binom
 import os
 import pandas as pd
+
+"""This module contains the trotterization from the TE-PAI paper."""
 
 @dataclass
 class Trotter:
@@ -40,7 +38,7 @@ class Trotter:
                     (pauli, 2 * coef * self.T / self.N, ind)
                     for (pauli, ind, coef) in self.terms[i]
                 ]
-            res = simulator.get_probs(self.nq, gates_arr, self.n_snap, err=err)
+            res = SIMULATOR.get_probs(self.nq, gates_arr, self.n_snap, err=err)
             pd.DataFrame(res).to_csv(filename, index=False)
             return res
         else:
