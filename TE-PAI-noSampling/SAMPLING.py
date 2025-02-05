@@ -3,6 +3,7 @@ import numpy as np
 import multiprocessing as mp
 from scipy.stats import binom
 
+"""This module contains the sampling functions used in the TE-PAI paper."""
 
 def batch_sampling(probs, batch_size):
     return mp.Pool(mp.cpu_count()).map(sample_from_prob, [probs] * batch_size)
@@ -26,7 +27,6 @@ def custom_random_choice(prob):
         if r < cum_prob:
             return idx + 1
 
-
 @jit(nopython=True)
 def sample_from_prob(probs):
     res = []
@@ -38,19 +38,3 @@ def sample_from_prob(probs):
                 res2.append((j, val))
         res.append(res2)
     return res
-
-def resample(res):
-    try:
-        s = np.concatenate([c * (2 * binom.rvs(1, p, size=100) - 1) for (c, p) in res])
-    except ValueError as e:
-        # Log the error or print it for debugging purposes
-        print(f"ValueError occurred: {e}")
-        # Handle the error by returning a trivial value (zeros in this case)
-        s = np.zeros(100 * len(res))  # Default length
-    except Exception as e:
-        # Catch other unexpected exceptions and log them
-        print(f"An unexpected error occurred: {e}")
-        s = np.zeros(100 * len(res))  # Default length
-        
-    choices = np.reshape(s[np.random.choice(len(s), 1000 * 10000)], (10000, 1000))
-    return np.mean(choices, axis=1)
