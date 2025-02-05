@@ -105,7 +105,7 @@ class TE_PAI:
                 gates_arr[-1].append(gate)
                 
                 circuit_detail.append(np.sign(coef)) #(gate)  # Record the gate
-
+        # USE THIS ONE FOR THE ENTIRE CIRCUIT
         sign_list.append(sign)
         data = simulator.get_probs(self.nq, gates_arr, self.n_snap, err)
         result = [(sign_list[i] * self.gam_list[i], data[i]) for i in range(self.n_snap + 1)]  # type: ignore
