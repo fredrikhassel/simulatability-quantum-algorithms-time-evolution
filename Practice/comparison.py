@@ -73,19 +73,42 @@ def trotter_step(n: int, obj, dt: float, J: float, h: float, r: int, factor: flo
     # eigvals_trotter, eigvecs_trotter
     return np.linalg.eigh(H_eff) # Identity if getHam = False
 
+def trotter_step_second_order(n: int, circ, dt: float, J: float, h: float, r: int, periodic: bool = True):
+    """
+    Second-order Trotterized step performed with Quimb
+    """
+
+    # Half-step for local magnetic field term (RX gates)
+    half_self_angle = -h * dt
+    for k in range(n):
+        circ.apply_gate('RX', half_self_angle, k)
+
+    # Full-step for interaction term (RZZ gates)
+    interaction_angle = -2 * J * dt
+    for k in range(n - 1):  # Loop over pairs of qubits
+        circ.apply_gate('RZZ', interaction_angle, k, k + 1)
+
+    if periodic:  # Periodic boundary condition
+        circ.apply_gate('RZZ', interaction_angle, n - 1, 0)
+
+    # Another half-step for local magnetic field term (RX gates)
+    for k in range(n):
+        circ.apply_gate('RX', half_self_angle, k)
+
+    return circ
+ 
 # Variables
 n = 6  # Number of qubits
-N = 200  # Number of timesteps
+N = 100  # Number of timesteps
 T = 10  # Total time
 dt = T / N  # Timestep size
 J = 0.2  # Interaction strength
 h = 1.2  # Magnetic field coupling
-target = 0
-alpha = np.pi / 8  # Magnetic field angle of incidence
 
 # Initialize the quantum registers
 reg = Register(n)
 circ = qtn.Circuit(n)
+circ2 = qtn.Circuit(n)
 
 # Initialize the state vector to represent the desired initial state
 init = np.zeros(2**n, dtype=complex)
@@ -98,6 +121,7 @@ magnetizationOperator = sum(unitaries.Z([i]).as_matrix(n) for i in range(n))
 # Time evolution data storage
 mag_PyQuEST = []
 mag_Quimb = []
+mag_Quimb2 = []
 hMag = []
 
 # Trotterization
@@ -107,12 +131,14 @@ for step in range(N):
         eigvals_trotter, eigvecs_trotter = trotter_step(n, [reg, circ], dt, J, h, r=step, periodic=False, getHam = True)
     else:
         trotter_step(n, [reg, circ], dt, J, h, r=step, periodic=False, getHam = False)
-
+    trotter_step_second_order(n, circ2, dt, J, h, r=step, periodic=False)
+    
     state_vector_PyQuEST = reg[:]
     state_vector_Quimb = circ.psi.to_dense()
+    state_vector_Quimb2 = circ2.psi.to_dense()
     mag_PyQuEST.append(np.vdot(state_vector_PyQuEST, magnetizationOperator @ state_vector_PyQuEST).real)
     mag_Quimb.append(np.vdot(state_vector_Quimb, magnetizationOperator @ state_vector_Quimb).real)
-
+    mag_Quimb2.append(np.vdot(state_vector_Quimb2, magnetizationOperator @ state_vector_Quimb2).real)
 
 # Initialize the Hamiltonian as a zero matrix
 dim = 2 ** n
@@ -194,21 +220,24 @@ x_data = np.linspace(0, T, N)
 ax[0].plot(x_data[:-1], hMag, label="Exact magnetization", color="tab:blue")
 ax[0].scatter(x_data, mag_PyQuEST, label="Trotter magnetization (pyQuEST)", color="tab:blue", s=5,)
 ax[0].scatter(x_data, mag_Quimb, label="Trotter magnetization (Quimb circuit)", color="tab:red", s=5)
+ax[0].scatter(x_data, mag_Quimb2, label="Trotter magnetization (Quimb circuit 2)", color="tab:green", s=5)
 
 # Plot the rescaled data
 ax[1].plot(x_data[:-1], hMag, color="tab:red", label="Exact magnetization")
 ax[1].scatter(x_data[:-1], zMags[1:], s=5, color="tab:red", label="Trotter magnetization (Quimb TEBD)")
 
-magResidual = [[],[],[]]
+magResidual = [[],[],[],[]]
 mag_Quimb_TEBD = zMags[1:]
 for i in range(len(hMag)):
     magResidual[0].append(mag_PyQuEST[i]-hMag[i])
     magResidual[1].append(mag_Quimb[i]-hMag[i])
-    magResidual[2].append(mag_Quimb_TEBD[i]-hMag[i])
+    magResidual[2].append(mag_Quimb2[i]-hMag[i])
+    magResidual[3].append(mag_Quimb_TEBD[i]-hMag[i])
 
 ax[2].plot(x_data[:-1], magResidual[0], label="pyQuEST residual", color="tab:blue")
 ax[2].plot(x_data[:-1], magResidual[1], label="Quimb circuit residual", color="tab:blue")
-ax[2].plot(x_data[:-1], magResidual[2], label="Quimb TEBD residual", color="tab:red")
+ax[2].plot(x_data[:-1], magResidual[2], label="Quimb circuit 2 residual", color="tab:green")
+ax[2].plot(x_data[:-1], magResidual[3], label="Quimb TEBD residual", color="tab:red")
 
 print(np.max(magResidual[1]))
 print(np.max(magResidual[2]))
