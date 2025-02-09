@@ -23,7 +23,7 @@ if __name__ == '__main__':
     T           = 1                 # Total evolution time
     N           = 50                # Number of Trotter steps
     n_snapshot  = 10                # Number of snapshots
-    circuits    = 100               # Number of circuits    
+    circuits    = 10               # Number of circuits    
     rng         = np.random.default_rng(0)
     freqs       = rng.uniform(-1, 1, size=numQs)
 
