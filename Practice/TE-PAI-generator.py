@@ -29,14 +29,14 @@ if __name__ == "__main__":
     # Check if the folder exists, and if not, create it
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
-
+    
     # Parameters for the example
     numQs = 7  # Number of qubits
     Δ = np.pi / (2**6)  # Delta parameter
-    T = 1  # Total evolution time
+    T = 2  # Total evolution time
     N = 50  # Number of Trotter steps
-    n_snapshot = 22  # Number of snapshots
-    resamples = 10
+    n_snapshot = 10  # Number of snapshots
+    resamples = 100
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=numQs)
  

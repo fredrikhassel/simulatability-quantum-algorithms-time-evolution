@@ -12,8 +12,8 @@ import pandas as pd
 @dataclass
 class Trotter:
 
-    def __init__(self, hamil, numQs, T, N, n_snap):
-        (self.nq, self.n_snap, self.T, self.N) = (numQs, n_snap, T, N)
+    def __init__(self, hamil, N, n_snapshot, c, Δ_name, T, numQs):
+        (self.N, self.n_snapshot, self.c, self.Δ_name, self.T, self.numQs) = (N, n_snapshot, c, Δ_name, T, numQs)
         self.L = len(hamil)
         steps = np.linspace(0, T, N)
         self.terms = [hamil.get_term(t) for t in steps]
@@ -27,10 +27,10 @@ class Trotter:
 
     def run(self, err=None):
         noisy = "_noisy" if err is not None else ""
-        filename = f"data/lie/lie{self.N}_snap{noisy}_step{self.n_snap}.csv"
+        filename = f"TE-PAI-noSampling/data/plotting/lie-N-{self.N}-n-{self.n_snapshot}-c-{self.c}-Δ-{self.Δ_name}-T-{self.T}-q-{self.numQs}{noisy}.csv"
         gates_arr = []
         if not os.path.exists(filename):
-            n = int(self.N / self.n_snap)
+            n = int(self.N / self.n_snapshot)
             for i in range(self.N):
                 if i % n == 0:
                     gates_arr.append([])
@@ -38,7 +38,7 @@ class Trotter:
                     (pauli, 2 * coef * self.T / self.N, ind)
                     for (pauli, ind, coef) in self.terms[i]
                 ]
-            res = SIMULATOR.get_probs(self.nq, gates_arr, self.n_snap, err=err)
+            res = SIMULATOR.get_probs(self.numQs, gates_arr, self.n_snapshot, err=err)
             pd.DataFrame(res).to_csv(filename, index=False)
             return res
         else:

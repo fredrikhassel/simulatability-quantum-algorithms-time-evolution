@@ -17,7 +17,6 @@ def rgate(pauli, r):
 def save_x_sv(circ: QuantumCircuit, id):
     circ.save_expectation_value(SparsePauliOp(["X"]), [0], str(id))  # type: ignore
 
-
 def get_probs(nq, gates_arr, n_snap, err=None):
     # We set the initial state to the plus state
     circ = QuantumCircuit(nq)

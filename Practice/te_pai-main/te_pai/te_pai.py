@@ -67,11 +67,16 @@ class TE_PAI:
             res = []
             index = sampling.batch_sampling(np.array(self.probs), num_circuits)
 
+            ## Process circuits using multiprocessing
+            #with mp.Pool(mp.cpu_count()) as pool:
+            #    results = mp.Pool(mp.cpu_count()).map(
+            #        partial(self.gen_rand_cir_with_details, err=err), index
+           #     )
+
             # Process circuits using multiprocessing
             results = mp.Pool(mp.cpu_count()).map(
                 partial(self.gen_rand_cir_with_details, err=err), index
             )
-
             # Separate results and circuit details
             res = np.array([r[0] for r in results]).transpose(1, 0, 2)
             circuit_details = [r[1] for r in results]
