@@ -5,6 +5,7 @@ import pandas as pd
 from collections import defaultdict
 import quimb.tensor as qtn
 from pyquest import unitaries
+import quimb as qu
 
 def loadData(folder_path):
     """ Load CSV data from a folder and organize it by parameter sets."""
@@ -36,7 +37,7 @@ def loadData(folder_path):
         print(f"Folder not found: {folder_path}")
 
     if match:
-        return data_storage, int(numQs), N, T
+        return data_storage
 
 def toArray(data_storage):
     """ Parse the data from the data storage dictionary. """
@@ -47,7 +48,6 @@ def toArray(data_storage):
 
     # Iterate over the data storage
     for params, data in data_storage.items():
-        N, n_snapshot, circuits, delta_name, T, numQs = params
         sign_list = data["sign_list"]
         gates_arr = data["gates_arr"]
 
@@ -68,14 +68,15 @@ def toArray(data_storage):
                         print(f"Error parsing gate data: {e}")
                 gate_data.append(circuit_gates)
 
-            
             for _, row in sign_list.iterrows():
                 sign_data_str = str(row[1])
                 signs = [int(x) for x in re.findall(r"-?\d+", sign_data_str)]
                 sign_data.append(signs)
 
+    overhead_list = sign_data[0]
+    overhead = overhead_list[0] + overhead_list[1] * 10 ** (-len(str(overhead_list[1])))
 
-    return gate_data, sign_data
+    return gate_data, sign_data[1:], overhead  # last is overhead
 
 def toQuimbTensor(circuit_gates, circuit_signs, n, N, T):
     """Parse the 1 circuit """
@@ -114,10 +115,10 @@ def toQuimbTensor(circuit_gates, circuit_signs, n, N, T):
         else:
             raise ValueError(f"Unsupported number of qubits for gate {quimb_gate_name}: {len(qubit_indices)}")
         
-        if gate_name=="XX" and qubit_indices==[0,1]: # this should execute at most N times for each circuit
+        if i in execute_indices:
             # Calculate the magnetization
             state_vector = circuit.psi.to_dense()
-            mag.append(np.vdot(state_vector, magnetizationOperator @ state_vector).real)
+            mag.append(qu.expec(magnetizationOperator, state_vector).real)
 
     return circuit, sign, mag
 
@@ -142,7 +143,9 @@ def getCircuits(gate_data, sign_data, n, N, T):
 def parse(relative_path):
     """Parse the data from the specified folder path."""
     folder_path = os.path.abspath(relative_path)
-    data_storage, n, N, T = loadData(folder_path)
-    gate_data, sign_data = toArray(data_storage)
-    circuits, signs, mags = getCircuits(gate_data, sign_data, n, N, T)
-    return circuits, signs, mags, n, N, T
+    data_storage = loadData(folder_path)
+    params = list(data_storage.keys())
+    N, n_snapshot, circuits, delta_name, T, numQs = params[0]
+    gate_data, sign_data, overhead = toArray(data_storage)
+    circuits, signs, mags = getCircuits(gate_data, sign_data, int(numQs), int(N), T)
+    return circuits, signs, mags, overhead, params[0]

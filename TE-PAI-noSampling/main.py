@@ -47,7 +47,6 @@ class TE_PAI:
             noisy = "_noisy" if err is not None else ""
             filename = lambda i: f"data/pai_snap{noisy}{str(i)}.csv"
 
-
             if not os.path.exists(filename(0)):
                 res = []
                 index = batch_sampling(np.array(self.probs), num_circuits)

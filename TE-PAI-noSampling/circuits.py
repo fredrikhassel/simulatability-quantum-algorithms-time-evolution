@@ -1,28 +1,55 @@
-from matplotlib import pyplot as plt
+import os
 import numpy as np
-from quimbParser import parse
-from pyquest import Register, unitaries
+import pandas as pd
+from matplotlib import pyplot as plt
+from quimbParserCopy import parse
 
-# Getting the data
-circuits, signs, mags, n, N, T = parse('TE-PAI-noSampling/data/circuits/')
-for i,sign in enumerate(signs):
-    mags[i] * sign
+# Define the output directory
+output_dir = os.path.join('TE-PAI-noSampling', 'data', 'plotting')
+os.makedirs(output_dir, exist_ok=True)  # Ensure the directory exists
 
-# Find the minimum non-zero length
-min_length = min(len(entry) for entry in mags if len(entry) > 0)
+# Parse the data
+circuits, signs, mags, overhead, params = parse('TE-PAI-noSampling/data/circuits/')
+N, n_snapshot, circuits_count, delta_name, T, numQs = params
+numQs = int(numQs)
 
-# Filter for entries matching the minimum length
-homogeneous_mags = [entry[:min_length] for entry in mags]
-# Preparing it for plotting
-std_mags = np.std(homogeneous_mags, axis=0)
-std_mags = std_mags / n
-averaged_mags = np.mean(homogeneous_mags, axis=0)
-averaged_mags = averaged_mags / n
-x_data = np.linspace(0, float(T), len(averaged_mags))
+std_devs = np.std(mags, axis=0) / numQs
 
+print(signs)
+
+for i,circuitMag in enumerate(mags):
+    sign = list(signs[i][0].values())[0]
+
+    print("Circuit: "+str(i+1) + " Sign: "+str(signs[i]))
+    print(circuitMag)
+    mags[i] = [m * sign for m in mags[i]]
+
+averages = np.average(mags, axis=0) / numQs
+
+x_data = np.linspace(0, float(T), len(averages))
+
+# Save plotting data to a CSV file
+filename = f"N-{N}-n-{n_snapshot}-c-{circuits_count}-Δ-{delta_name}-T-{float(T):.1f}-q-{numQs}.csv"
+output_path = os.path.join(output_dir, filename)
+
+# Create DataFrame for plotting data
+data_dict = {
+    'x': x_data,
+    'y': averages,
+    'errorbars': std_devs
+}
+df_plot = pd.DataFrame(data_dict)
+
+try:
+    df_plot.to_csv(output_path, index=False)
+    print(f"Plotting data saved to: {output_path}")
+except Exception as e:
+    print(f"Error saving plotting data: {e}")
+ 
 # Plotting
-plt.errorbar(x_data, averaged_mags, yerr=std_mags, fmt='o', ecolor='red', capsize=4, label="Data with Error Bars")
+plt.errorbar(x_data, averages, yerr=std_devs, fmt='o', ecolor='red', capsize=4, label="Data with Error Bars")
 plt.xlabel('Time (t)')
 plt.ylabel('Magnetization')
-plt.title('Plot of Magnitudes vs Time')
+plt.title('Plot of Magnetization vs Time')
+plt.legend()
 plt.show()

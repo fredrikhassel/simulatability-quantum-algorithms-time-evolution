@@ -5,7 +5,12 @@ from scipy.stats import binom
 
 
 def batch_sampling(probs, batch_size):
+    #results = 0
+    #with mp.Pool(mp.cpu_count()) as pool:
+    #    results = pool.map(sample_from_prob, [probs] * batch_size)
+    #return results
     return mp.Pool(mp.cpu_count()).map(sample_from_prob, [probs] * batch_size)
+
 
 @jit(nopython=True)
 def custom_random_choice(prob):
