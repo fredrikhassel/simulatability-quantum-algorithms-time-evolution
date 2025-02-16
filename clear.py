@@ -1,12 +1,56 @@
-import psutil
-import os
-import gc
+import numpy as np
+import matplotlib.pyplot as plt
 
-pid = os.getpid()
-py = psutil.Process(pid)
-print(f"Memory used before cleanup: {py.memory_info().rss / 1024 ** 2} MB")
+a = [[3.994550089898886, 3.9942505040198544, 3.9894777901886456, 3.980845988244206, 3.9825241425563167, 3.9816106384556718, 3.980352009951474, 3.969289868491143, 3.973737936175734, 3.9679452205831947],
+[3.9868681044345546, 3.9767085786946694, 3.981090873375542, 3.976489336216338, 3.977089302125622, 3.9730080425863474, 3.962978627761755, 3.9636937843393594, 3.959796119304828, 3.9528144544779558],
+[3.9967845020096964, 3.9951469447558314, 3.9934203363778082, 3.9958319335617585, 3.995692860655954, 3.994821395868705, 3.9951570698124437, 3.992977950181122, 3.9933507455932102, 3.99470589946132],
+[3.9968041876842895, 3.9891732384389105, 3.98627531878148, 3.98343847810061, 3.9760238320096506, 3.9677891318379332, 3.967817733729773, 3.9754618214349717, 3.9726873269866196, 3.9632353002069376],
+[3.990726547602719, 3.9807106464508344, 3.965427244666081, 3.9544777136010874, 3.954450490297808, 3.9479523320323775, 3.9456733589894384, 3.94412523062121, 3.955510682377611, 3.948618246547852],
+[3.998179036439021, 3.9934000149936173, 3.9943852524634282, 3.99619207275344, 3.995779921280106, 3.9957969135208895, 3.9955365207913482, 3.9927245800576108, 3.990997075193652, 3.995012463256386],
+[3.998513538471477, 3.9985506356949783, 3.998941939619178, 3.998857531270603, 3.9989337812277803, 3.99885856161197, 3.99911728063128, 3.9964799254181416, 3.996261531001858, 3.9959079210718116],
+[3.996659659324337, 3.992078794608384, 3.990706133286621, 3.9934428690405093, 3.993386368387088, 3.9906286092085477, 3.9878864937633507, 3.989493272766338, 3.9939381748414666, 3.9899089194251354]]
 
-# Clear caches
-gc.collect()
+# Compute mean and std of `a` at each index
+a_mean = np.mean(a, axis=0)
+a_std = np.std(a, axis=0)
 
-print(f"Memory used after cleanup: {py.memory_info().rss / 1024 ** 2} MB")
+x_vals = np.linspace(0.1,1,10)
+
+# Create figure
+fig, axs = plt.subplots(2, 1, figsize=(10, 12))
+
+# First plot: all datasets
+for i in range(len(a)):
+    axs[0].plot(x_vals, a[i], label=f'a{i+1}', marker='o')
+
+axs[0].set_xlabel('X values')
+axs[0].set_ylabel('Data values')
+axs[0].set_title('Plot of a1, a2, ..., b1, b2, etc.')
+axs[0].legend()
+axs[0].grid(True)
+
+import pandas as pd
+
+# Define the file path
+file_path = r"TE-PAI-noSampling\data\plotting\lie-N-1000-n-100-c-100-Δ-pi_over_1024-T-1.0-q-4.csv"
+
+# Read the CSV file
+df = pd.read_csv(file_path, header=None)
+
+# Extract the data as a list of floats
+data = df.iloc[1:, 0].astype(float).tolist()
+
+# Print the first few values to check
+
+# Second plot: mean and std of `a`
+axs[1].errorbar(x_vals, a_mean/4, yerr=a_std, fmt='-o', capsize=5, label='Mean ± Std Dev')
+axs[1].scatter(np.linspace(0,1,len(data)), data)
+axs[1].set_xlabel('X values')
+axs[1].set_ylabel('Mean of a-values')
+axs[1].set_title('Mean of a at each index with error bars')
+axs[1].legend()
+axs[1].grid(True)
+
+# Show plots
+plt.tight_layout()
+plt.show()
