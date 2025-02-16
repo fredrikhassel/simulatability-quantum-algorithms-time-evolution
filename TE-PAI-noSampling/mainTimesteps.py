@@ -19,10 +19,10 @@ from SIMULATOR import get_probs
 @dataclass
 class TE_PAI:
 
-    def __init__(self, hamil, numQs, Δ, T, N, n_snap):
+    def __init__(self, hamil, numQs, Δ, T0,T, N, n_snap):
         (self.nq, self.n_snap, self.Δ, self.T, self.N) = (numQs, n_snap, Δ, T, N)
         self.L = len(hamil)
-        steps = np.linspace(0, T, N)
+        steps = np.linspace(T0, T, N)
         angles = [[2 * np.abs(coef) * T / N for coef in hamil.coefs(t)] for t in steps]
         n = int(N / n_snap)
         self.gam_list = [1] + [
