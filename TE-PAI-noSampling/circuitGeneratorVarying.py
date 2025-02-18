@@ -2,10 +2,11 @@ import json
 import os
 import numpy as np
 import re
+import gc
 
 # Import the local TE-PAI classes
 from HAMILTONIAN import Hamiltonian
-from mainTimesteps import TE_PAI
+from main import TE_PAI
 from TROTTER import Trotter
 
 def clearDataFolder(folder_path):
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     Δ = np.pi / (2**10)
     Δ_name = 'pi_over_' + str(2**10)
     T = 0.1
-    dT = 0.0025
+    dT = 0.001
     finalTimes = np.arange(dT,T+dT,dT)
     N = 1000
     n_snapshot = 1
@@ -50,21 +51,18 @@ if __name__ == '__main__':
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=numQs)
     hamil = Hamiltonian.spin_chain_hamil(numQs, freqs)
-
-    # Running 2 trotter-simulations
-    #trotterSimulation(hamil, 10, 10, circuits, Δ_name, 1, numQs)
-    #trotterSimulation(hamil, 1000, 20, circuits, Δ_name, 0.1, numQs)
+    trotterSimulation(hamil, 1000, 10, 1000, Δ_name, T, numQs)
+    
+    quit()
 
     # Prepping output directory
     output_dir = os.path.join(current_dir, "data", "circuits")
     os.makedirs(output_dir, exist_ok=True)
-    # Define the output folder with the new naming scheme
     folder_name = f"N-{N}-n-{n_snapshot}-c-{circuits}-Δ-{Δ_name}-q-{numQs}-dT-{dT}-T-{T}"
     folder_path = os.path.join(output_dir, folder_name)
-    # Create the folder if it doesn't exist
     os.makedirs(folder_path, exist_ok=True)
 
-    for i,TF in enumerate(finalTimes):
+    for i, TF in enumerate(finalTimes):
         T0 = 0
         if i != 0:
             T0 = finalTimes[i-1]
@@ -72,7 +70,7 @@ if __name__ == '__main__':
         print(f"Generating {T0} - {TF}")
 
         # Running TE-PAI
-        te_pai = TE_PAI(hamil, numQs, Δ, T0,TF, N, n_snapshot)
+        te_pai = TE_PAI(hamil, numQs, Δ, dT, N, n_snapshot)
         overhead = te_pai.overhead
         _, sign, sign_list, gates_arr = te_pai.run_te_pai(circuits)
         print("Overhead: ", overhead)
@@ -93,33 +91,41 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Error saving sign list file: {e}")
 
-        # Save gates array
-        gates_data = {}
-        for circuit_idx, circuit in enumerate(gates_arr, start=1):
-            circuit_data = {}
-            for snap_idx, snapshot in enumerate(circuit, start=1):
-                snapshot_data = {}
-                for gate_idx, gate in enumerate(snapshot, start=1):
-                    snapshot_data[str(gate_idx)] = {
-                        "gate_name": gate[0],
-                        "angle": float(gate[1]),
-                        "qubits": list(gate[2])
-                    }
-                circuit_data[str(snap_idx)] = snapshot_data
-            gates_data[str(circuit_idx)] = circuit_data
-
+        # Save gates array incrementally
         try:
             with open(gates_file_path, 'w') as file:
-                json.dump(gates_data, file, indent=4)
+                file.write('{\n')  # Start JSON manually
+                first_circuit = True
+
+                for circuit_idx, circuit in enumerate(gates_arr, start=1):
+                    if not first_circuit:
+                        file.write(',\n')
+                    first_circuit = False
+                    file.write(f'"{circuit_idx}":{{\n')
+
+                    first_snapshot = True
+                    for snap_idx, snapshot in enumerate(circuit, start=1):
+                        if not first_snapshot:
+                            file.write(',\n')
+                        first_snapshot = False
+                        file.write(f'"{snap_idx}":{{')
+
+                        gate_entries = []
+                        for gate_idx, gate in enumerate(snapshot, start=1):
+                            gate_entries.append(f'"{gate_idx}":{{"gate_name":"{gate[0]}","angle":{float(gate[1])},"qubits":{list(gate[2])}}}')
+                        
+                        file.write(",".join(gate_entries))
+                        file.write('}')
+                    
+                    file.write('}')
+
+                file.write('\n}')
             print(f"Gates array successfully saved to {gates_file_path}")
         except Exception as e:
             print(f"Error saving gates array file: {e}")
 
-        del sign_list
-        del gates_arr
-        del sign
-        del gates_data
-        del circuit_data
-        del snapshot_data
+        # Explicitly free memory
+        del sign_list, gates_arr, sign
+        gc.collect()
 
         clearDataFolder('./data')
