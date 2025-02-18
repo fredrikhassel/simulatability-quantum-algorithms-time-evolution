@@ -31,12 +31,12 @@ if __name__ == "__main__":
         os.makedirs(folder_path)
     
     # Parameters for the example
-    numQs = 7  # Number of qubits
-    Δ = np.pi / (2**6)  # Delta parameter
-    T = 2  # Total evolution time
-    N = 50  # Number of Trotter steps
+    numQs = 4  # Number of qubits
+    Δ = np.pi / (2**12)  # Delta parameter
+    T = 0.1  # Total evolution time
+    N = 1000  # Number of Trotter steps
     n_snapshot = 10  # Number of snapshots
-    resamples = 100
+    resamples = 200
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=numQs)
  
