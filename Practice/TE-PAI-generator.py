@@ -32,14 +32,14 @@ if __name__ == "__main__":
     
     # Parameters for the example
     numQs = 4  # Number of qubits
-    Δ = np.pi / (2**12)  # Delta parameter
+    Δ = np.pi / (2**10)  # Delta parameter
     T = 0.1  # Total evolution time
-    N = 1000  # Number of Trotter steps
+    N = 100  # Number of Trotter steps
     n_snapshot = 10  # Number of snapshots
-    resamples = 200
+    resamples = 20
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=numQs)
- 
+
     # Initialize Hamiltonian and Trotter simulation
     # Assuming a spin chain Hamiltonian constructor
     hamil = Hamiltonian.spin_chain_hamil(numQs, freqs)
