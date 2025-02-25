@@ -105,17 +105,18 @@ def extract_data(data_storage):
     return parameters, overheads, sign_lists, gate_arrs
 
 def toArray(gate_dict):
-    gate_arr = []
+    circuits_arr = []
     for timestep_idx, timestep in gate_dict.items():
-        timestep_data = []
         for circuit_idx, circuit in timestep.items():
-            circuit_gates = []
+            gates_arr = []
             for gate_idx, gate in circuit.items():
-                circuit_gates.append((gate["gate_name"], gate["angle"], gate["qubits"]))
-            timestep_data.append(circuit_gates)
-        gate_arr.append(timestep_data)  
+                gates_arr.append((gate["gate_name"], gate["angle"], gate["qubits"]))
+            circuits_arr.append(gates_arr)
 
-    return gate_arr
+    for i,circ in enumerate(circuits_arr):
+        print(f"Circuit {i+1} has {len(circ)} gates in it.")
+
+    return circuits_arr
 
 def formatData(parameters, sign_lists, gate_arrs):
     n_timesteps = len(parameters)
@@ -137,21 +138,19 @@ def formatData(parameters, sign_lists, gate_arrs):
 
     return circuits_gates, circuits_signs
 
-def toQuimbMag(circuit_gates, gate_name_mapping, circuit, q):
+def toQuimbMag(circuit_gates, gate_name_mapping, circuit, q, index):
     """Parse the 1 circuit to a magnetization measurement from quimb."""
 
     # Iterate over snapshots
-    for gate in circuit_gates[0]:
+    for gate in circuit_gates:
         gate_name = gate[0]
         angle = gate[1]
         qubit_indices = gate[2]
-        
-        # Translate the gate name if it's in the mapping
-        quimb_gate_name = gate_name_mapping.get(gate_name, gate_name)
 
-        #print(circuit.psi.to_dense())
-        
-        # Apply the gate to the circuit        
+        # Translate the gate name if it's in the mapping
+        quimb_gate_name = gate_name_mapping[gate_name]
+
+        # Apply the gate to the circuit       
         if len(qubit_indices) == 1:
             circuit.apply_gate(gate_id=quimb_gate_name, qubits=[qubit_indices[0]], params=[angle])
         elif len(qubit_indices) == 2:
@@ -178,34 +177,29 @@ def measure(circuit,q):
 
     return (expect+1) / 2
 
-def getMags(circuits_gates, circuits_signs, q):
+def getMags(circuits_gates, circuits_signs, q, indices):
     # Calculate the magnetization
 
     gate_name_mapping = {
         'XX': 'rxx',
         'YY': 'ryy',
         'ZZ': 'rzz',
+        'Z': 'rz'
     }
     
     magnetizations = []
-    for i, (gates, signs) in enumerate(zip(circuits_gates, circuits_signs)):
+    for i, (gates, signs, indices) in enumerate(zip(circuits_gates, circuits_signs, indices)):
         print(f"Calculating magnetizations of run {i}")
+        print(f"This run will use these circuits: {indices}")
 
         current_circuit = qtn.Circuit(q)
-        #for i in range(q):
-            #current_circuit.apply_gate("H", i)
+        magnetization = [1]
 
-        magnetization = []
-        #magnetization.append(measure(current_circuit, q))
-
-        for j, (gate, sign) in enumerate(zip(gates, signs)):
-            #print(f"Circuit: {j}")
+        for j, (gate, sign, index) in enumerate(zip(gates, signs, indices)):
             if type(sign) != float:
                 sign = sign[0]
-            magnetization.append(toQuimbMag(gates, gate_name_mapping, current_circuit, q) * sign)
+            magnetization.append(toQuimbMag(gate, gate_name_mapping, current_circuit, q, index) * sign)
         magnetizations.append(magnetization)
-        print(f"{len(magnetization)}: ", magnetization)
-        print(f"returning shape: {np.shape(magnetizations)}")
 
         del current_circuit
 
@@ -219,9 +213,7 @@ def parse(folder_path, dT):
 
     # Preparing timestep data
     N, n_snapshot, circuits_count, delta_name, _, q = parameters[0] # should all be the same
-    print(np.shape(parameters), np.shape(sign_lists), len(gate_arrs))
     
-    print(parameters)
     circuits_gates, circuits_signs  = formatData(parameters, sign_lists, gate_arrs)
 
     magnetizations = getMags(circuits_gates, circuits_signs, q)
@@ -237,7 +229,7 @@ def saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, std
     output_dir = os.path.join('TE-PAI-noSampling', 'data', 'plotting')
     os.makedirs(output_dir, exist_ok=True)  # Ensure the directory exists
     # Save plotting data to a CSV file
-    filename = f"N-{N}-n-{n_snapshot}-c-{circuits_count}-Δ-{delta_name}-T-{np.max(Ts)}-q-{q}-dT-{dT}.csv"
+    filename = f"N-{N}-n-{n_snapshot}-p-{circuits_count}-Δ-{delta_name}-T-{np.max(Ts)}-q-{q}-dT-{dT}.csv"
     output_path = os.path.join(output_dir, filename)
 
     # Create DataFrame for plotting data
@@ -264,20 +256,28 @@ def saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, std
 
 def split_arrays_randomly(arr1, arr2, num_parts):
     if len(arr1) != len(arr2):
+        print(f"circuit_pool: {len(arr1)}, sign_pool: {len(arr2)}")
         raise ValueError("Both arrays must have the same length")
     if len(arr1) % num_parts != 0:
         raise ValueError("Array length must be evenly divisible by the number of parts")
     
+    print("Splitting circuits and gates of length: ", len(arr1))
+
     indices = list(range(len(arr1)))
     random.shuffle(indices)  # Shuffle the indices randomly
+
+    print("Arrays split into the following indices: ", indices)
     
     arr1_shuffled = [arr1[i] for i in indices]
     arr2_shuffled = [arr2[i] for i in indices]
     
     part_size = len(arr1) // num_parts
     
-    return ([arr1_shuffled[i * part_size:(i + 1) * part_size] for i in range(num_parts)],
-            [arr2_shuffled[i * part_size:(i + 1) * part_size] for i in range(num_parts)])
+    arr1_parts = [arr1_shuffled[i * part_size:(i + 1) * part_size] for i in range(num_parts)]
+    arr2_parts = [arr2_shuffled[i * part_size:(i + 1) * part_size] for i in range(num_parts)]
+    index_parts = [indices[i * part_size:(i + 1) * part_size] for i in range(num_parts)]
+    
+    return arr1_parts, arr2_parts, index_parts
 
 def parsePool(folder_path, dT):
     # Extracting data
@@ -285,11 +285,11 @@ def parsePool(folder_path, dT):
     parameters, overheads, sign_lists, gate_arrs = extract_data(data_storage)
 
     N, n_snapshot, circuits_count, delta_name, T, q = parameters[0]
-    circuit_pool = gate_arrs[0][0]
+    circuit_pool = gate_arrs[0]
     sign_pool = sign_lists[0].reshape(-1)
     n_timesteps = round(T/dT)
     n_circuits = int(len(sign_pool) / n_timesteps)
-    Ts = np.arange(dT, T+dT, dT)
+    Ts = np.arange(0, T+dT, dT)
 
     print("Lets just walk through this:")
     print(f"We started out with a total of {len(sign_pool)} circuits")
@@ -297,8 +297,10 @@ def parsePool(folder_path, dT):
     print(f"So our circuit runs will be {n_timesteps} long so as to take total time {T}")
     print(f"that means that each circuit run will involve {len(sign_pool)} / {n_timesteps} = {n_circuits} paralell runs")
     quit
-    circuits, signs = split_arrays_randomly(circuit_pool, sign_pool, n_circuits)
-    magnetizations = getMags(circuits, signs, q)
+    circuits, signs, indices = split_arrays_randomly(circuit_pool, sign_pool, n_circuits)
+    print(indices)
+    print("So now signs have shapes: ",np.shape(signs))
+    magnetizations = getMags(circuits, signs, q, indices)
 
     averages = np.mean(magnetizations, axis=0)
     stds = np.std(magnetizations, axis=0)
@@ -308,5 +310,4 @@ def parsePool(folder_path, dT):
 
     saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, stds)
 
-#parse('TE-PAI-noSampling/data/circuits/N-1000-n-1-c-10-Δ-pi_over_1024-q-4-dT-0.005-T-0.1/', 0.005)
-parsePool('TE-PAI-noSampling/data/circuits/N-1000-n-1-p-200-Δ-pi_over_4096-q-4-dT-0.01-T-0.1/', 0.01)
+parsePool('TE-PAI-noSampling/data/circuits/N-1000-n-1-p-2000-Δ-pi_over_1024-q-4-dT-0.005-T-0.2/', 0.005)

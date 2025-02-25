@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-from quimbParserCopyCopy import parse
+from circuitSimulatorSuccessive import parse
 from collections import defaultdict
 
 # Define the output directory
@@ -10,8 +10,8 @@ output_dir = os.path.join('TE-PAI-noSampling', 'data', 'plotting')
 os.makedirs(output_dir, exist_ok=True)  # Ensure the directory exists
 
 # Parse the data
-T = 1
-circuit_dict = parse('TE-PAI-noSampling/data/circuits/N-1000-n-1-c-100-Δ-pi_over_1024-q-4/', T)
+T = 0.1
+circuit_dict = parse('TE-PAI-noSampling/data/circuits/N-1000-n-50-c-50-Δ-pi_over_1024-q-4-dT-0.01-T-0.1/', T)
 
 # Iterate over the dictionary to extract data
 magnetizations = []

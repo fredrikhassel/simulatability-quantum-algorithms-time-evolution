@@ -8,7 +8,7 @@ base_dir = "TE-PAI-noSampling/data/plotting"
 
 # Patterns to match folder and file names
 te_pai_pattern = re.compile(r'N-(\d+)-n-(\d+)-r-(\d+)-Δ-([\d\.]+)-T-((?:\d+\.\d+)|(?:\d+))-q-(\d+)')
-quimb_pattern = re.compile(r'N-(\d+)-n-(\d+)-c-(\d+)-Δ-(\w+)-T-([\d\.]+)-q-(\d+)-dT-([\d\.]+)\.csv')
+quimb_pattern = re.compile(r'N-(\d+)-n-(\d+)-[cp]-(\d+)-Δ-(\w+)-T-([\d\.]+)-q-(\d+)-dT-([\d\.]+)\.csv')
 lie_pattern = re.compile(r'lie-N-(\d+)-n-(\d+)-c-(\d+)-Δ-([\w\.]+)-T-((?:\d+\.\d+)|(?:\d+))-q-(\d+)(noisy)?\.csv')
 
 # Lists to hold all the data for plotting
