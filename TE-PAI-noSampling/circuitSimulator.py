@@ -16,8 +16,8 @@ def JSONtoDict(folder_name):
     files = os.listdir(folder_name)
     
     # Regular expressions for matching filenames
-    gates_pattern = re.compile(r"gates_arr-N-(\d+)-n-(\d+)-c-(\d+)-Δ-([\w_]+)-T-([\d.]+)-q-(\d+)\.json")
-    sign_pattern = re.compile(r"sign_list-N-(\d+)-n-(\d+)-c-(\d+)-Δ-([\w_]+)-T-([\d.]+)-q-(\d+)\.json")
+    gates_pattern = re.compile(r"gates_arr-N-(\d+)-n-(\d+)-[cp]-(\d+)-Δ-([\w_]+)-T-([\d.]+)-q-(\d+)\.json")
+    sign_pattern = re.compile(r"sign_list-N-(\d+)-n-(\d+)-[cp]-(\d+)-Δ-([\w_]+)-T-([\d.]+)-q-(\d+)\.json")
     
     gates_dict = {}
     sign_dict = {}
@@ -85,7 +85,7 @@ def DictToArr(dict):
             gate_tuples_arr.append(gate_tuples)
         arr[i] = (gate_tuples_arr, sign_arr)
 
-    return arr, Ts,  params
+    return arr, Ts,  params, pool
 
 def applyGates(circuit, gates):
     gate_name_mapping = {
@@ -135,18 +135,58 @@ def getSucessive(data_arrs,q):
 
     return averages,stds
 
+def getPool(data_arrs,params,dT):
+    N,n,c,Δ,T,q = params
+    T = float(T)
+    q = int(q)
+    circuit_pool, sign_pool = data_arrs[0]
+    n_timesteps = round(T/dT)
+    results = [[] for _ in range(n_timesteps)]
+    n_circuits = int(len(sign_pool) / n_timesteps)
+    Ts = np.arange(0, T+dT, dT)
+    indices = generate_random_indices(len(circuit_pool), n_circuits, n_timesteps)
+
+    for run_indices in indices:
+        circuits = [circuit_pool[idx] for idx in run_indices]
+        signs = [sign_pool[idx] for idx in run_indices]
+        quimb = qtn.Circuit(q)
+        for i in range(q):
+            quimb.apply_gate('H', qubits=[i])
+        for i,(circuit,sign) in enumerate(zip(circuits,signs)):
+            applyGates(quimb,circuit)
+            results[i].append(measure(quimb,q))
+    averages = np.mean(results, axis=1)
+    stds = np.std(results, axis=1)
+    return averages,stds
+
+def generate_random_indices(pool_size, output_length, entry_length):
+    rng = np.random.default_rng(0)  # Create RNG instance with optional seed
+    return [list(rng.integers(0, pool_size, size=entry_length)) for _ in range(output_length)]
+
+def extract_dT_value(string):
+    match = re.search(r'dT-([\d\.]+)', string)
+    return float(match.group(1)) if match else None
+
 def parse(folder):
     data_dict = JSONtoDict(folder)
-    data_arrs,Ts,params = DictToArr(data_dict)
+    data_arrs,Ts,params,pool = DictToArr(data_dict)
     N,n,c,Δ,T,q = params
-    averages,stds = getSucessive(data_arrs,int(q))
+    T = round(float(T), 8)
+    char = "c"
+    if not pool:
+        averages,stds = getSucessive(data_arrs,int(q))
+    if pool:
+        dT = extract_dT_value(folder)
+        char = "p"
+        averages, stds = getPool(data_arrs, params,dT)
+        Ts = np.linspace(dT,T,len(averages))
     #plot_data(Ts, averages, stds)
-    saveData(N,n,c,Δ,Ts,q,0.01,averages,stds)
+    saveData(N,n,c,Δ,Ts,q,0.01,averages,stds,char)
     lie = trotter(100,10,float(T),int(q),compare=False,save=True)
     plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
 def plot_data_from_folder(folderpath):
-    quimb_pattern = re.compile(r'N-(\d+)-n-(\d+)-[cp]-(\d+)-Δ-(\w+)-T-([\d\.]+)-q-(\d+)-dT-([\d\.]+)\.csv')
+    quimb_pattern = re.compile(r'N-(\d+)-n-(\d+)-([cp])-(\d+)-Δ-(\w+)-T-([\d\.]+)-q-(\d+)-dT-([\d\.]+)\.csv')
     lie_pattern = re.compile(r'lie-N-(\d+)-T-((?:\d+\.\d+)|(?:\d+))-q-(\d+)\.csv')
     
     quimb_data = []
@@ -161,7 +201,15 @@ def plot_data_from_folder(folderpath):
         if quimb_match:
             df = pd.read_csv(filepath)
             if df.shape[1] >= 3:
-                label = f"N-{quimb_match.group(1)} T-{quimb_match.group(5)} q-{quimb_match.group(6)} dT-{quimb_match.group(7)}"
+
+                char = quimb_match.group(3)
+                lab = "ERROR"
+                if char == "c":
+                    lab = "paralell"
+                if char == "p":
+                    lab = "pool"
+
+                label = f"N-{quimb_match.group(1)} {lab}-{quimb_match.group(4)} T-{quimb_match.group(6)} q-{quimb_match.group(7)} dT-{quimb_match.group(8)}"
                 quimb_data.append((df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2], label))
         
         elif lie_match:
@@ -173,7 +221,7 @@ def plot_data_from_folder(folderpath):
     plt.figure(figsize=(10, 6))
     
     for x, y, error, label in quimb_data:
-        plt.errorbar(x, y, yerr=error, fmt='o', label=f'Quimb Data ({label})', alpha=0.6)
+        plt.errorbar(x, y, yerr=error, fmt='o', label=f'Random ({label})', alpha=0.6)
     
     for x, y, label in lie_data:
         plt.plot(x, y, label=f'Lie Data ({label})')
@@ -181,7 +229,7 @@ def plot_data_from_folder(folderpath):
     plt.xlabel('x')
     plt.ylabel('y')
     plt.legend()
-    plt.title('Quimb and Lie Data Comparison')
+    plt.title('Random circuits and Lie Data Comparison')
     plt.show()
 
 def plot_data(Ts, averages, stds):
@@ -194,12 +242,12 @@ def plot_data(Ts, averages, stds):
     plt.grid(True)
     plt.show()
 
-def saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, stds):
+def saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, stds, char):
     # Define the output directory
     output_dir = os.path.join('TE-PAI-noSampling', 'data', 'plotting')
     os.makedirs(output_dir, exist_ok=True)  # Ensure the directory exists
     # Save plotting data to a CSV file
-    filename = f"{N}-n-{n_snapshot}-p-{circuits_count}-Δ-{delta_name}-T-{np.max(Ts)}-q-{q}-dT-{dT}.csv"
+    filename = f"N-{N}-n-{n_snapshot}-{char}-{circuits_count}-Δ-{delta_name}-T-{np.max(Ts)}-q-{q}-dT-{dT}.csv"
     output_path = os.path.join(output_dir, filename)
 
     # Create DataFrame for plotting data
@@ -239,7 +287,6 @@ def checkEqual(gates, gatesSim):
 
 def trotter(N, n_snapshot, T, q, compare, save=False):
     times = np.linspace(0, float(T), int(N))
-    print(n_snapshot)
     Ts = np.linspace(0, float(T), n_snapshot+1)
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
@@ -290,5 +337,5 @@ def trotter(N, n_snapshot, T, q, compare, save=False):
         plt.legend()
         plt.show()
 
-parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-c-10-Δ-pi_over_1024-q-4-dT-0.01-T-0.1")
+parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-500-Δ-pi_over_1024-q-4-dT-0.01-T-0.1")
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting")

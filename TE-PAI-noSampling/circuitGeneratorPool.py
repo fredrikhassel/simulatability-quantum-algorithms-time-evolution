@@ -45,15 +45,13 @@ if __name__ == '__main__':
     finalTimes = np.arange(dT,T+dT,dT)
     N = 1000
     n_snapshot = 1
-    circuit_pool_size = 100
+    circuit_pool_size = 500
 
     # Setting up TE-PAI
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=numQs)
     hamil = Hamiltonian.spin_chain_hamil(numQs, freqs)
-    
-    #trotterSimulation(hamil, 1000, 10, circuit_pool_size, Δ_name, T, numQs)
-    
+        
     # Prepping output directory
     output_dir = os.path.join(current_dir, "data", "circuits")
     os.makedirs(output_dir, exist_ok=True)
