@@ -161,14 +161,62 @@ def toQuimbMag(circuit_gates, gate_name_mapping, circuit, q, index):
     #state_vector = circuit.psi.to_dense()
     #mag =  circuit.local_expectation(qu.pauli('Z'), (0))
     mag = measure(circuit, q)
-    del circuit
-    return mag
+    return mag, circuit
 
 def measure(circuit,q):
+    magnetization_operator = unitaries.X([0]).as_matrix(q) #sum(unitaries.Z([i]).as_matrix(q) for i in range(q))#sum(unitaries.Z([i]).as_matrix(q) for i in range(q)) #unitaries.X([0]).as_matrix(q) #sum(unitaries.Z([i]).as_matrix(q) for i in range(q))
     state_vector = circuit.psi.to_dense()
-    magnetization_operator = qu.ikron(qu.pauli('x'), [2]*q, 0)
-    expect = qu.expec(magnetization_operator, state_vector)
+    expect = qu.expec(state_vector, magnetization_operator).real
     return (expect+1) / 2
+
+def average_circuit(circuits, q):
+    # Convert each quimb circuit to its dense state
+    dense_states = [circuit.psi.to_dense() for circuit in circuits]
+
+    def format_dense_states(dense_states):
+        # Convert dense_states to a NumPy array for better manipulation
+        dense_states = np.array(dense_states)
+        
+        # Format each entry to show only the first two digits
+        formatted_states = np.array2string(dense_states, formatter={'all': lambda x: f"{x:.4f}"})
+
+        print(f"This averages {len(dense_states)} circuits with leading digits: {formatted_states}")
+    #format_dense_states(dense_states)
+    
+    # Compute the average state vector
+    avg_state = np.mean(dense_states, axis=0)
+    dense_vector =  avg_state / np.linalg.norm(avg_state)  # Normalize
+
+    # Create the initial circuit
+    circuit = qtn.Circuit(q)
+
+    # Step 1: Create the unitary matrix
+    # A unitary matrix U such that U |0⟩ = dense_vector
+    from scipy.linalg import qr
+
+    # Create a random complex matrix and perform QR decomposition
+    random_matrix = np.random.randn(len(dense_vector), len(dense_vector)) + 1j * np.random.randn(len(dense_vector), len(dense_vector))
+    qu, _ = qr(random_matrix)  # QR decomposition gives us a unitary matrix
+
+    # Replace the first column of the unitary matrix with the dense vector
+    dense_vector = [d[0] for d in dense_vector]
+    qu[:, 0] = dense_vector
+
+    # Step 2: Add gates to the circuit
+    # Decompose the unitary matrix into gates and add to the circuit
+    circuit.apply_gate(qu, *range(q))
+
+    # Step 3: Verify the circuit
+    # Simulate the circuit and compare the state
+    simulated_state = circuit.psi.to_dense()
+
+    # Ensure both are flattened into 1D arrays for proper comparison
+    simulated_state = np.array(simulated_state).flatten()
+    dense_vector = np.array(dense_vector).flatten()
+
+    assert np.allclose(simulated_state, dense_vector, atol=1e-6, rtol=1e-6), "The circuit does not reproduce the dense vector!"
+
+    return circuit
 
 def getMags(circuits_gates, circuits_signs, q, indices):
     # Calculate the magnetization
@@ -180,23 +228,32 @@ def getMags(circuits_gates, circuits_signs, q, indices):
         'Z': 'rz'
     }
     
-    magnetizations = []
-    for i, (gates, signs, indices) in enumerate(zip(circuits_gates, circuits_signs, indices)):
-        print(f"Calculating magnetizations of run {i}")
-        print(f"This run will use these circuits: {indices}")
+    n_timesteps = len(circuits_signs[0])
+    magnetizations = [[1] * n_timesteps]
 
-        current_circuit = qtn.Circuit(q)
-        for i in range(q):
-            current_circuit.apply_gate('H', qubits=[i])
-        magnetization = [1]
+    # For each timestep
+    quimb = None
+    quimbs = []
+    for i in range(n_timesteps):
+        timestep_indices = [arr[i] for arr in indices]
+        circuits = [arr[i] for arr in circuits_gates]
+        signs = [sign[i] for sign in circuits_signs]
+        print(f"Timestep {i+1} uses circuits: {timestep_indices} ")
 
-        for j, (gate, sign, index) in enumerate(zip(gates, signs, indices)):
-            if type(sign) != float:
-                sign = sign[0]
-            magnetization.append(toQuimbMag(gate, gate_name_mapping, current_circuit, q, index) * sign)
-        magnetizations.append(magnetization)
-
-        del current_circuit
+        timestep_magnetizations = []
+        used = []
+        if (i==0):
+            quimb = qtn.Circuit(q)
+        if (i!=0):
+            quimb = average_circuit(quimbs,q)
+        for circuit, sign, index in zip(circuits, signs, timestep_indices):
+            quimb_copy = quimb.copy()
+            mag, circ= toQuimbMag(circuit, gate_name_mapping, quimb_copy, q, index)
+            timestep_magnetizations.append(mag*sign)
+            used.append(circ)
+            del quimb_copy
+        quimbs = used
+        magnetizations.append(timestep_magnetizations)
 
     return magnetizations
 
@@ -212,8 +269,7 @@ def parse(folder_path, dT):
     circuits_gates, circuits_signs  = formatData(parameters, sign_lists, gate_arrs)
 
     magnetizations = getMags(circuits_gates, circuits_signs, q)
-    averages = np.mean(magnetizations, axis=0)
-    stds = np.std(magnetizations, axis=0)
+
 
     saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, stds)
 
@@ -228,6 +284,10 @@ def saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, std
     output_path = os.path.join(output_dir, filename)
 
     # Create DataFrame for plotting data
+    print(np.shape(Ts))
+    print(np.shape(averages))
+    print(np.shape(stds))
+
     data_dict = {
         'x': Ts,
         'y': averages,
@@ -295,14 +355,19 @@ def parsePool(folder_path, dT):
     circuits, signs, indices = split_arrays_randomly(circuit_pool, sign_pool, n_circuits)
     print(indices)
     print("So now signs have shapes: ",np.shape(signs))
-    magnetizations = getMags(circuits, signs, q, indices)
 
-    averages = np.mean(magnetizations, axis=0)
-    stds = np.std(magnetizations, axis=0)
+
+
+    magnetizations = getMags(circuits, signs, q, indices)
+    averages = []
+    stds = []
+    for timestep in magnetizations:
+        averages.append(np.mean(timestep))
+        stds.append(np.std(timestep))
 
     print(averages)
     print(stds)
 
     saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, stds)
 
-parsePool('TE-PAI-noSampling/data/circuits/N-1000-n-1-p-1000-Δ-pi_over_1024-q-4-dT-0.01-T-0.1/', 0.01)
+parsePool('TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1/', 0.01)

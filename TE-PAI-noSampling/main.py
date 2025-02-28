@@ -89,7 +89,7 @@ class TE_PAI:
         sign_list.append(sign)
         data = get_probs(self.nq, gates_arr, self.n_snap, err)
         result = [(sign_list[i] * self.gam_list[i], data[i]) for i in range(self.n_snap + 1)]  # type: ignore
-        
+
         return np.array(result), sign, sign_list, gates_arr
 
     def gen_rand_cir(self, index, err=None):

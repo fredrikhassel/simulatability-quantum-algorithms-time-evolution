@@ -40,12 +40,12 @@ if __name__ == '__main__':
     numQs = 4
     Δ = np.pi / (2**10)
     Δ_name = 'pi_over_' + str(2**10)
-    T = 0.2
-    dT = 0.005
+    T = 0.1
+    dT = 0.01
     finalTimes = np.arange(dT,T+dT,dT)
     N = 1000
     n_snapshot = 1
-    circuit_pool_size = 2000
+    circuit_pool_size = 100
 
     # Setting up TE-PAI
     rng = np.random.default_rng(0)
