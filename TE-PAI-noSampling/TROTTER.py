@@ -40,7 +40,7 @@ class Trotter:
                 ]
             res = SIMULATOR.get_probs(self.numQs, gates_arr, self.n_snapshot, err=err)
             pd.DataFrame(res).to_csv(filename, index=False)
-            return res
+            return res, gates_arr
         else:
             data = pd.read_csv(filename).values
-            return data[:, 0]
+            return data[:, 0], gates_arr

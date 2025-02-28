@@ -260,4 +260,4 @@ def plot_magnetization(parsed_results, dT):
     plt.grid()
     plt.show()
 
-plot_magnetization(parse('TE-PAI-noSampling/data/circuits/N-2000-n-1-c-40-Δ-pi_over_1024-q-4-dT-0.02-T-0.2/'), 0.02)
+plot_magnetization(parse('TE-PAI-noSampling/data/circuits/N-1000-n-1-c-50-Δ-pi_over_1024-q-4-dT-0.01-T-0.1/'), 0.01)

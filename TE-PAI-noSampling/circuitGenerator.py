@@ -40,12 +40,12 @@ if __name__ == '__main__':
     numQs = 4 # 4
     Δ = np.pi / (2**10)
     Δ_name = 'pi_over_' + str(2**10)
-    T = 0.2
-    dT = 0.02
+    T = 0.1
+    dT = 0.01
     Ts = np.arange(dT,T+dT,dT)
-    N = 2000
+    N = 1000
     n_snapshot = 1
-    circuits = 40
+    circuits = 1
 
     # Setting up TE-PAI
     rng = np.random.default_rng(0)
@@ -53,8 +53,8 @@ if __name__ == '__main__':
     hamil = Hamiltonian.spin_chain_hamil(numQs, freqs)
 
     # Running 2 trotter-simulations
-    trotterSimulation(hamil, N, 10, circuits, Δ_name, T, numQs)
-    #trotterSimulation(hamil, 1000, 10, circuits, Δ_name, np.max(Ts), numQs)
+    #trotterSimulation(hamil, N, 10, circuits, Δ_name, T, numQs)
+    trotterSimulation(hamil, 10, 10, circuits, Δ_name, T, numQs)
 
     # Prepping output directory
     output_dir = os.path.join(current_dir, "data", "circuits")

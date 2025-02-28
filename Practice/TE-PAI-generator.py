@@ -33,10 +33,10 @@ if __name__ == "__main__":
     # Parameters for the example
     numQs = 4  # Number of qubits
     Δ = np.pi / (2**10)  # Delta parameter
-    T = 0.1  # Total evolution time
-    N = 100  # Number of Trotter steps
-    n_snapshot = 10  # Number of snapshots
-    resamples = 20
+    T = 0.2  # Total evolution time
+    N = 1000  # Number of Trotter steps
+    n_snapshot = 20  # Number of snapshots
+    resamples = 100
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=numQs)
 

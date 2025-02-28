@@ -19,7 +19,7 @@ class Hamiltonian:
     @staticmethod
     def spin_chain_hamil(n, freqs):
         def J(t):
-            return np.cos(20 * t * np.pi)
+            return 0.1#np.cos(20 * t * np.pi)
 
         terms = [
             (gate, [k, (k + 1) % n], J)

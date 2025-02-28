@@ -118,9 +118,9 @@ for trotter in trotter_data:
     if trotter is not None and len(trotter[0]) > 0:
         plt.plot(trotter[1], trotter[0], '--x', label=f"Lie-Trotter: {trotter[2]}")
 
-plt.title("Avg. Magnetization of Random Circuits")
+plt.title("X expectation value over time")
 plt.xlabel("Time")
-plt.ylabel("Magnetization")
+plt.ylabel("(X+1)/2")
 plt.legend()
 plt.grid(True)
 
