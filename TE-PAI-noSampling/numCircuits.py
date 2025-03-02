@@ -11,8 +11,8 @@ from TROTTER import Trotter
 
 q = 4
 Δ = np.pi / (2**10)
-T = 0.2
-dT = 0.005
+T = 0.1
+dT = 0.01
 N = 1000
 Ts = np.arange(0,T,dT)
 # Setting up Hamiltonian
@@ -30,7 +30,7 @@ n_steps = round(T/dT)
 n_gates = n_steps*v_inf[0]
 print(f"For {n_steps} timesteps the pool approach will therefore be expected to use {round(n_gates)} gates per run.")
 
-dT = 0.02
+dT = 0.01
 Ts = np.arange(0,T+dT,dT)
 v_inf[0] = TE_PAI(hamil, q, Δ, dT, N, 1).expected_num_gates
 for T in Ts[2:]:
