@@ -2,15 +2,14 @@ import csv
 import os
 import json
 import re
-from collections import defaultdict
 from matplotlib import pyplot as plt
 import quimb.tensor as qtn
 import numpy as np
-from pyquest import unitaries
 import quimb as qu
 import pandas as pd
 from HAMILTONIAN import Hamiltonian
 from TROTTER import Trotter
+import h5py
 
 def JSONtoDict(folder_name):
     files = os.listdir(folder_name)
@@ -55,7 +54,43 @@ def JSONtoDict(folder_name):
     
     return paired_data
 
-def DictToArr(dict):
+def HDF5toDict(folder_name):
+    sign_file_path = os.path.join(folder_name, "sign_list.json")
+    gates_file_path = os.path.join(folder_name, "gates.h5")
+
+    extracted_data = {}
+
+    with open(sign_file_path, 'r') as f:
+        metadata = json.load(f)
+
+    # Extract stored parameters
+    N, n, c, Δ, T, q = metadata["N"], metadata["n"], metadata["c"], metadata["Δ"], metadata["T"], metadata["q"]
+    Δ =round(np.log2((Δ**-1)*np.pi))
+    Δ = 'pi_over_'+str(2**Δ)
+
+    sign_dict = metadata["signs"]
+
+    # Load gates from HDF5
+    with h5py.File(gates_file_path, 'r') as hdf_file:
+        circuits_group = hdf_file["circuits"]
+        gates_data = {
+            int(circuit_idx): {
+                int(snap_idx): json.loads(circuit_group[snap_idx][()].decode('utf-8'))
+                for snap_idx in circuit_group
+            }
+            for circuit_idx, circuit_group in circuits_group.items()
+        }
+
+    # Store using parameters as key
+    extracted_data[(N, n, c, Δ, T, q)] = {
+        "signs": sign_dict,
+        "gates": gates_data
+    }
+
+    return extracted_data
+
+def DictToArr(dict, isJSON):
+
     pool = (len(dict) == 1)
     arr = [(None,None) for _ in dict]
     Ts = []
@@ -74,13 +109,22 @@ def DictToArr(dict):
         # Per circuit
         for j,(gates_content, sign_content) in enumerate(zip(value["gates"].items(), value["signs"].items())):
             sign = sign_content[1]
-            gates = gates_content[1]["1"] # value, 1st snapshot
             gate_tuples = []
-            for _,gate in gates.items():
-                gate_name = gate["gate_name"]
-                angle = gate["angle"]
-                qubits = gate["qubits"]
-                gate_tuples.append((gate_name, angle, qubits))
+            if(isJSON):
+                gates = gates_content[1]["1"] # value, 1st snapshot
+                for _,gate in gates.items():
+                    gate_name = gate["gate_name"]
+                    angle = gate["angle"]
+                    qubits = gate["qubits"]
+                    gate_tuples.append((gate_name, angle, qubits))
+            else:
+                gates = gates_content[1]
+                for gate in gates[1]:
+                    gate_name = gate["gate_name"]
+                    angle = gate["angle"]
+                    qubits = gate["qubits"]
+                    gate_tuples.append((gate_name, angle, qubits))
+            
             sign_arr.append(sign)
             gate_tuples_arr.append(gate_tuples)
         arr[i] = (gate_tuples_arr, sign_arr)
@@ -135,7 +179,7 @@ def getSucessive(data_arrs,q):
 
     return averages,stds
 
-def getPool(data_arrs,params,dT):
+def getPool(data_arrs,params,dT, draw):
     N,n,c,Δ,T,q = params
     T = float(T)
     q = int(q)
@@ -157,7 +201,11 @@ def getPool(data_arrs,params,dT):
             results[i].append(measure(quimb,q))
     averages = np.mean(results, axis=1)
     stds = np.std(results, axis=1)
-    return averages,stds
+
+    if draw:
+        return averages,stds, quimb
+    else:
+        return averages,stds, None
 
 def generate_random_indices(pool_size, output_length, entry_length):
     rng = np.random.default_rng(0)  # Create RNG instance with optional seed
@@ -166,24 +214,6 @@ def generate_random_indices(pool_size, output_length, entry_length):
 def extract_dT_value(string):
     match = re.search(r'dT-([\d\.]+)', string)
     return float(match.group(1)) if match else None
-
-def parse(folder):
-    data_dict = JSONtoDict(folder)
-    data_arrs,Ts,params,pool = DictToArr(data_dict)
-    N,n,c,Δ,T,q = params
-    T = round(float(T), 8)
-    char = "c"
-    if not pool:
-        averages,stds = getSucessive(data_arrs,int(q))
-    if pool:
-        dT = extract_dT_value(folder)
-        char = "p"
-        averages, stds = getPool(data_arrs, params,dT)
-        Ts = np.linspace(dT,T,len(averages))
-    #plot_data(Ts, averages, stds)
-    saveData(N,n,c,Δ,Ts,q,0.01,averages,stds,char)
-    lie = trotter(100,10,float(T),int(q),compare=False,save=True)
-    plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
 def plot_data_from_folder(folderpath):
     quimb_pattern = re.compile(r'N-(\d+)-n-(\d+)-([cp])-(\d+)-Δ-(\w+)-T-([\d\.]+)-q-(\d+)-dT-([\d\.]+)\.csv')
@@ -224,7 +254,7 @@ def plot_data_from_folder(folderpath):
         plt.errorbar(x, y, yerr=error, fmt='o', label=f'Random ({label})', alpha=0.6)
     
     for x, y, label in lie_data:
-        plt.plot(x, y, label=f'Lie Data ({label})')
+        plt.plot(x, y, color="tab:red", label=f'Lie Data ({label})')
     
     plt.xlabel('x')
     plt.ylabel('y')
@@ -285,7 +315,7 @@ def checkEqual(gates, gatesSim):
     print("These arrays have the same structure and gates.")
     return True
 
-def trotter(N, n_snapshot, T, q, compare, save=False):
+def trotter(N, n_snapshot, T, q, compare, save=False, draw=False):
     times = np.linspace(0, float(T), int(N))
     Ts = np.linspace(0, float(T), n_snapshot+1)
     rng = np.random.default_rng(0)
@@ -311,7 +341,12 @@ def trotter(N, n_snapshot, T, q, compare, save=False):
     for i, gs in enumerate(gates):
         applyGates(circuit, gs)
         res.append(measure(circuit, q))
-    
+        if draw and len(res) == 2:
+            circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'])
+            qiskit = quimb_to_qiskit(circuit)
+            qiskit.draw("mpl", scale=0.4)
+            plt.show()
+
     if save:
         save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
         os.makedirs(save_path, exist_ok=True)
@@ -337,5 +372,129 @@ def trotter(N, n_snapshot, T, q, compare, save=False):
         plt.legend()
         plt.show()
 
-parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-500-Δ-pi_over_1024-q-4-dT-0.01-T-0.1")
+def quimb_to_qiskit(quimb_circ):
+    """
+    Convert a quimb circuit (an instance of qtn.Circuit) into a Qiskit QuantumCircuit.
+    
+    This function extracts the gate information from the quimb circuit and, 
+    using a simple mapping, adds equivalent instructions to a new Qiskit circuit.
+    
+    Parameters
+    ----------
+    quimb_circ : qtn.Circuit
+        A quimb circuit instance. It is assumed to have:
+          • an attribute `N` for the number of qubits,
+          • a property `gates` which is a sequence of Gate objects.
+    
+    Returns
+    -------
+    QuantumCircuit
+        A Qiskit QuantumCircuit with the gates added in the same order.
+    """
+    # Import Qiskit and some gate classes we need
+    from qiskit import QuantumCircuit
+    from qiskit.circuit.library import (
+        HGate, XGate, YGate, ZGate,
+        RXGate, RYGate, RZGate, RXXGate, RYYGate, RZZGate, U3Gate,
+        SwapGate, iSwapGate
+    )
+
+    # Create a Qiskit circuit with the same number of qubits
+    qc = QuantumCircuit(quimb_circ.N)
+
+    print(f"Number of gates: {len(quimb_circ.gates)}")
+    
+    # Loop over each gate in the quimb circuit (assumed to be in sequential order)
+    for gate in quimb_circ.gates:
+        # Normalize the gate label to uppercase for consistency.
+        label = gate.label.upper()
+        
+        # Check if this gate has any control qubits.
+        if gate.controls:
+            # For controlled gates, we need to create a controlled version of a base gate.
+            # We set up a mapping from the base gate label to a Qiskit gate class.
+            base_gate_classes = {
+                'H': HGate,
+                'X': XGate,
+                'Y': YGate,
+                'Z': ZGate,
+                'RX': RXGate,
+                'RY': RYGate,
+                'RZ': RZGate,
+                'RXX': RXXGate,
+                'RYY': RYYGate,
+                'RZZ': RZZGate,
+                'U3': U3Gate,
+                'SWAP': SwapGate,
+                'ISWAP': iSwapGate,
+            }
+            if label in base_gate_classes:
+                params = gate.params if gate.params else []
+                # Instantiate the base gate (pass parameters if any)
+                base_gate = base_gate_classes[label](*params) if params else base_gate_classes[label]()
+                # Create the controlled version. The number of controls is len(gate.controls)
+                controlled_gate = base_gate.control(len(gate.controls))
+                # In Qiskit the qubits for a controlled gate are provided as a list
+                # with the control qubits first then the target(s)
+                qubits = list(gate.controls) + list(gate.qubits)
+                qc.append(controlled_gate, qubits)
+            else:
+                print("Warning: Unknown controlled gate:", gate.label)
+        else:
+            # No controls: use a dictionary mapping for single- or two-qubit gates.
+            mapping = {
+                'H': lambda qc, g: qc.h(g.qubits[0]),
+                'X': lambda qc, g: qc.x(g.qubits[0]),
+                'Y': lambda qc, g: qc.y(g.qubits[0]),
+                'Z': lambda qc, g: qc.z(g.qubits[0]),
+                'RX': lambda qc, g: qc.rx(g.params[0], g.qubits[0]),
+                'RY': lambda qc, g: qc.ry(g.params[0], g.qubits[0]),
+                'RZ': lambda qc, g: qc.rz(g.params[0], g.qubits[0]),
+                'U3': lambda qc, g: qc.u3(g.params[0], g.params[1], g.params[2], g.qubits[0]),
+                'CNOT': lambda qc, g: qc.cx(g.qubits[0], g.qubits[1]),
+                'CX': lambda qc, g: qc.cx(g.qubits[0], g.qubits[1]),
+                'CZ': lambda qc, g: qc.cz(g.qubits[0], g.qubits[1]),
+                'SWAP': lambda qc, g: qc.swap(g.qubits[0], g.qubits[1]),
+                'ISWAP': lambda qc, g: qc.iswap(g.qubits[0], g.qubits[1]),
+                'RXX': lambda qc, g: qc.append(RXXGate(g.params[0]), [g.qubits[0], g.qubits[1]]),
+                'RYY': lambda qc, g: qc.append(RYYGate(g.params[0]), [g.qubits[0], g.qubits[1]]),
+                'RZZ': lambda qc, g: qc.append(RZZGate(g.params[0]), [g.qubits[0], g.qubits[1]]),
+
+            }
+            if label in mapping:
+                gate = mapping[label](qc, gate)
+            else:
+                print("Warning: Unknown gate:", gate.label)
+    
+    return qc
+
+def parse(folder, isJSON, draw, saveAndPlot):
+    if isJSON:
+        data_dict = JSONtoDict(folder)
+    else:
+        data_dict = HDF5toDict(folder)
+    data_arrs,Ts,params,pool = DictToArr(data_dict, isJSON)
+    N,n,c,Δ,T,q = params
+    T = round(float(T), 8)
+    char = "c"
+    if not pool:
+        averages,stds = getSucessive(data_arrs,int(q))
+    if pool:
+        dT = extract_dT_value(folder)
+        char = "p"
+        averages, stds, circuit = getPool(data_arrs, params,dT, draw)
+        Ts = np.linspace(dT,T,len(averages))
+        if draw:
+            #circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'])
+            qiskit = quimb_to_qiskit(circuit)
+            qiskit.draw("mpl", scale=0.4)
+            plt.show()
+
+    if saveAndPlot:
+        saveData(N,n,c,Δ,Ts,q,0.01,averages,stds,char)
+        lie = trotter(100,10,float(T),int(q),compare=False,save=True)
+        plot_data_from_folder("TE-PAI-noSampling/data/plotting")
+
+#parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1", True, True, False)
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting")
+lie = trotter(100,10,0.1,4,compare=False,save=False,draw=True)

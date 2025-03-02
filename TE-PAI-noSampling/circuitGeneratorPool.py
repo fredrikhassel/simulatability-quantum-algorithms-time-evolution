@@ -111,4 +111,4 @@ if __name__ == '__main__':
     # Explicitly free memory
     del sign_list, gates_arr, sign
     gc.collect()    
-    clearDataFolder('./data')   
+    clearDataFolder('./data')
