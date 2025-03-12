@@ -108,18 +108,18 @@ for pai_mean, pai_std, label, color in zip(all_pai_means, all_pai_stds, all_labe
     label ="N: "+str(N)+" r: "+str(r)+" T: "+str(T)+" q: "+str(q)
     
     x_values = range(len(pai_mean))
-    plt.errorbar(x_values, pai_mean, yerr=pai_std, fmt='o', capsize=5, color=color, label=f'{label}')
+    plt.errorbar(np.array(x_values)*0.01, pai_mean, yerr=pai_std, fmt='o', capsize=5, color=color, label=f'{label}')
 
 # Plot Lie-Trotter data without error bars
 for lie_mean, label, color in zip(all_lie_means, all_labels, colors):
     if lie_mean is not None:
-        plt.scatter(range(len(lie_mean)), [lie_mean], marker='x', color=color)
+        plt.scatter(np.array(range(len(lie_mean)))*0.01, [lie_mean], marker='x', color=color)
 
 # Labels and legend
 plt.title("TE-PAI vs Lie-Trotter Data")
-plt.xlabel("Snapshot Index")
-plt.ylabel("Data Points (Averaged Values)")
-plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), ncol=3)
+plt.xlabel("Time")
+plt.ylabel("X expectation value")
+plt.legend()
 plt.grid(True)
 
 plt.show()
