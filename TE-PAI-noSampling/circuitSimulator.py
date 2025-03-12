@@ -10,6 +10,12 @@ import pandas as pd
 from HAMILTONIAN import Hamiltonian
 from TROTTER import Trotter
 import h5py
+import time
+import opt_einsum as oe
+import cotengra as ctg
+from qiskit import QuantumCircuit, transpile
+from scipy.stats import linregress
+from scipy.optimize import curve_fit
 
 def JSONtoDict(folder_name):
     files = os.listdir(folder_name)
@@ -153,44 +159,69 @@ def applyGates(circuit, gates):
         else:
             raise ValueError(f"Unsupported number of qubits for gate {quimb_gate_name}: {len(qubit_indices)}")
 
-def measure(circuit,q):
-    state_vector = circuit.psi.to_dense()
+def measure(circuit,q, optimize):
+    if optimize != None and type(optimize) != bool:
+        state_vector = circuit.psi.to_dense(optimize=optimize)
+    else:
+        state_vector = circuit.psi.to_dense()
     magnetization_operator = qu.ikron(qu.pauli('x'), [2]*q, 0)
     expect = qu.expec(magnetization_operator, state_vector)
     return (expect+1) / 2
 
 def getSucessive(data_arrs,q):
     averages = []
+    costs = []
     stds = []
     # Per timestep
+    print(f"Calculating sucessive for {len(data_arrs)} timesteps")
     for (circuits_gates, circuiit_signs) in data_arrs:
+        print(f"Timestep: {len(averages)+1}")
         mags = []
+        cs = 0
         # Per circuit
         for gates, sign in zip(circuits_gates, circuiit_signs):
             quimb = qtn.Circuit(q)
             for i in range(q):
                 quimb.apply_gate('H', qubits=[i])
             applyGates(quimb,gates)
-            mag = measure(quimb,q)
+            mag = measure(quimb,q, None)
             mags.append(mag*sign)
+            cs+=quimb.psi.contraction_cost()
             del quimb
+        costs.append(cs)
         averages.append(np.mean(mags))
         stds.append(np.std(mags))
 
-    return averages,stds
+    return averages,stds,costs
 
-def getPool(data_arrs,params,dT, draw):
+def norm_fn(psi):
+    # we could always define this within the loss function, but separating it
+    # out can be clearer - it's also called before returning the optimized TN
+    nfact = (psi.H @ psi)**0.5
+    return psi.multiply(1 / nfact, spread_over='all')
+
+def loss_fn(psi, ham):
+    b, h, k = qtn.tensor_network_align(psi.H, ham, psi)
+    energy_tn = b | h | k
+    return energy_tn ^ ...
+
+def getPool(data_arrs,params,dT, draw, optimize=None):
     N,n,c,Δ,T,q = params
     T = float(T)
     q = int(q)
     circuit_pool, sign_pool = data_arrs[0]
     n_timesteps = round(T/dT)
     results = [[] for _ in range(n_timesteps)]
+    costs = [[] for _ in range(n_timesteps)]
     n_circuits = int(len(sign_pool) / n_timesteps)
     Ts = np.arange(0, T+dT, dT)
     indices = generate_random_indices(len(circuit_pool), n_circuits, n_timesteps)
 
+    print(f"Running pool for {len(indices)} runs")
+    c = 1
     for run_indices in indices:
+        print(f"Run: {c}")
+        c+=1
         circuits = [circuit_pool[idx] for idx in run_indices]
         signs = [sign_pool[idx] for idx in run_indices]
         quimb = qtn.Circuit(q)
@@ -198,14 +229,18 @@ def getPool(data_arrs,params,dT, draw):
             quimb.apply_gate('H', qubits=[i])
         for i,(circuit,sign) in enumerate(zip(circuits,signs)):
             applyGates(quimb,circuit)
-            results[i].append(measure(quimb,q))
+            costs[i].append(quimb.psi.contraction_cost())
+            #quimb.amplitude_rehearse(simplify_sequence='RL')['tn'].draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
+            results[i].append(measure(quimb,q, optimize)*sign)
+
+    costs = np.sum(costs, axis=1)
     averages = np.mean(results, axis=1)
     stds = np.std(results, axis=1)
 
     if draw:
-        return averages,stds, quimb
+        return averages,stds, quimb, costs
     else:
-        return averages,stds, None
+        return averages,stds, None, costs
 
 def generate_random_indices(pool_size, output_length, entry_length):
     rng = np.random.default_rng(0)  # Create RNG instance with optional seed
@@ -228,7 +263,14 @@ def plot_data_from_folder(folderpath):
         quimb_match = quimb_pattern.match(filename)
         lie_match = lie_pattern.match(filename)
         
-        if quimb_match:
+        if lie_match:
+            df = pd.read_csv(filepath)
+            if df.shape[1] >= 2:
+                label = f"N-{lie_match.group(1)} T-{lie_match.group(2)} q-{lie_match.group(3)}"
+                lie_data.append((df.iloc[:, 0], df.iloc[:, 1], label))
+
+
+        elif quimb_match:
             df = pd.read_csv(filepath)
             if df.shape[1] >= 3:
 
@@ -239,27 +281,24 @@ def plot_data_from_folder(folderpath):
                 if char == "p":
                     lab = "pool"
 
-                label = f"N-{quimb_match.group(1)} {lab}-{quimb_match.group(4)} T-{quimb_match.group(6)} q-{quimb_match.group(7)} dT-{quimb_match.group(8)}"
+                if(len(lie_data) == 0):
+                    label = f"N-{quimb_match.group(1)} {lab}-{quimb_match.group(4)} T-{quimb_match.group(6)} q-{quimb_match.group(7)} dT-{quimb_match.group(8)}"
+                else:
+                    label = f"N-{quimb_match.group(1)} {lab}-{quimb_match.group(4)} dT-{quimb_match.group(8)}"
                 quimb_data.append((df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2], label))
         
-        elif lie_match:
-            df = pd.read_csv(filepath)
-            if df.shape[1] >= 2:
-                label = f"N-{lie_match.group(1)} T-{lie_match.group(2)} q-{lie_match.group(3)}"
-                lie_data.append((df.iloc[:, 0], df.iloc[:, 1], label))
-    
     plt.figure(figsize=(10, 6))
     
     for x, y, error, label in quimb_data:
-        plt.errorbar(x, y, yerr=error, fmt='o', label=f'Random ({label})', alpha=0.6)
+        plt.errorbar(x, y, yerr=error, fmt='-o', label=f'Random ({label})', alpha=0.6)
     
     for x, y, label in lie_data:
         plt.plot(x, y, color="tab:red", label=f'Lie Data ({label})')
     
-    plt.xlabel('x')
-    plt.ylabel('y')
+    plt.xlabel('Time')
+    plt.ylabel('X expectation value')
     plt.legend()
-    plt.title('Random circuits and Lie Data Comparison')
+    plt.title('Random tensor-networks and Lie Data Comparison')
     plt.show()
 
 def plot_data(Ts, averages, stds):
@@ -342,7 +381,7 @@ def trotter(N, n_snapshot, T, q, compare, save=False, draw=False):
         applyGates(circuit, gs)
         res.append(measure(circuit, q))
         if draw and len(res) == 2:
-            circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'])
+            circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
             qiskit = quimb_to_qiskit(circuit)
             qiskit.draw("mpl", scale=0.4)
             plt.show()
@@ -392,7 +431,6 @@ def quimb_to_qiskit(quimb_circ):
         A Qiskit QuantumCircuit with the gates added in the same order.
     """
     # Import Qiskit and some gate classes we need
-    from qiskit import QuantumCircuit
     from qiskit.circuit.library import (
         HGate, XGate, YGate, ZGate,
         RXGate, RYGate, RZGate, RXXGate, RYYGate, RZZGate, U3Gate,
@@ -468,7 +506,7 @@ def quimb_to_qiskit(quimb_circ):
     
     return qc
 
-def parse(folder, isJSON, draw, saveAndPlot):
+def parse(folder, isJSON, draw, saveAndPlot, optimize=False):
     if isJSON:
         data_dict = JSONtoDict(folder)
     else:
@@ -478,15 +516,19 @@ def parse(folder, isJSON, draw, saveAndPlot):
     T = round(float(T), 8)
     char = "c"
     if not pool:
-        averages,stds = getSucessive(data_arrs,int(q))
+        averages,stds, costs = getSucessive(data_arrs,int(q))
     if pool:
         dT = extract_dT_value(folder)
         char = "p"
-        averages, stds, circuit = getPool(data_arrs, params,dT, draw)
+        averages, stds, circuit, costs = getPool(data_arrs, params,dT, draw, optimize)
         Ts = np.linspace(dT,T,len(averages))
         if draw:
-            #circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'])
+            circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
+            if optimize:
+                circuit.amplitude_rehearse(simplify_sequence='ADCRS')['tn'].draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
             qiskit = quimb_to_qiskit(circuit)
+            if optimize:
+                qiskit = transpile(qiskit, optimization_level=3)
             qiskit.draw("mpl", scale=0.4)
             plt.show()
 
@@ -495,6 +537,74 @@ def parse(folder, isJSON, draw, saveAndPlot):
         lie = trotter(100,10,float(T),int(q),compare=False,save=True)
         plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
-#parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1", True, True, False)
-#plot_data_from_folder("TE-PAI-noSampling/data/plotting")
-lie = trotter(100,10,0.1,4,compare=False,save=False,draw=True)
+    if costs[0] != None:
+        return costs
+
+def compareCosts(poolCosts, successCosts, T, N):
+    print(f"Pool total costs per timestep: {poolCosts}")
+    print(f"Successive subtotal costs per timesteps: {successCosts}")
+    successCosts = np.add.accumulate(np.array(successCosts))
+    print(f"Successive total costs per timestep: {successCosts}")
+
+    times = np.linspace(0,T,N)
+    slope, intercept, r_value, p_value, std_err = linregress(times, poolCosts)
+
+    # Compute expected values based on the formula
+    n = successCosts[0]  # First value as the base multiplier
+    N_values = np.arange(2, len(successCosts) + 2)  # Timesteps starting from 2
+    def quadratic_sum(N, a):
+        return a * N * (N + 1) / 2
+    N_values = np.arange(1, len(successCosts) + 1)
+    # Fit the actual data using curve_fit
+    popt, _ = curve_fit(quadratic_sum, N_values, successCosts)
+    a_fitted = popt[0]
+    # Generate fitted curve
+    fitted_values = quadratic_sum(N_values, a_fitted)
+    expected_values = quadratic_sum(N_values, n)  # Using original theoretical n
+    # Create figure with three subplots
+    fig, axes = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
+
+    # First subplot: Original plot
+    axes[0].plot(times, poolCosts, label="Contraction cost of pool approach")
+    axes[0].plot(times, successCosts, label="Contraction cost of successive approach")
+    axes[0].set_ylabel("Average total cost")
+    axes[0].set_title("Plot of Averages vs T with Error Bars")
+    axes[0].legend()
+    axes[0].grid(True)
+
+    # Second subplot: Linearity check
+    axes[1].scatter(times, poolCosts, label="Data points")
+    axes[1].plot(times, intercept + slope * times, color='red', linestyle="dashed", label=f"Linear fit (R²={r_value**2:.4f})")
+    axes[1].set_ylabel("Total cost")
+    axes[1].set_title("Checking Linearity of Pool Costs")
+    axes[1].legend()
+    axes[1].grid(True)
+
+    # Third subplot: Expected vs fitted quadratic growth
+    axes[2].plot(times, expected_values, label="Theoretical: nN(N-1)/2", linestyle="dashed", color="red")
+    axes[2].loglog(times, successCosts, 'o', label="Actual Successive Costs", markersize=5)
+    axes[2].plot(times, fitted_values, label=f"Fitted Quadratic: {a_fitted:.2f}N(N+1)/2", linestyle="dotted", color="blue")
+   # axes[2].set_yscale("log")  # Set y-axis to log scale
+    #axes[2].set_xscale("log")  # Set y-axis to log scale
+    axes[2].set_ylabel("Total cost")
+    axes[2].set_title("Expected vs Actual vs Fitted Quadratic Growth")
+    axes[2].legend()
+    axes[2].grid(True)
+
+    # Show the plots
+    plt.tight_layout()
+    plt.show()
+
+poolCosts = parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1", 
+      isJSON=True, 
+      draw=False, 
+      saveAndPlot=False, 
+      optimize=False)
+
+successCosts = parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-c-10-Δ-pi_over_1024-q-4-dT-0.01-T-0.1", 
+      isJSON=True, 
+      draw=False, 
+      saveAndPlot=False, 
+      optimize=False)
+
+compareCosts(poolCosts, successCosts, 0.1, 10)
