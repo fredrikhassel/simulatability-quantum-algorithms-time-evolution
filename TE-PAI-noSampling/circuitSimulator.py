@@ -174,21 +174,22 @@ def getSucessive(data_arrs,q):
     stds = []
     # Per timestep
     print(f"Calculating sucessive for {len(data_arrs)} timesteps")
-    for (circuits_gates, circuiit_signs) in data_arrs:
+    for (circuits_gates, circuit_signs) in data_arrs:
         print(f"Timestep: {len(averages)+1}")
         mags = []
         cs = 0
         # Per circuit
-        for gates, sign in zip(circuits_gates, circuiit_signs):
+        for gates, sign in zip(circuits_gates, circuit_signs):
             quimb = qtn.Circuit(q)
             for i in range(q):
                 quimb.apply_gate('H', qubits=[i])
             applyGates(quimb,gates)
             mag = measure(quimb,q, None)
-            mags.append(mag*sign)
-            cs+=quimb.psi.contraction_cost()
+            mags.append(mag*sign)            
+            cs += getComplexity(quimb)
             del quimb
-        costs.append(cs)
+        print(len(circuit_signs))
+        costs.append(cs / len(circuit_signs))
         averages.append(np.mean(mags))
         stds.append(np.std(mags))
 
@@ -229,11 +230,11 @@ def getPool(data_arrs,params,dT, draw, optimize=None):
             quimb.apply_gate('H', qubits=[i])
         for i,(circuit,sign) in enumerate(zip(circuits,signs)):
             applyGates(quimb,circuit)
-            costs[i].append(quimb.psi.contraction_cost())
+            costs[i].append(getComplexity(quimb))#quimb.psi.contraction_cost())
             #quimb.amplitude_rehearse(simplify_sequence='RL')['tn'].draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
             results[i].append(measure(quimb,q, optimize)*sign)
 
-    costs = np.sum(costs, axis=1)
+    costs = np.mean(costs, axis=1)
     averages = np.mean(results, axis=1)
     stds = np.std(results, axis=1)
 
@@ -376,10 +377,11 @@ def trotter(N, n_snapshot, T, q, compare, save=False, draw=False):
     for i in range(q):
         circuit.apply_gate('H', qubits=[i])
     
-    res = [measure(circuit, q)]
+    res = [measure(circuit, q, False)]
     for i, gs in enumerate(gates):
+        print(f"{i} out of {len(gates)}")
         applyGates(circuit, gs)
-        res.append(measure(circuit, q))
+        res.append(measure(circuit, q, False))
         if draw and len(res) == 2:
             circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
             qiskit = quimb_to_qiskit(circuit)
@@ -546,48 +548,46 @@ def compareCosts(poolCosts, successCosts, T, N):
     successCosts = np.add.accumulate(np.array(successCosts))
     print(f"Successive total costs per timestep: {successCosts}")
 
-    times = np.linspace(0,T,N)
-    slope, intercept, r_value, p_value, std_err = linregress(times, poolCosts)
-
-    # Compute expected values based on the formula
-    n = successCosts[0]  # First value as the base multiplier
-    N_values = np.arange(2, len(successCosts) + 2)  # Timesteps starting from 2
-    def quadratic_sum(N, a):
-        return a * N * (N + 1) / 2
-    N_values = np.arange(1, len(successCosts) + 1)
-    # Fit the actual data using curve_fit
-    popt, _ = curve_fit(quadratic_sum, N_values, successCosts)
-    a_fitted = popt[0]
-    # Generate fitted curve
-    fitted_values = quadratic_sum(N_values, a_fitted)
-    expected_values = quadratic_sum(N_values, n)  # Using original theoretical n
+    times = np.linspace(0, T, N)
+    
+    # Take logarithm of the costs
+    log_poolCosts = np.log(poolCosts)
+    log_successCosts = np.log(successCosts)
+    
+    # Fit a straight line to the log of poolCosts
+    slope_pool, intercept_pool, r_value_pool, _, _ = linregress(times, log_poolCosts)
+    
+    # Fit a straight line to the log of successCosts
+    slope_success, intercept_success, r_value_success, _, _ = linregress(times, log_successCosts)
+    
+    # Generate fitted exponential curves
+    fitted_pool = np.exp(intercept_pool + slope_pool * times)
+    fitted_success = np.exp(intercept_success + slope_success * times)
+    
     # Create figure with three subplots
     fig, axes = plt.subplots(3, 1, figsize=(5, 10), sharex=True)
 
     # First subplot: Original plot
-    axes[0].plot(times, poolCosts, label="Contraction cost of pool approach")
-    axes[0].plot(times, successCosts, label="Contraction cost of successive approach")
+    axes[0].semilogy(times, poolCosts, label="Contraction cost of pool approach")
+    axes[0].semilogy(times, successCosts, label="Contraction cost of successive approach")
     axes[0].set_ylabel("Average total cost")
     axes[0].set_title("Plot of Averages vs T with Error Bars")
     axes[0].legend()
     axes[0].grid(True)
 
-    # Second subplot: Linearity check
-    axes[1].scatter(times, poolCosts, label="Data points")
-    axes[1].plot(times, intercept + slope * times, color='red', linestyle="dashed", label=f"Linear fit (R²={r_value**2:.4f})")
-    axes[1].set_ylabel("Total cost")
-    axes[1].set_title("Checking Linearity of Pool Costs")
+    # Second subplot: Log-transformed data to check for exponential growth
+    axes[1].scatter(times, log_poolCosts, label="Log of Pool Costs")
+    axes[1].plot(times, intercept_pool + slope_pool * times, color='red', linestyle="dashed", label=f"Linear Fit (R²={r_value_pool**2:.4f})")
+    axes[1].set_ylabel("log(Total cost)")
+    axes[1].set_title("Log of Pool Costs vs Time")
     axes[1].legend()
     axes[1].grid(True)
 
-    # Third subplot: Expected vs fitted quadratic growth
-    axes[2].plot(times, expected_values, label="Theoretical: nN(N-1)/2", linestyle="dashed", color="red")
-    axes[2].loglog(times, successCosts, 'o', label="Actual Successive Costs", markersize=5)
-    axes[2].plot(times, fitted_values, label=f"Fitted Quadratic: {a_fitted:.2f}N(N+1)/2", linestyle="dotted", color="blue")
-   # axes[2].set_yscale("log")  # Set y-axis to log scale
-    #axes[2].set_xscale("log")  # Set y-axis to log scale
-    axes[2].set_ylabel("Total cost")
-    axes[2].set_title("Expected vs Actual vs Fitted Quadratic Growth")
+    # Third subplot: Log-transformed data for successive approach
+    axes[2].scatter(times, log_successCosts, label="Log of Successive Costs")
+    axes[2].plot(times, intercept_success + slope_success * times, color='blue', linestyle="dashed", label=f"Linear Fit (R²={r_value_success**2:.4f})")
+    axes[2].set_ylabel("log(Total cost)")
+    axes[2].set_title("Log of Successive Costs vs Time")
     axes[2].legend()
     axes[2].grid(True)
 
@@ -595,16 +595,38 @@ def compareCosts(poolCosts, successCosts, T, N):
     plt.tight_layout()
     plt.show()
 
-poolCosts = parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1", 
-      isJSON=True, 
-      draw=False, 
-      saveAndPlot=False, 
-      optimize=False)
 
-successCosts = parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-c-10-Δ-pi_over_1024-q-4-dT-0.01-T-0.1", 
-      isJSON=True, 
-      draw=False, 
-      saveAndPlot=False, 
-      optimize=False)
+def showComplexity(costs, T, N):
+    print(costs)
+    times = np.linspace(0,T,N)
+    plt.semilogy(times, costs, label="Contraction costs")
+    plt.xlabel("Time")
+    plt.ylabel("Total cost")
+    plt.title("Contraction costs over time")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
-compareCosts(poolCosts, successCosts, 0.1, 10)
+def getComplexity(circuit):
+    rehs = circuit.to_dense_rehearse()
+    cs = rehs['tree'].contraction_cost()
+    return cs
+
+#trotter(500, 10, 10, 4, False, True, False)
+costs = parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-4-dT-0.1-T-1", True, False, False, False)
+showComplexity(costs, 1, 10)
+
+if False:
+    poolCosts = parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1", 
+        isJSON=True, 
+        draw=False, 
+        saveAndPlot=False, 
+        optimize=False)
+
+    successCosts = parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-c-10-Δ-pi_over_1024-q-4-dT-0.01-T-0.1", 
+        isJSON=True, 
+        draw=False, 
+        saveAndPlot=False, 
+        optimize=False)
+
+    compareCosts(poolCosts, successCosts, 0.1, 10)

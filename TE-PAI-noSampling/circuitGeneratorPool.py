@@ -45,7 +45,7 @@ if __name__ == '__main__':
     finalTimes = np.arange(dT,T+dT,dT)
     N = 1000
     n_snapshot = 1
-    circuit_pool_size = 5000
+    circuit_pool_size = 100
 
     # Setting up TE-PAI
     rng = np.random.default_rng(0)
