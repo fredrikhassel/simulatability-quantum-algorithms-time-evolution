@@ -35,6 +35,7 @@ def trotterSimulation(hamil, N, n_snapshot, c, Δ_name, T, numQs):
         print("Skipping Lie-Trotter data generation.")
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
+
 if __name__ == '__main__':
     # Parameters
     numQs = 4 # 4
