@@ -1,8 +1,6 @@
 # External packages
 from functools import partial
 from dataclasses import dataclass
-import json
-import uuid
 import numpy as np
 import multiprocessing as mp
 from dataclasses import dataclass
@@ -15,11 +13,6 @@ import pandas as pd
 from PAI import gamma, prob_list
 from SAMPLING import batch_sampling
 from SIMULATOR import get_probs
-
-import os
-import json
-import multiprocessing as mp
-from functools import partial
 
 """This module contains the TE-PAI algorithm from the TE-PAI paper, without resampling."""
 
@@ -50,71 +43,42 @@ class TE_PAI:
         res = batch_sampling(np.array(self.probs), n)
         return [sum(len(r) for r in re) for re in res]
 
+    def run_te_pai(self, num_circuits, err=None):
+            noisy = "_noisy" if err is not None else ""
+            filename = lambda i: f"data/pai_snap{noisy}{str(i)}.csv"
+
+            if not os.path.exists(filename(0)):
+                res = []
+                index = batch_sampling(np.array(self.probs), num_circuits)
+               
+                with mp.Pool(mp.cpu_count()) as pool:
+                    results = pool.map(
+                        partial(self.gen_rand_cir_with_details, err=err), index
+                    )
 
 
-    def run_te_pai(self, num_circuits, sign_file_path, gates_file_path, overhead, err=None):
-        index = batch_sampling(np.array(self.probs), num_circuits)
-        sign_list = []
-
-        # Open file and write starting brace
-        with open(gates_file_path, 'w') as f:
-            f.write('{\n')
-            first_entry = True
-
-            with mp.Pool(mp.cpu_count()) as pool:
-                for i, (sign_val, circuit) in enumerate(
-                    pool.imap_unordered(partial(self.gen_rand_cir_with_details, err=err), index), start=1
-                ):
-                    sign_list.append(sign_val)
-
-                    # Build a circuit dictionary
-                    circuit_dict = {}
-                    for snap_idx, snapshot in enumerate(circuit, start=1):
-                        snapshot_dict = {}
-                        for gate_idx, gate in enumerate(snapshot, start=1):
-                            if not isinstance(gate, (list, tuple)) or len(gate) != 3:
-                                print(f"Malformed gate at snapshot {snap_idx}, gate_idx {gate_idx}: {gate}")
-                                continue
-                            snapshot_dict[str(gate_idx)] = {
-                                "gate_name": gate[0],
-                                "angle": float(gate[1]),
-                                "qubits": list(gate[2])
-                            }
-                        circuit_dict[str(snap_idx)] = snapshot_dict
-
-                    # Write circuit JSON entry
-                    if not first_entry:
-                        f.write(',\n')
-                    first_entry = False
-                    f.write(f'"{i}":')
-                    json.dump(circuit_dict, f)
-
-                    # Optional: flush to disk
-                    if i % 10 == 0:
-                        f.flush()
-
-            f.write('\n}')  # close JSON object
-
-        # Save sign list
-        sign_data = {"overhead": overhead}
-        for i, sign_val in enumerate(sign_list):
-            sign_data[str(i + 1)] = sign_val
-
-        try:
-            with open(sign_file_path, 'w') as file:
-                json.dump(sign_data, file, indent=4)
-            print(f"Sign list successfully saved to {sign_file_path}")
-        except Exception as e:
-            print(f"Error saving sign list file: {e}")
+                # Separate results and circuit details
+                res = np.array([r[0] for r in results]).transpose(1, 0, 2)
+                sign = [r[1] for r in results]
+                sign_list = [r[2] for r in results]
+                gates_arr = [r[3] for r in results]
+                
+                return res, sign, sign_list, gates_arr 
 
 
- 
+            else:
+                return [pd.read_csv(filename(i)).values for i in range(self.n_snap + 1)], [], [], []
+             
 
     def gen_rand_cir_with_details(self, index, err=None):
-        (gates_arr, sign, n) = ([], 1, int(self.N / self.n_snap))
+        (gates_arr, sign, sign_list, n) = ([], 1, [], int(self.N / self.n_snap))
+
         for i, inde in enumerate(index):
             if i % n == 0:
                 gates_arr.append([])
+                sign_list.append(sign)
+                #circuit_detail.append([])  # Add a snapshot for this segment
+
             for j, val in inde:
                 (pauli, ind, coef) = self.terms[i][j]
                 gate = None
@@ -124,7 +88,13 @@ class TE_PAI:
                 else:
                     gate = (pauli, np.sign(coef) * self.Δ, ind)
                 gates_arr[-1].append(gate)
-        return sign, gates_arr
+                
+        # USE THIS ONE FOR THE ENTIRE CIRCUIT
+        sign_list.append(sign)
+        data = get_probs(self.nq, gates_arr, self.n_snap, err)
+        result = [(sign_list[i] * self.gam_list[i], data[i]) for i in range(self.n_snap + 1)]  # type: ignore
+
+        return np.array(result), sign, sign_list, gates_arr
 
     def gen_rand_cir(self, index, err=None):
             (gates_arr, sign, sign_list, n) = ([], 1, [], int(self.N / self.n_snap))

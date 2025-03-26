@@ -595,10 +595,10 @@ def compareCosts(poolCosts, successCosts, T, N):
     plt.tight_layout()
     plt.show()
 
-
-def showComplexity(costs, T, N):
+def showComplexity(costs, T, N, output_folder=None):
     print(costs)
-    times = np.linspace(0,T,N)
+    times = np.linspace(0, T, N)
+    
     plt.semilogy(times, costs, label="Contraction costs")
     plt.xlabel("Time")
     plt.ylabel("Total cost")
@@ -606,15 +606,53 @@ def showComplexity(costs, T, N):
     plt.legend()
     plt.grid(True)
     plt.show()
+    
+    if output_folder is not None:
+        os.makedirs(output_folder, exist_ok=True)
+        df = pd.DataFrame({'Time': times, 'Cost': costs})
+        csv_path = os.path.join(output_folder, 'contraction_costs.csv')
+        df.to_csv(csv_path, index=False)
+        print(f"Data saved to {csv_path}")
 
 def getComplexity(circuit):
     rehs = circuit.to_dense_rehearse()
     cs = rehs['tree'].contraction_cost()
     return cs
 
-#trotter(500, 10, 10, 4, False, True, False)
-costs = parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-4-dT-0.1-T-1", True, False, False, False)
-showComplexity(costs, 1, 10)
+def plotComplexityFromFolder(folder_path):
+    if folder_path is None:
+        print("No folder path provided.")
+        return
+    
+    csv_path = os.path.join(folder_path, 'contraction_costs.csv')
+    
+    if not os.path.isfile(csv_path):
+        print(f"No CSV file found at {csv_path}")
+        return
+    
+    df = pd.read_csv(csv_path)
+    
+    plt.semilogy(df['Time'], df['Cost'], label="Contraction costs")
+    plt.xlabel("Time")
+    plt.ylabel("Total cost")
+    plt.title("Contraction costs over time (from CSV)")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+#plot_data_from_folder("TE-PAI-noSampling/data/plotting")
+
+path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1"
+plotComplexityFromFolder(path)
+
+if False:
+    #trotter(500, 10, 0.1, 10, compare=False, save=True, draw=False)
+    costs = parse(path, 
+                isJSON=True, 
+                draw=False, 
+                saveAndPlot=True, 
+                optimize=False)
+    showComplexity(costs, 0.1, 10, path)
 
 if False:
     poolCosts = parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1", 
