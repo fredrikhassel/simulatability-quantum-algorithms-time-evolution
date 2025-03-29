@@ -160,19 +160,8 @@ def applyGates(circuit, gates):
             raise ValueError(f"Unsupported number of qubits for gate {quimb_gate_name}: {len(qubit_indices)}")
 
 def measure(circuit,q, optimize):
-
-    val = circuit.local_expectation(qu.pauli('X'), (0))
-    print(val)
+    val = np.abs(circuit.local_expectation(qu.pauli('X'), (0)))
     return (val+1)/2
-
-
-    if optimize != None and type(optimize) != bool:
-        state_vector = circuit.psi.to_dense(optimize=optimize)
-    else:
-        state_vector = circuit.psi.to_dense()
-    magnetization_operator = qu.ikron(qu.pauli('x'), [2]*q, 0)
-    expect = qu.expec(magnetization_operator, state_vector)
-    return (expect+1) / 2
 
 def getSucessive(data_arrs,q):
     averages = []
@@ -186,9 +175,7 @@ def getSucessive(data_arrs,q):
         cs = 0
         # Per circuit
         for gates, sign in zip(circuits_gates, circuit_signs):
-            quimb = qtn.Circuit(q)
-            for i in range(q):
-                quimb.apply_gate('H', qubits=[i])
+            quimb = getCircuit(q)
             applyGates(quimb,gates)
             mag = measure(quimb,q, None)
             mags.append(mag*sign)            
@@ -231,9 +218,7 @@ def getPool(data_arrs,params,dT, draw, optimize=None):
         c+=1
         circuits = [circuit_pool[idx] for idx in run_indices]
         signs = [sign_pool[idx] for idx in run_indices]
-        quimb = qtn.Circuit(q)
-        for i in range(q):
-            quimb.apply_gate('H', qubits=[i])
+        quimb = getCircuit(q)
         for i,(circuit,sign) in enumerate(zip(circuits,signs)):
             applyGates(quimb,circuit)
             costs[i].append(getComplexity(quimb))#quimb.psi.contraction_cost())
@@ -379,19 +364,14 @@ def trotter(N, n_snapshot, T, q, compare, save=False, draw=False):
             for (pauli, ind, coef) in terms[i]
         ]
     
-    circuit = qtn.Circuit(q)
-    for i in range(q):
-        circuit.apply_gate('H', qubits=[i])
     
-        # Create a NEW circuit for EACH gate group — this is the key change!
+    # Create a NEW circuit for EACH gate group — this is the key change!
     res = [1]
     for i, gs in enumerate(gates):
         print(f"Snapshot {i+1} / {len(gates)}")
 
         # Fresh circuit each time
-        circuit = qtn.Circuit(q)
-        for j in range(q):
-            circuit.apply_gate('H', qubits=[j])
+        circuit = getCircuit(q)
 
         # Apply gates up to current time
         for k in range(i + 1):
@@ -625,7 +605,7 @@ def showComplexity(costs, T, N, output_folder=None):
         df.to_csv(csv_path, index=False)
         print(f"Data saved to {csv_path}")
     
-    plt.semilogy(times, costs, label="Contraction costs")
+    plt.plot(times, costs, label="Contraction costs")
     plt.xlabel("Time")
     plt.ylabel("Total cost")
     plt.title("Contraction costs over time")
@@ -634,9 +614,10 @@ def showComplexity(costs, T, N, output_folder=None):
     plt.show()
     
 def getComplexity(circuit):
-    rehs = circuit.to_dense_rehearse()
-    cs = rehs['tree'].contraction_cost()
-    return cs
+    return circuit.psi.max_bond()
+    #rehs = circuit.to_dense_rehearse()
+    #cs = rehs['tree'].contraction_cost()
+    #return cs
 
 def plotComplexityFromFolder(folder_path, semilogy=True):
     if folder_path is None:
@@ -662,7 +643,13 @@ def plotComplexityFromFolder(folder_path, semilogy=True):
     plt.grid(True)
     plt.show()
 
-path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1"
+def getCircuit(q):
+    quimb = qtn.CircuitMPS(q, cutoff = 1e-12)
+    for i in range(q):
+        quimb.apply_gate('H', qubits=[i])
+    return quimb
+
+path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-10-dT-0.1-T-1"
 #plotComplexityFromFolder(path, False)
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
@@ -673,7 +660,7 @@ if True:
                 draw=False, 
                 saveAndPlot=True, 
                 optimize=False)
-    showComplexity(costs, 0.1, 10, path)
+    showComplexity(costs, 1, 10, path)
 
 if False:
     poolCosts = parse("TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1", 
