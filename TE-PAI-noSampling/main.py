@@ -1,6 +1,7 @@
 # External packages
 from functools import partial
 from dataclasses import dataclass
+import gc
 import json
 import uuid
 import numpy as np
@@ -61,13 +62,13 @@ class TE_PAI:
             f.write('{\n')
             first_entry = True
 
-            with mp.Pool(mp.cpu_count()) as pool:
+            with mp.Pool(4) as pool:
                 for i, (sign_val, circuit) in enumerate(
                     pool.imap_unordered(partial(self.gen_rand_cir_with_details, err=err), index), start=1
                 ):
                     sign_list.append(sign_val)
 
-                    # Build a circuit dictionary
+                    # Build and write the circuit
                     circuit_dict = {}
                     for snap_idx, snapshot in enumerate(circuit, start=1):
                         snapshot_dict = {}
@@ -81,17 +82,23 @@ class TE_PAI:
                                 "qubits": list(gate[2])
                             }
                         circuit_dict[str(snap_idx)] = snapshot_dict
+                        del snapshot_dict
 
-                    # Write circuit JSON entry
                     if not first_entry:
                         f.write(',\n')
                     first_entry = False
                     f.write(f'"{i}":')
                     json.dump(circuit_dict, f)
+                    f.flush()
+                    os.fsync(f.fileno())
 
-                    # Optional: flush to disk
-                    if i % 10 == 0:
-                        f.flush()
+                    # Kill memory now
+                    del circuit_dict
+                    del circuit
+                    gc.collect()
+
+                    if i % 50 == 0:
+                        print(f"Wrote {i}/{num_circuits} circuits and cleaned memory")
 
             f.write('\n}')  # close JSON object
 

@@ -61,10 +61,10 @@ current_dir = os.path.abspath(os.path.dirname(__file__))
 if __name__ == '__main__':
     # Parameters
     numQs = 10
-    Δ = np.pi / (2**12)
-    Δ_name = 'pi_over_' + str(2**12)
-    T = 0.2
-    dT = 0.01
+    Δ = np.pi / (2**10)
+    Δ_name = 'pi_over_' + str(2**10)
+    T = 10
+    dT = 1
     finalTimes = np.arange(dT,T+dT,dT)
     N = 1000
     n_snapshot = 1
