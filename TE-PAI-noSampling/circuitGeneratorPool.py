@@ -60,11 +60,11 @@ def trotterSimulation(hamil, N, n_snapshot, c, Δ_name, T, numQs):
 current_dir = os.path.abspath(os.path.dirname(__file__))
 if __name__ == '__main__':
     # Parameters
-    numQs = 10
+    numQs = 50
     Δ = np.pi / (2**10)
     Δ_name = 'pi_over_' + str(2**10)
-    T = 10
-    dT = 1
+    T = 1
+    dT = 0.1
     finalTimes = np.arange(dT,T+dT,dT)
     N = 1000
     n_snapshot = 1

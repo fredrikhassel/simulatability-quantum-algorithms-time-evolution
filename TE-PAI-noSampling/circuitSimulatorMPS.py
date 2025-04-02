@@ -614,10 +614,12 @@ def showComplexity(costs, T, N, output_folder=None):
     plt.show()
     
 def getComplexity(circuit):
+    #result = circuit.amplitude_rehearse(optimize="greedy")
+    #return result['W']
     return circuit.psi.max_bond()
     #rehs = circuit.to_dense_rehearse()
     #cs = rehs['tree'].contraction_cost()
-    #return cs
+   #return cs
 
 def plotComplexityFromFolder(folder_path, semilogy=True):
     if folder_path is None:
@@ -649,7 +651,7 @@ def getCircuit(q):
         quimb.apply_gate('H', qubits=[i])
     return quimb
 
-path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-10-dT-0.1-T-1"
+path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-50-dT-0.1-T-1"
 #plotComplexityFromFolder(path, False)
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
