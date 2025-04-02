@@ -533,8 +533,11 @@ def parse(folder, isJSON, draw, saveAndPlot, optimize=False):
             qiskit.draw("mpl", scale=0.4)
             plt.show()
 
+
+    pattern = r"dT-([0-9]+(?:\.[0-9]+)?)"
+    match = re.search(pattern, folder)
+    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char)
     if saveAndPlot:
-        saveData(N,n,c,Δ,Ts,q,0.01,averages,stds,char)
         lie = trotter(100,10,float(T),int(q),compare=False,save=True)
         plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
@@ -651,11 +654,11 @@ def getCircuit(q):
         quimb.apply_gate('H', qubits=[i])
     return quimb
 
-path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-50-dT-0.1-T-1"
+path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-50-Δ-pi_over_1024-q-4-dT-0.1-T-1.0"
 #plotComplexityFromFolder(path, False)
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
-if True:
+if False:
     #trotter(500, 10, 0.1, 10, compare=False, save=True, draw=False)
     costs = parse(path, 
                 isJSON=True, 
