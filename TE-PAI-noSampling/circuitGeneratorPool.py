@@ -58,17 +58,15 @@ def trotterSimulation(hamil, N, n_snapshot, c, Δ_name, T, numQs):
         print("Skipping Lie-Trotter data generation.")
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
-if __name__ == '__main__':
+def generate(params):
     # Parameters
-    numQs = 50
+    print(params)
+    numQs, Δ, T, dT, N, circuit_pool_size = params
     Δ = np.pi / (2**10)
+
     Δ_name = 'pi_over_' + str(2**10)
-    T = 1
-    dT = 0.1
     finalTimes = np.arange(dT,T+dT,dT)
-    N = 1000
     n_snapshot = 1
-    circuit_pool_size = 100
 
     # Setting up TE-PAI
     rng = np.random.default_rng(0)
@@ -84,7 +82,6 @@ if __name__ == '__main__':
 
     # Running TE-PAI
     te_pai = TE_PAI(hamil, numQs, Δ, dT, N, n_snapshot)
-    overhead = te_pai.overhead
 
     # Define file paths inside the new folder
     sign_file_path = os.path.join(folder_path, f"sign_list-N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-T-{T}-q-{numQs}.json")
@@ -98,59 +95,16 @@ if __name__ == '__main__':
     )
     clearDataFolder('./data')
 
+#if __name__ == '__main__':
     if False:
-        sign_list, gates_arr = te_pai.run_te_pai(circuit_pool_size)
-        cleanup_temp_files()
+        # Example parameters
+        numQs = 4
+        Δ = 10
+        T = 1.0
+        dT = 0.1
+        N = 1000
+        circuit_pool_size = 50
 
-        print("Overhead: ", overhead)   
-
-        # Define file paths inside the new folder
-        sign_file_path = os.path.join(folder_path, f"sign_list-N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-T-{T}-q-{numQs}.json")
-        gates_file_path = os.path.join(folder_path, f"gates_arr-N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-T-{T}-q-{numQs}.json")    
-        
-        # Save sign list
-        sign_data = {"overhead": overhead}
-        for i, sign_val in enumerate(sign_list):
-            sign_data[str(i + 1)] = sign_val    
-        try:
-            with open(sign_file_path, 'w') as file:
-                json.dump(sign_data, file, indent=4)
-            print(f"Sign list successfully saved to {sign_file_path}")
-        except Exception as e:
-            print(f"Error saving sign list file: {e}")  
-        # Save gates array incrementally
-        try:
-            with open(gates_file_path, 'w') as file:
-                file.write('{\n')  # Start JSON manually
-                first_circuit = True    
-                for circuit_idx, circuit in enumerate(gates_arr, start=1):
-                    if not first_circuit:
-                        file.write(',\n')
-                    first_circuit = False
-                    file.write(f'"{circuit_idx}":{{\n') 
-                    first_snapshot = True
-                    for snap_idx, snapshot in enumerate(circuit, start=1):
-                        if not first_snapshot:
-                            file.write(',\n')
-                        first_snapshot = False
-                        file.write(f'"{snap_idx}":{{')  
-                        gate_entries = []
-                        for gate_idx, gate in enumerate(snapshot, start=1):
-
-                            if not isinstance(gate, (list, tuple)) or len(gate) != 3:
-                                print(f"Malformed gate at snapshot {snap_idx}, gate_idx {gate_idx}: {gate}")
-
-                            gate_entries.append(f'"{gate_idx}":{{"gate_name":"{gate[0]}","angle":{float(gate[1])},"qubits":{list(gate[2])}}}')
-
-                        file.write(",".join(gate_entries))
-                        file.write('}')
-
-                    file.write('}') 
-                file.write('\n}')
-            print(f"Gates array successfully saved to {gates_file_path}")
-        except Exception as e:
-            print(f"Error saving gates array file: {e}")    
-        # Explicitly free memory
-        del sign_list, gates_arr
-        gc.collect()    
-        clearDataFolder('./data')
+        # Generate circuits with the specified parameters
+        generate((numQs, Δ, T, dT, N, circuit_pool_size))
+    
