@@ -2,6 +2,8 @@ import json
 from circuitGeneratorPool import generate
 from circuitSimulatorMPS import parse
 import multiprocessing
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 multiprocessing.set_start_method("spawn", force=True)
 def main():
     # Load configuration from JSON file with correct encoding
