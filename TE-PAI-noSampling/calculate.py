@@ -1,10 +1,22 @@
 import json
+import re
 from circuitGeneratorPool import generate
-from circuitSimulatorMPS import parse
+from circuitSimulatorMPS import parse, trotter
 import multiprocessing
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 multiprocessing.set_start_method("spawn", force=True)
+
+def getqT(path):
+    pattern = re.compile(r"-q-(?P<q>[^-]+).*?-T-(?P<T>[^-]+)$")
+    m = pattern.search(path)
+    if m:
+        q_val = m.group("q")
+        T_val = m.group("T")
+        return q_val, T_val
+    else:
+        raise ValueError("Couldn't find q and T in path")
+
 def main():
     # Load configuration from JSON file with correct encoding
     with open('TE-PAI-noSampling/calculateConfig.json', 'r', encoding='utf-8') as f:
@@ -27,7 +39,6 @@ def main():
     print("Starting simulation phase...\n")
     for key, path in config["simulate"].items():
         print(f"[SIMULATION {key}] Simulating for path: {path}")
-
         parse(
             path,
             isJSON=True,
@@ -35,6 +46,9 @@ def main():
             saveAndPlot=False,
             optimize=False
         )
+
+        q_val, T_val = getqT(path)
+        trotter(100, 10, float(T_val), int(q_val), compare=False,save=True)
 
         print(f"[SIMULATION {key}] Finished.\n")
 
