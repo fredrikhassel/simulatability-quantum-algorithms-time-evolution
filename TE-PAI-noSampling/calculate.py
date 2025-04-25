@@ -1,7 +1,7 @@
 import json
 import re
 from circuitGeneratorPool import generate
-from circuitSimulatorMPS import parse, trotter
+from circuitSimulatorMPS import parse, trotter, showComplexity
 import multiprocessing
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -39,13 +39,14 @@ def main():
     print("Starting simulation phase...\n")
     for key, path in config["simulate"].items():
         print(f"[SIMULATION {key}] Simulating for path: {path}")
-        parse(
+        costs = parse(
             path,
             isJSON=True,
             draw=False,
             saveAndPlot=False,
             optimize=False
         )
+        showComplexity(costs, 1, len(costs), path)
 
         q_val, T_val = getqT(path)
         trotter(100, 10, float(T_val), int(q_val), compare=False,save=True)

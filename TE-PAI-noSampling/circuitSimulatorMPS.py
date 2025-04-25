@@ -598,7 +598,7 @@ def compareCosts(poolCosts, successCosts, T, N):
     plt.show()
 
 def showComplexity(costs, T, N, output_folder=None):
-    print(costs)
+    print(f"Costs: {costs}")
     times = np.linspace(0, T, N)
     
     if output_folder is not None:
@@ -608,13 +608,13 @@ def showComplexity(costs, T, N, output_folder=None):
         df.to_csv(csv_path, index=False)
         print(f"Data saved to {csv_path}")
     
-    plt.plot(times, costs, label="Contraction costs")
-    plt.xlabel("Time")
-    plt.ylabel("Total cost")
-    plt.title("Contraction costs over time")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+    #plt.plot(times, costs, label="Contraction costs")
+    #plt.xlabel("Time")
+    #plt.ylabel("Total cost")
+    #plt.title("Contraction costs over time")
+    #plt.legend()
+    #plt.grid(True)
+    #plt.show()
     
 def getComplexity(circuit):
     #result = circuit.amplitude_rehearse(optimize="greedy")
