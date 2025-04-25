@@ -1,0 +1,9 @@
+{
+    "name": "Fredrik",
+    "project": "Quantum Algorithm Simulatability",
+    "success": true,
+    "parameters": {
+        "timesteps": 100,
+        "epsilon": 0.01
+    }
+}
