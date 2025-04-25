@@ -656,7 +656,7 @@ def getCircuit(q):
 
 path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-50-Δ-pi_over_1024-q-4-dT-0.1-T-1.0"
 #plotComplexityFromFolder(path, False)
-#lot_data_from_folder("TE-PAI-noSampling/data/plotting")
+plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
 if False:
     #trotter(500, 10, 0.1, 10, compare=False, save=True, draw=False)
