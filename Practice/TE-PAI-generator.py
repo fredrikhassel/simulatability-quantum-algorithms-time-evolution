@@ -36,7 +36,7 @@ if __name__ == "__main__":
     T = 0.1  # Total evolution time
     N = 100  # Number of Trotter steps
     n_snapshot = 10  # Number of snapshots
-    resamples = 200
+    resamples = 100
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=numQs)
 
