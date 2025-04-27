@@ -638,12 +638,12 @@ def plotComplexityFromFolder(folder_path, semilogy=True):
     df = pd.read_csv(csv_path)
     
     if semilogy:
-        plt.semilogy(df['Time'], df['Cost'], label="Contraction costs")
+        plt.semilogy(df['Time'], df['Cost'], label="bond")
     else:
-        plt.plot(df['Time'], df['Cost'], label="Contraction costs")
-    plt.xlabel("Time")
-    plt.ylabel("Total cost")
-    plt.title("Contraction costs over time (from CSV)")
+        plt.plot(df['Time'], df['Cost'], label="bond")
+    plt.xlabel("T / T_max")
+    plt.ylabel("Max_bond")
+    plt.title("The size of the largest bond over time")
     plt.legend()
     plt.grid(True)
     plt.show()
