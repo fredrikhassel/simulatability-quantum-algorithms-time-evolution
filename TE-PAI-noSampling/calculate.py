@@ -20,7 +20,6 @@ from circuitSimulatorMPS import parse, trotter, showComplexity
 import multiprocessing
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
-multiprocessing.set_start_method("spawn", force=True)
 
 def getqT(path):
     pattern = re.compile(r"-q-(?P<q>[^-]+).*?-T-(?P<T>[^-]+)$")
@@ -72,5 +71,6 @@ def main():
     print("All tasks completed.")
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method("spawn", force=True)
     print("Ding")
     main()
