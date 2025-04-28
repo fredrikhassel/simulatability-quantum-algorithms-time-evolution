@@ -33,6 +33,7 @@ def getqT(path):
         raise ValueError("Couldn't find q and T in path")
 
 def main():
+    print("Starting TE-PAI simulation...\n")
     # Load configuration from JSON file with correct encoding
     with open('TE-PAI-noSampling/calculateConfig.json', 'r', encoding='utf-8') as f:
         config = json.load(f)

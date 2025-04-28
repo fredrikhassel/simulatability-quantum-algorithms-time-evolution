@@ -50,28 +50,21 @@ def generate(numQs, Δ, T, N, n_snapshot, resamples):
     # Print expected number of gates and overhead
     print("Expected number of gates:", te_pai.expected_num_gates)
     print("Measurement overhead:", te_pai.overhead)
-
-    # Run the TE-PAI simulation and resample the results
-    res = [resample(data) for data in te_pai.run_te_pai(resamples)]
-    # Compute mean and standard deviation for the resampled data
-    mean, std = zip(*[(np.mean(y), np.std(y)) for y in res], strict=False)
-
-    print("Means of TE-PAI result:", [round(float(x), 3) for x in mean])
-    print("Standard deviations of TE-PAI result:", [round(float(x), 3) for x in std])
+    # Run the TE-PAI simulation 
+    te_pai.run_te_pai(resamples)
+    
     # Use Lie Trotter to run the simulation
     trotter = Trotter(hamil, numQs, T, N, n_snapshot)
     res = [2 * prob - 1 for prob in trotter.run()]
-    mean, std = zip(*[(np.mean(y), np.std(y)) for y in res], strict=False)
-    print("Means of Trotter result:", [round(float(x), 3) for x in mean])
-
+    
     cleanup(numQs, Δ, T, N, n_snapshot, resamples)
 
 if __name__ == "__main__":
     # Parameters for the example
-    numQs = 6  # Number of qubits
-    Δ = np.pi / (2**6)  # Delta parameter
+    numQs = 5  # Number of qubits
+    Δ = np.pi / (2**10)  # Delta parameter
     T = 1  # Total evolution time
-    N = 100  # Number of Trotter steps
+    N = 1000  # Number of Trotter steps
     n_snapshot = 10  # Number of snapshots
-    resamples = 100
+    resamples = 10
     generate(numQs, Δ, T, N, n_snapshot, resamples)
