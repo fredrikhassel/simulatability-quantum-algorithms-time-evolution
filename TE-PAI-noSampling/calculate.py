@@ -72,4 +72,5 @@ def main():
     print("All tasks completed.")
 
 if __name__ == "__main__":
+    print("Ding")
     main()
