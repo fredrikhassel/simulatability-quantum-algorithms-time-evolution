@@ -1,3 +1,18 @@
+import warnings
+
+# match on the exact warning text:
+warnings.filterwarnings(
+    "ignore",
+    message=r"Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead\."
+)
+
+# (or, match by module name)
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    module=r"cotengra\.hyperoptimizers\.hyper"
+)
+
 import json
 import re
 from circuitGeneratorPool import generate
