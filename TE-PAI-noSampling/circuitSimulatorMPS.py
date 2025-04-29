@@ -18,7 +18,13 @@ from scipy.stats import linregress
 from scipy.optimize import curve_fit
 
 def JSONtoDict(folder_name):
-    files = os.listdir(folder_name)
+    try:
+        files = os.listdir(folder_name)
+    except FileNotFoundError:
+        try:
+            files = os.listdir(folder_name + '.0')
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Neither '{folder_name}' nor '{folder_name}.0' could be found.")    
     
     # Regular expressions for matching filenames
     gates_pattern = re.compile(r"gates_arr-N-(\d+)-n-(\d+)-[cp]-(\d+)-Δ-([\w_]+)-T-([\d.]+)-q-(\d+)\.json")
