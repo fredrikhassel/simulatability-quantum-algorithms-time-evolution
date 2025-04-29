@@ -21,10 +21,14 @@ def JSONtoDict(folder_name):
     try:
         files = os.listdir(folder_name)
     except FileNotFoundError:
-        try:
-            files = os.listdir(folder_name + '.0')
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Neither '{folder_name}' nor '{folder_name}.0' could be found.")    
+        if folder_name.endswith('.0'):
+            fallback_name = folder_name[:-2]  # removes the '.0'
+            try:
+                files = os.listdir(fallback_name)
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Neither '{folder_name}' nor '{fallback_name}' could be found.")
+        else:
+            raise FileNotFoundError(f"'{folder_name}' could not be found.")    
     
     # Regular expressions for matching filenames
     gates_pattern = re.compile(r"gates_arr-N-(\d+)-n-(\d+)-[cp]-(\d+)-Δ-([\w_]+)-T-([\d.]+)-q-(\d+)\.json")
