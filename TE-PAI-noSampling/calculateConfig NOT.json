@@ -1,6 +1,0 @@
-{
-    "generate": {},
-    "simulate": {
-      "1": "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-1000-Δ-pi_over_1024-q-50-dT-0.3-T-3"    
-    }
-  }
