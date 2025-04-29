@@ -22,7 +22,6 @@ import multiprocessing
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-print("Importing done")
 
 def getqT(path):
     pattern = re.compile(r"-q-(?P<q>[^-]+).*?-T-(?P<T>[^-]+)$")
@@ -76,5 +75,4 @@ def main():
 if __name__ == "__main__":
     print("Starting main process...")
     multiprocessing.set_start_method("spawn", force=True)
-    print("Ding")
     main()
