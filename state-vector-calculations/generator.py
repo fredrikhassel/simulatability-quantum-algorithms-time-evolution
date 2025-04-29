@@ -14,7 +14,7 @@ def cleanup(numQs, Δ, T, N, n_snapshot, resamples):
     lie_folder_path = os.path.join(data_dir, "lie")
 
     # Create a new folder for organizing data
-    output_dir = os.path.join(data_dir, f"N-{N}-n-{n_snapshot}-r-{resamples}-Δ-{Δ}-T-{T}-q-{numQs}")
+    output_dir = os.path.join(data_dir, f"N-{N}-n-{n_snapshot}-r-{resamples}-Δ-{Δ}-T-{float(T)}-q-{numQs}")
     os.makedirs(output_dir, exist_ok=True)
 
     # Move files into the correct folders
