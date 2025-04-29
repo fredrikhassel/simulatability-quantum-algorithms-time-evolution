@@ -518,6 +518,8 @@ def quimb_to_qiskit(quimb_circ):
     return qc
 
 def parse(folder, isJSON, draw, saveAndPlot, optimize=False):
+    folder = strip_trailing_dot_zero(folder)
+
     if isJSON:
         data_dict = JSONtoDict(folder)
     else:
@@ -663,6 +665,17 @@ def getCircuit(q):
     for i in range(q):
         quimb.apply_gate('H', qubits=[i])
     return quimb
+
+def strip_trailing_dot_zero(folder_name):
+    if '-T-' in folder_name:
+        parts = folder_name.split('-T-')
+        head = parts[0]
+        tail = parts[1]
+        if tail.endswith('.0'):
+            tail = tail[:-2]  # remove the .0
+        return f"{head}-T-{tail}"
+    return folder_name
+
 
 path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-50-Δ-pi_over_1024-q-4-dT-0.1-T-1.0"
 #plotComplexityFromFolder(path, False)
