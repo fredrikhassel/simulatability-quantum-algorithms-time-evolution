@@ -61,7 +61,8 @@ def main():
             isJSON=True,
             draw=False,
             saveAndPlot=False,
-            optimize=False
+            optimize=False,
+            flip=True
         )
         showComplexity(costs, 1, len(costs), path)
 
@@ -69,6 +70,23 @@ def main():
         trotter(100, 10, float(T_val), int(q_val), compare=False,save=True)
 
         print(f"[SIMULATION {key}] Finished.\n")
+
+     # Process "simulate" configurations
+    
+    print("Starting Lie phase...\n")
+    for key, params in config["lie"].items():
+        print(f"[LIE {key}] generating for path: {params}")
+        q = params["q"]
+        T = params["T"]
+        N = params["N"]
+        trotter(N=N,
+        n_snapshot=10, 
+        T=T, 
+        q=q, 
+        compare=False, 
+        save=True, 
+        draw=False, 
+        flip=True)
 
     print("All tasks completed.")
 
