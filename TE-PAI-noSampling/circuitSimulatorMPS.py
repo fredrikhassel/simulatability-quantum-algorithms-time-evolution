@@ -1042,7 +1042,7 @@ def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds"):
     plt.show()
 
 
-plot_bond_data(r"TE-PAI-noSampling\data\trotterThenTEPAI\q-10-N1-100-T1-2-N2-1000-p-100-T2-3.0-dt-0.1")
+#plot_bond_data(r"TE-PAI-noSampling\data\trotterThenTEPAI\q-10-N1-100-T1-2-N2-1000-p-100-T2-3.0-dt-0.1")
 #organize_trotter_tepai()
 if False:
     plot_trotter_then_tepai(
