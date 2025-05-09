@@ -369,6 +369,7 @@ def checkEqual(gates, gatesSim):
 
 def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None):
     print(f"Running Trotter for N={N}, n_snapshot={n_snapshot}, T={T}, q={q}")
+    circuit = None
     
     times = np.linspace(startTime, startTime+float(T), int(N))
     Ts = np.linspace(startTime, startTime+float(T), int(n_snapshot)+1)
@@ -589,7 +590,22 @@ def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False):
     if costs[0] != None:
         return costs
 
-def trotterThenTEPAI(folder, saveAndPlot, trotterN, trottern, trotterT, optimize=False, flip=False, confirm=False):
+def save_trotter(x, y, N, n, T, q, base_dir='TE-PAI-noSampling/data/plotting'):
+    # Ensure target directory exists
+    os.makedirs(base_dir, exist_ok=True)
+    
+    # Build filename
+    filename = f"trotter-bonds-N-{N}-n-{n}-{T}-q-{q}.csv"
+    filepath = os.path.join(base_dir, filename)
+    
+    # Write CSV
+    with open(filepath, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['x', 'y'])
+        for xi, yi in zip(x, y):
+            writer.writerow([xi, yi])
+
+def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, optimize=False, flip=False, confirm=False):
     folder = strip_trailing_dot_zero(folder)
     data_dict = JSONtoDict(folder)
     data_arrs,Ts,params,pool = DictToArr(data_dict, True)
@@ -599,9 +615,10 @@ def trotterThenTEPAI(folder, saveAndPlot, trotterN, trottern, trotterT, optimize
     # Running the trotter simulation up to a time trotterT
     # NB: T =/= trotterT
     trotterTs, res, complexity, circuit = trotter(N=trotterN, n_snapshot=trottern, T=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip)
+    save_trotter(trotterTs, complexity, trotterN, trottern, trotterT, q)
 
     if confirm:
-        trotter(N=trotterN, n_snapshot=trottern, T=T, startTime=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit, )
+        trotter(N=trotterN, n_snapshot=10, T=T, startTime=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit, )
 
     char = "c"
     dT = extract_dT_value(folder)
@@ -613,104 +630,123 @@ def trotterThenTEPAI(folder, saveAndPlot, trotterN, trottern, trotterT, optimize
     match = re.search(pattern, folder)
     saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char)
     organize_trotter_tepai()
-
-    if saveAndPlot:
-        trotter(100,10,float(T),int(q),compare=False,save=True, flip=flip)
-        plot_data_from_folder("TE-PAI-noSampling/data/plotting")
-
-    if costs[0] != None:
-        return costs
-    
+   
 def organize_trotter_tepai(
     plotting_dir: Path = Path("TE-PAI-noSampling/data/plotting"),
     target_base:  Path = Path("TE-PAI-noSampling/data/trotterThenTEPAI"),
 ):
     """
-    Finds exactly three CSVs in `plotting_dir`:
-      • Two files matching `lie-N-{N}-T-{T}-q-{q}.csv`
-      • One file matching
+    Finds in `plotting_dir`:
+      • One or two files matching `lie-N-{N}-T-{T}-q-{q}(…).csv`
+      • Exactly one TE-PAI file matching
           N-{N2}-n-{n}-p-{p}-Δ-pi_over_{X}-T-{T2}-q-{q}-dT-{dt}.csv
+      • Any number of trotter-bonds files matching
+          trotter-bonds-N-{N}-n-{n}-{T}-q-{q}.csv
 
     Builds (or replaces) a folder named
       q-{q}-N1-{N1}-T1-{T1}-N2-{N2}-p-{p}-T2-{T2}-dt-{dt}
 
-    Moves all three files into that folder, then moves it under `target_base`.
+    Moves all lie-file(s), all trotter-bonds files, and the TE-PAI file
+    into that folder, then into `target_base`.
     """
-    pat_lie = re.compile(r"^lie-N-(?P<N>\d+)-T-(?P<T>[0-9.]+)-q-(?P<q>\d+)(?:-fixedCircuit)?\.csv$")
+    # patterns
+    pat_lie = re.compile(
+        r"^lie-N-(?P<N>\d+)-T-(?P<T>[0-9.]+)-q-(?P<q>\d+)(?:-[^.]+)?\.csv$"
+    )
     pat_tep = re.compile(
         r"^N-(?P<N2>\d+)-n-(?P<n>\d+)-p-(?P<p>\d+)-Δ-pi_over_[^–]+"
         r"-T-(?P<T2>[0-9.]+)-q-(?P<q>\d+)-dT-(?P<dt>[0-9.]+)\.csv$"
     )
+    pat_trot = re.compile(
+        r"^trotter-bonds-N-(?P<N>\d+)-n-(?P<n>\d+)-(?P<T>[0-9.]+)-q-(?P<q>\d+)\.csv$"
+    )
 
-    lie_runs = []
-    tep_match = None
+    lie_runs    = []
+    tep_match   = None
+    trotter_runs = []
 
-    # collect files
+    # scan directory
     for f in plotting_dir.iterdir():
         if not f.is_file():
             continue
         if (m := pat_lie.match(f.name)):
             gd = m.groupdict()
-            lie_runs.append((f, float(gd["T"]), int(gd["N"]), int(gd["q"])))
+            lie_runs.append((f,
+                             float(gd["T"]),    # for sorting
+                             gd["T"],           # for exact naming
+                             gd["N"],
+                             gd["q"]))
         elif (m := pat_tep.match(f.name)):
             tep_match = (f, m.groupdict())
+        elif (m := pat_trot.match(f.name)):
+            gd = m.groupdict()
+            trotter_runs.append((f,
+                                  gd["q"]))
 
-    if len(lie_runs) != 2 or tep_match is None:
+    # require ≥1 lie-file and exactly 1 TE-PAI
+    if len(lie_runs) < 1 or tep_match is None:
         raise FileNotFoundError(
-            f"Need 2 lie-files + 1 TE-PAI file in {plotting_dir}, "
+            f"Need at least 1 lie-file + 1 TE-PAI file in {plotting_dir}, "
             f"found {len(lie_runs)} lie and "
             f"{'none' if tep_match is None else 'one'} TE-PAI."
         )
 
-    # ensure single q across all three
-    q_vals = { q for _, _, _, q in lie_runs } | { int(tep_match[1]["q"]) }
+    # collect all q-values for consistency
+    q_vals = { q for *_, q in lie_runs } \
+           | { tep_match[1]["q"] } \
+           | { q for _, q in trotter_runs }
     if len(q_vals) != 1:
         raise ValueError(f"q mismatch among files: {q_vals}")
-    q = q_vals.pop()
+    q_str = q_vals.pop()
 
     # pick the lie-run with smallest T
     lie_runs.sort(key=lambda tup: tup[1])
-    _, T1, N1, _ = lie_runs[0]
+    _, _, T1_str, N1_str, _ = lie_runs[0]
 
-    # TE-PAI params
+    # TE-PAI params (use raw strings for naming)
     tep_f, tep_g = tep_match
-    N2  = int(tep_g["N2"])
-    p   = int(tep_g["p"])
-    T2  = float(tep_g["T2"])
-    dt  = float(tep_g["dt"])
+    N2_str = tep_g["N2"]
+    p_str  = tep_g["p"]
+    T2_str = tep_g["T2"]
+    dt_str = tep_g["dt"]
 
-    # build old-style folder name
+    # build folder name
     folder_name = (
-        f"q-{q}"
-        f"-N1-{N1}-T1-{T1}"
-        f"-N2-{N2}-p-{p}-T2-{T2}-dt-{dt}"
+        f"q-{q_str}"
+        f"-N1-{N1_str}-T1-{T1_str}"
+        f"-N2-{N2_str}-p-{p_str}-T2-{T2_str}-dt-{dt_str}"
     )
 
-    # ensure base target exists
+    # ensure target base exists
     target_base.mkdir(parents=True, exist_ok=True)
 
     staging = plotting_dir / folder_name
     target  = target_base  / folder_name
 
-    # **NEW**: remove any old runs with the same name
+    # replace existing
     if staging.exists():
         shutil.rmtree(staging)
     if target.exists():
         shutil.rmtree(target)
 
-    # recreate staging
     staging.mkdir(parents=True)
 
-    # move both lie-files
-    for f, _, _, _ in lie_runs:
+    # move lie-files
+    for f, _, _, _, _ in lie_runs:
         shutil.move(str(f), staging / f.name)
+
+    # move trotter-bonds files
+    for f, _ in trotter_runs:
+        shutil.move(str(f), staging / f.name)
+
     # move TE-PAI file
     shutil.move(str(tep_f), staging / tep_f.name)
 
-    # finally relocate the folder
+    # relocate folder to target_base
     shutil.move(str(staging), target)
 
-    print(f"Moved 3 files into {target}")
+    print(f"Moved {len(lie_runs)} lie-file(s), {len(trotter_runs)} trotter-bonds file(s), "
+          f"+ 1 TE-PAI file into {target}")
 
 def plot_trotter_then_tepai(
     q: int,
@@ -953,42 +989,50 @@ def strip_trailing_dot_zero(folder_name):
 
 def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds"):
     """
-    Scans the given folder for CSV files matching the pattern:
-    lie-bond-N-{N}-T-{T}-q-{q}.csv
-    Reads each file (ignoring the first row as a header),
-    and plots all time vs. max_bond curves on a single plot.
+    Scans the given folder for CSV files matching either pattern:
+      • lie-bond-N-{N}-T-{T}-q-{q}.csv
+      • trotter-bonds-N-{N}-n-{n}-{T}-q-{q}.csv
 
-    Parameters:
-    ---------------
-    folder_path : str
-        Relative or absolute path to the folder containing bond CSV files.
+    Reads each file (ignoring the first row as a header),
+    and plots time vs. max_bond curves on a single plot.
+    If no matching files are found, simply returns without error.
     """
-    # Regex to extract N, T, q from filenames
-    pattern = re.compile(r"lie-bond-N-(?P<N>[^-]+)-T-(?P<T>[^-]+)-q-(?P<q>[^.]+)\.csv")
+    pat_lie = re.compile(
+        r"^lie-bond-N-(?P<N>[^-]+)-T-(?P<T>[^-]+)-q-(?P<q>[^.]+)\.csv$"
+    )
+    pat_trot = re.compile(
+        r"^trotter-bonds-N-(?P<N>[^-]+)-n-(?P<n>[^-]+)-(?P<T>[^-]+)-q-(?P<q>[^.]+)\.csv$"
+    )
 
     plt.figure()
+    found_any = False
 
-    # Loop over all files in the folder
     for filename in os.listdir(folder_path):
-        match = pattern.match(filename)
-        if not match:
+        fp = os.path.join(folder_path, filename)
+
+        m1 = pat_lie.match(filename)
+        if m1:
+            gd = m1.groupdict()
+            df = pd.read_csv(fp, header=0)
+            x, y = df.iloc[:, 0], df.iloc[:, 1]
+            label = f"lie-bond N={gd['N']}, T={gd['T']}, q={gd['q']}"
+            plt.plot(x, y, label=label)
+            found_any = True
             continue
-        N = match.group("N")
-        T = match.group("T")
-        q = match.group("q")
-        file_path = os.path.join(folder_path, filename)
 
-        # Read CSV, ignoring the first row as header
-        df = pd.read_csv(file_path, header=0)
+        m2 = pat_trot.match(filename)
+        if m2:
+            gd = m2.groupdict()
+            df = pd.read_csv(fp, header=0)
+            x, y = df.iloc[:, 0], df.iloc[:, 1]
+            label = f"trotter-bonds N={gd['N']}, n={gd['n']}, T={gd['T']}, q={gd['q']}"
+            plt.plot(x, y, label=label)
+            found_any = True
+            continue
 
-        # Assume first column is time, second column is max_bond
-        x = df.iloc[:, 0]
-        y = df.iloc[:, 1]
+    if not found_any:
+        return
 
-        label = f"N={N}, T={T}, q={q}"
-        plt.plot(x, y, label=label)
-
-    # Finalize plot
     plt.title("Bond size over time")
     plt.xlabel("time")
     plt.ylabel("max_bond")
@@ -997,8 +1041,10 @@ def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds"):
     plt.tight_layout()
     plt.show()
 
+
+plot_bond_data(r"TE-PAI-noSampling\data\trotterThenTEPAI\q-10-N1-100-T1-2-N2-1000-p-100-T2-3.0-dt-0.1")
 #organize_trotter_tepai()
-if True:
+if False:
     plot_trotter_then_tepai(
         q = 10,
         N1= 100,
