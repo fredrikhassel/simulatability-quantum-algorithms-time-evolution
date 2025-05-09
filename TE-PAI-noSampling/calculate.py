@@ -17,7 +17,7 @@ warnings.filterwarnings(
 import json
 import re
 from circuitGeneratorPool import generate
-from circuitSimulatorMPS import parse, trotter, showComplexity
+from circuitSimulatorMPS import parse, trotter, showComplexity, trotterThenTEPAI
 import multiprocessing
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -87,6 +87,30 @@ def main():
         save=True, 
         draw=False, 
         flip=True)
+
+    print("Starting trotterThenTEPAI phase...\n")
+    for key, params in config["trotterThenTEPAI"].items():
+        print(f"[TROTTER THEN TEPAI {key}] Starting with parameters:")
+        print(json.dumps(params, indent=4))
+        path = params["path"]
+        trotterN = params["trotterN"]
+        trottern = params["trottern"]
+        trotterT = params["trotterT"]
+        flip = params["flip"]
+        confirm = params["confirm"]
+
+        # Convert dict values to array (ensure the order matches generate() expectations)
+        param_array = list(params.values())
+
+        trotterThenTEPAI(trotterN=trotterN,
+            trottern=trottern,
+            trotterT=trotterT,
+            folder=path,
+            flip=flip,
+            confirm=confirm
+        )
+
+        print(f"[TROTTER THEN TEPAI {key}] Finished.\n")
 
     print("All tasks completed.")
 
