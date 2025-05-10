@@ -1,23 +1,14 @@
 {
    "generate": {"1": {
-        "numQs": 20,
-        "Δ": 10,
-        "T": 2,
-        "dT": 0.2,
-        "N": 1000,
-        "circuit_pool_size": 100
+        "numQs": 4,
+        "Δ": 6,
+        "T": 0.1,
+        "dT": 0.01,
+        "N": 1,
+        "circuit_pool_size": 10000
         }
    },
     "simulate": {},
     "lie": {},
-    "trotterThenTEPAI": {
-        "1": {
-            "path": "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-20-dT-0.2-T-2",
-            "trotterN": 400,
-            "trottern": 40,
-            "trotterT": 4,
-            "flip": true,
-            "confirm": true
-        }
-    }
+    "trotterThenTEPAI": {}
 }
