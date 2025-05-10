@@ -97,7 +97,7 @@ class TE_PAI:
                     del circuit
                     gc.collect()
 
-                    if i % 50 == 0:
+                    if i % 10 == 0:
                         print(f"Wrote {i}/{num_circuits} circuits and cleaned memory")
 
             f.write('\n}')  # close JSON object

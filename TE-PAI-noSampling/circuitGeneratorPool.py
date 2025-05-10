@@ -62,9 +62,8 @@ def generate(params):
     # Parameters
     print(params)
     numQs, Δ, T, dT, N, circuit_pool_size = params
-    Δ = np.pi / (2**10)
-
-    Δ_name = 'pi_over_' + str(2**10)
+    Δ_name = 'pi_over_' + str(2**Δ)
+    Δ = np.pi / (2**Δ)
     finalTimes = np.arange(dT,T+dT,dT)
     n_snapshot = 1
 

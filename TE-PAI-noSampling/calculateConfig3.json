@@ -1,0 +1,23 @@
+{
+   "generate": {"1": {
+        "numQs": 6,
+        "Δ": 10,
+        "T": 2,
+        "dT": 0.2,
+        "N": 100,
+        "circuit_pool_size": 100
+        }
+   },
+    "simulate": {},
+    "lie": {},
+    "trotterThenTEPAI": {
+        "1": {
+            "path": "TE-PAI-noSampling/data/circuits/N-100-n-1-p-100-Δ-pi_over_1024-q-6-dT-0.2-T-2",
+            "trotterN": 400,
+            "trottern": 40,
+            "trotterT": 4,
+            "flip": true,
+            "confirm": true
+        }
+    }
+}
