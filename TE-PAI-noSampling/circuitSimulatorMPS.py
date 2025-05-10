@@ -11,6 +11,7 @@ import quimb as qu
 import pandas as pd
 from HAMILTONIAN import Hamiltonian
 from TROTTER import Trotter
+from main import TE_PAI
 import h5py
 import time
 import opt_einsum as oe
@@ -713,8 +714,8 @@ def organize_trotter_tepai(
     # build folder name
     folder_name = (
         f"q-{q_str}"
-        f"-N1-{N1_str}-T1-{T1_str}"
-        f"-N2-{N2_str}-p-{p_str}-T2-{T2_str}-dt-{dt_str}"
+        f"-N1-{N1_str}-T1-{float(T1_str)}"
+        f"-N2-{N2_str}-p-{p_str}-T2-{float(T2_str)}-dt-{dt_str}"
     )
 
     # ensure target base exists
@@ -963,8 +964,12 @@ def plotComplexityFromFolder(folder_path, semilogy=True):
     plt.grid(True)
     plt.show()
 
-def getCircuit(q, flip=False):
-    quimb = qtn.CircuitMPS(q, cutoff = 1e-12)
+def getCircuit(q, flip=False, mps=True):
+
+    if mps:
+        quimb = qtn.CircuitMPS(q, cutoff = 1e-12)
+    else:
+        quimb = qtn.Circuit(q)
 
     for i in range(q):
         quimb.apply_gate('H', qubits=[i])
@@ -1040,6 +1045,81 @@ def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds"):
     plt.legend()
     plt.tight_layout()
     plt.show()
+
+def plot_gate_counts(path, n, bins=10):
+    path = strip_trailing_dot_zero(path)
+    data_dict = JSONtoDict(path)
+    data_arrs,Ts,params,pool = DictToArr(data_dict, True)
+    N,_,c,Δ,T,q = params
+    q = int(q)
+    N = int(N)
+    T = round(float(T), 8)
+    dT = T / n
+    Δ = parse_pi_over(Δ)
+    circuit_pool, sign_pool = data_arrs[0]
+    print(n)
+
+    circuit_lengths = []
+    for circuit in circuit_pool:
+        circuit_lengths.append(len(circuit))
+    circuit_lengths = group_sum(circuit_lengths, n)
+    experimental_length = np.mean(np.array(circuit_lengths))
+
+    # Setting up TE-PAI
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    te_pai = TE_PAI(hamil, q, Δ, T, N, n)
+    theoretical_length = te_pai.expected_num_gates
+    print(f"Theoretical length of circuit: {theoretical_length}, Experimental length of circuit: {experimental_length}, difference: {(theoretical_length-experimental_length)/theoretical_length}")
+    plt.figure(figsize=(8, 5))
+    
+    # Plot histogram
+    plt.hist(circuit_lengths, bins=bins, density=True, alpha=0.6, edgecolor='black')
+    
+    # Plot theoretical mean line
+    plt.axvline(theoretical_length, color='gray', linestyle='dotted', linewidth=2, label=f"Theoretical length = {theoretical_length:.2f}")
+    
+    # Add labels and legend
+    plt.xlabel("Circuit length")
+    plt.ylabel("Probability Density")
+    plt.title("Histogram of circuit lengths with expected number of gates")
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+def parse_pi_over(text):
+    if text.startswith("pi_over_"):
+        try:
+            denominator = int(text.split("_")[-1])
+            return np.pi / denominator
+        except ValueError:
+            raise ValueError("Invalid denominator in input string.")
+    else:
+        raise ValueError("Input must be of the form 'pi_over_<integer>'.")
+
+def group_sum(arr, n):
+    if len(arr) % n != 0:
+        raise ValueError("Array length must be divisible by n.")
+    return [sum(arr[i:i+n]) for i in range(0, len(arr), n)]
+
+def draw_circuits(path, n, flip=True):
+    path = strip_trailing_dot_zero(path)
+    data_dict = JSONtoDict(path)
+    data_arrs,Ts,params,pool = DictToArr(data_dict, True)
+    N,_,c,Δ,T,q = params
+    q = int(q)
+    N = int(N)
+    T = round(float(T), 8)
+    Δ = parse_pi_over(Δ)
+
+    circuit_pool, sign_pool = data_arrs[0]
+    quimb = getCircuit(q, flip=flip, mps=False)
+    for i in range(n):
+        circuit = circuit_pool[i]
+        applyGates(quimb,circuit)
+        quimb.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
 
 
 #plot_bond_data(r"TE-PAI-noSampling\data\trotterThenTEPAI\q-10-N1-100-T1-2-N2-1000-p-100-T2-3.0-dt-0.1")
