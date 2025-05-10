@@ -7,22 +7,1021 @@ Starting generation phase...
 
 [GENERATION 1] Starting with parameters:
 {
-    "numQs": 20,
-    "\u0394": 10,
-    "T": 2,
-    "dT": 0.2,
-    "N": 1000,
-    "circuit_pool_size": 100
+    "numQs": 4,
+    "\u0394": 8,
+    "T": 1,
+    "dT": 0.1,
+    "N": 100,
+    "circuit_pool_size": 10000
 }
-[20, 10, 2, 0.2, 1000, 100]
-The number of qubit:20
-Number of terms in the Hamiltonian:80
+[4, 8, 1, 0.1, 100, 10000]
+The number of qubit:4
+Number of terms in the Hamiltonian:16
 calculate.py loaded
 calculate.py loaded
 calculate.py loaded
-Wrote 50/100 circuits and cleaned memory
-Wrote 100/100 circuits and cleaned memory
-Sign list successfully saved to /home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-20-dT-0.2-T-2/sign_list-N-1000-n-1-p-100-Δ-pi_over_1024-T-2-q-20.json
+calculate.py loaded
+Wrote 10/10000 circuits and cleaned memory
+Wrote 20/10000 circuits and cleaned memory
+Wrote 30/10000 circuits and cleaned memory
+Wrote 40/10000 circuits and cleaned memory
+Wrote 50/10000 circuits and cleaned memory
+Wrote 60/10000 circuits and cleaned memory
+Wrote 70/10000 circuits and cleaned memory
+Wrote 80/10000 circuits and cleaned memory
+Wrote 90/10000 circuits and cleaned memory
+Wrote 100/10000 circuits and cleaned memory
+Wrote 110/10000 circuits and cleaned memory
+Wrote 120/10000 circuits and cleaned memory
+Wrote 130/10000 circuits and cleaned memory
+Wrote 140/10000 circuits and cleaned memory
+Wrote 150/10000 circuits and cleaned memory
+Wrote 160/10000 circuits and cleaned memory
+Wrote 170/10000 circuits and cleaned memory
+Wrote 180/10000 circuits and cleaned memory
+Wrote 190/10000 circuits and cleaned memory
+Wrote 200/10000 circuits and cleaned memory
+Wrote 210/10000 circuits and cleaned memory
+Wrote 220/10000 circuits and cleaned memory
+Wrote 230/10000 circuits and cleaned memory
+Wrote 240/10000 circuits and cleaned memory
+Wrote 250/10000 circuits and cleaned memory
+Wrote 260/10000 circuits and cleaned memory
+Wrote 270/10000 circuits and cleaned memory
+Wrote 280/10000 circuits and cleaned memory
+Wrote 290/10000 circuits and cleaned memory
+Wrote 300/10000 circuits and cleaned memory
+Wrote 310/10000 circuits and cleaned memory
+Wrote 320/10000 circuits and cleaned memory
+Wrote 330/10000 circuits and cleaned memory
+Wrote 340/10000 circuits and cleaned memory
+Wrote 350/10000 circuits and cleaned memory
+Wrote 360/10000 circuits and cleaned memory
+Wrote 370/10000 circuits and cleaned memory
+Wrote 380/10000 circuits and cleaned memory
+Wrote 390/10000 circuits and cleaned memory
+Wrote 400/10000 circuits and cleaned memory
+Wrote 410/10000 circuits and cleaned memory
+Wrote 420/10000 circuits and cleaned memory
+Wrote 430/10000 circuits and cleaned memory
+Wrote 440/10000 circuits and cleaned memory
+Wrote 450/10000 circuits and cleaned memory
+Wrote 460/10000 circuits and cleaned memory
+Wrote 470/10000 circuits and cleaned memory
+Wrote 480/10000 circuits and cleaned memory
+Wrote 490/10000 circuits and cleaned memory
+Wrote 500/10000 circuits and cleaned memory
+Wrote 510/10000 circuits and cleaned memory
+Wrote 520/10000 circuits and cleaned memory
+Wrote 530/10000 circuits and cleaned memory
+Wrote 540/10000 circuits and cleaned memory
+Wrote 550/10000 circuits and cleaned memory
+Wrote 560/10000 circuits and cleaned memory
+Wrote 570/10000 circuits and cleaned memory
+Wrote 580/10000 circuits and cleaned memory
+Wrote 590/10000 circuits and cleaned memory
+Wrote 600/10000 circuits and cleaned memory
+Wrote 610/10000 circuits and cleaned memory
+Wrote 620/10000 circuits and cleaned memory
+Wrote 630/10000 circuits and cleaned memory
+Wrote 640/10000 circuits and cleaned memory
+Wrote 650/10000 circuits and cleaned memory
+Wrote 660/10000 circuits and cleaned memory
+Wrote 670/10000 circuits and cleaned memory
+Wrote 680/10000 circuits and cleaned memory
+Wrote 690/10000 circuits and cleaned memory
+Wrote 700/10000 circuits and cleaned memory
+Wrote 710/10000 circuits and cleaned memory
+Wrote 720/10000 circuits and cleaned memory
+Wrote 730/10000 circuits and cleaned memory
+Wrote 740/10000 circuits and cleaned memory
+Wrote 750/10000 circuits and cleaned memory
+Wrote 760/10000 circuits and cleaned memory
+Wrote 770/10000 circuits and cleaned memory
+Wrote 780/10000 circuits and cleaned memory
+Wrote 790/10000 circuits and cleaned memory
+Wrote 800/10000 circuits and cleaned memory
+Wrote 810/10000 circuits and cleaned memory
+Wrote 820/10000 circuits and cleaned memory
+Wrote 830/10000 circuits and cleaned memory
+Wrote 840/10000 circuits and cleaned memory
+Wrote 850/10000 circuits and cleaned memory
+Wrote 860/10000 circuits and cleaned memory
+Wrote 870/10000 circuits and cleaned memory
+Wrote 880/10000 circuits and cleaned memory
+Wrote 890/10000 circuits and cleaned memory
+Wrote 900/10000 circuits and cleaned memory
+Wrote 910/10000 circuits and cleaned memory
+Wrote 920/10000 circuits and cleaned memory
+Wrote 930/10000 circuits and cleaned memory
+Wrote 940/10000 circuits and cleaned memory
+Wrote 950/10000 circuits and cleaned memory
+Wrote 960/10000 circuits and cleaned memory
+Wrote 970/10000 circuits and cleaned memory
+Wrote 980/10000 circuits and cleaned memory
+Wrote 990/10000 circuits and cleaned memory
+Wrote 1000/10000 circuits and cleaned memory
+Wrote 1010/10000 circuits and cleaned memory
+Wrote 1020/10000 circuits and cleaned memory
+Wrote 1030/10000 circuits and cleaned memory
+Wrote 1040/10000 circuits and cleaned memory
+Wrote 1050/10000 circuits and cleaned memory
+Wrote 1060/10000 circuits and cleaned memory
+Wrote 1070/10000 circuits and cleaned memory
+Wrote 1080/10000 circuits and cleaned memory
+Wrote 1090/10000 circuits and cleaned memory
+Wrote 1100/10000 circuits and cleaned memory
+Wrote 1110/10000 circuits and cleaned memory
+Wrote 1120/10000 circuits and cleaned memory
+Wrote 1130/10000 circuits and cleaned memory
+Wrote 1140/10000 circuits and cleaned memory
+Wrote 1150/10000 circuits and cleaned memory
+Wrote 1160/10000 circuits and cleaned memory
+Wrote 1170/10000 circuits and cleaned memory
+Wrote 1180/10000 circuits and cleaned memory
+Wrote 1190/10000 circuits and cleaned memory
+Wrote 1200/10000 circuits and cleaned memory
+Wrote 1210/10000 circuits and cleaned memory
+Wrote 1220/10000 circuits and cleaned memory
+Wrote 1230/10000 circuits and cleaned memory
+Wrote 1240/10000 circuits and cleaned memory
+Wrote 1250/10000 circuits and cleaned memory
+Wrote 1260/10000 circuits and cleaned memory
+Wrote 1270/10000 circuits and cleaned memory
+Wrote 1280/10000 circuits and cleaned memory
+Wrote 1290/10000 circuits and cleaned memory
+Wrote 1300/10000 circuits and cleaned memory
+Wrote 1310/10000 circuits and cleaned memory
+Wrote 1320/10000 circuits and cleaned memory
+Wrote 1330/10000 circuits and cleaned memory
+Wrote 1340/10000 circuits and cleaned memory
+Wrote 1350/10000 circuits and cleaned memory
+Wrote 1360/10000 circuits and cleaned memory
+Wrote 1370/10000 circuits and cleaned memory
+Wrote 1380/10000 circuits and cleaned memory
+Wrote 1390/10000 circuits and cleaned memory
+Wrote 1400/10000 circuits and cleaned memory
+Wrote 1410/10000 circuits and cleaned memory
+Wrote 1420/10000 circuits and cleaned memory
+Wrote 1430/10000 circuits and cleaned memory
+Wrote 1440/10000 circuits and cleaned memory
+Wrote 1450/10000 circuits and cleaned memory
+Wrote 1460/10000 circuits and cleaned memory
+Wrote 1470/10000 circuits and cleaned memory
+Wrote 1480/10000 circuits and cleaned memory
+Wrote 1490/10000 circuits and cleaned memory
+Wrote 1500/10000 circuits and cleaned memory
+Wrote 1510/10000 circuits and cleaned memory
+Wrote 1520/10000 circuits and cleaned memory
+Wrote 1530/10000 circuits and cleaned memory
+Wrote 1540/10000 circuits and cleaned memory
+Wrote 1550/10000 circuits and cleaned memory
+Wrote 1560/10000 circuits and cleaned memory
+Wrote 1570/10000 circuits and cleaned memory
+Wrote 1580/10000 circuits and cleaned memory
+Wrote 1590/10000 circuits and cleaned memory
+Wrote 1600/10000 circuits and cleaned memory
+Wrote 1610/10000 circuits and cleaned memory
+Wrote 1620/10000 circuits and cleaned memory
+Wrote 1630/10000 circuits and cleaned memory
+Wrote 1640/10000 circuits and cleaned memory
+Wrote 1650/10000 circuits and cleaned memory
+Wrote 1660/10000 circuits and cleaned memory
+Wrote 1670/10000 circuits and cleaned memory
+Wrote 1680/10000 circuits and cleaned memory
+Wrote 1690/10000 circuits and cleaned memory
+Wrote 1700/10000 circuits and cleaned memory
+Wrote 1710/10000 circuits and cleaned memory
+Wrote 1720/10000 circuits and cleaned memory
+Wrote 1730/10000 circuits and cleaned memory
+Wrote 1740/10000 circuits and cleaned memory
+Wrote 1750/10000 circuits and cleaned memory
+Wrote 1760/10000 circuits and cleaned memory
+Wrote 1770/10000 circuits and cleaned memory
+Wrote 1780/10000 circuits and cleaned memory
+Wrote 1790/10000 circuits and cleaned memory
+Wrote 1800/10000 circuits and cleaned memory
+Wrote 1810/10000 circuits and cleaned memory
+Wrote 1820/10000 circuits and cleaned memory
+Wrote 1830/10000 circuits and cleaned memory
+Wrote 1840/10000 circuits and cleaned memory
+Wrote 1850/10000 circuits and cleaned memory
+Wrote 1860/10000 circuits and cleaned memory
+Wrote 1870/10000 circuits and cleaned memory
+Wrote 1880/10000 circuits and cleaned memory
+Wrote 1890/10000 circuits and cleaned memory
+Wrote 1900/10000 circuits and cleaned memory
+Wrote 1910/10000 circuits and cleaned memory
+Wrote 1920/10000 circuits and cleaned memory
+Wrote 1930/10000 circuits and cleaned memory
+Wrote 1940/10000 circuits and cleaned memory
+Wrote 1950/10000 circuits and cleaned memory
+Wrote 1960/10000 circuits and cleaned memory
+Wrote 1970/10000 circuits and cleaned memory
+Wrote 1980/10000 circuits and cleaned memory
+Wrote 1990/10000 circuits and cleaned memory
+Wrote 2000/10000 circuits and cleaned memory
+Wrote 2010/10000 circuits and cleaned memory
+Wrote 2020/10000 circuits and cleaned memory
+Wrote 2030/10000 circuits and cleaned memory
+Wrote 2040/10000 circuits and cleaned memory
+Wrote 2050/10000 circuits and cleaned memory
+Wrote 2060/10000 circuits and cleaned memory
+Wrote 2070/10000 circuits and cleaned memory
+Wrote 2080/10000 circuits and cleaned memory
+Wrote 2090/10000 circuits and cleaned memory
+Wrote 2100/10000 circuits and cleaned memory
+Wrote 2110/10000 circuits and cleaned memory
+Wrote 2120/10000 circuits and cleaned memory
+Wrote 2130/10000 circuits and cleaned memory
+Wrote 2140/10000 circuits and cleaned memory
+Wrote 2150/10000 circuits and cleaned memory
+Wrote 2160/10000 circuits and cleaned memory
+Wrote 2170/10000 circuits and cleaned memory
+Wrote 2180/10000 circuits and cleaned memory
+Wrote 2190/10000 circuits and cleaned memory
+Wrote 2200/10000 circuits and cleaned memory
+Wrote 2210/10000 circuits and cleaned memory
+Wrote 2220/10000 circuits and cleaned memory
+Wrote 2230/10000 circuits and cleaned memory
+Wrote 2240/10000 circuits and cleaned memory
+Wrote 2250/10000 circuits and cleaned memory
+Wrote 2260/10000 circuits and cleaned memory
+Wrote 2270/10000 circuits and cleaned memory
+Wrote 2280/10000 circuits and cleaned memory
+Wrote 2290/10000 circuits and cleaned memory
+Wrote 2300/10000 circuits and cleaned memory
+Wrote 2310/10000 circuits and cleaned memory
+Wrote 2320/10000 circuits and cleaned memory
+Wrote 2330/10000 circuits and cleaned memory
+Wrote 2340/10000 circuits and cleaned memory
+Wrote 2350/10000 circuits and cleaned memory
+Wrote 2360/10000 circuits and cleaned memory
+Wrote 2370/10000 circuits and cleaned memory
+Wrote 2380/10000 circuits and cleaned memory
+Wrote 2390/10000 circuits and cleaned memory
+Wrote 2400/10000 circuits and cleaned memory
+Wrote 2410/10000 circuits and cleaned memory
+Wrote 2420/10000 circuits and cleaned memory
+Wrote 2430/10000 circuits and cleaned memory
+Wrote 2440/10000 circuits and cleaned memory
+Wrote 2450/10000 circuits and cleaned memory
+Wrote 2460/10000 circuits and cleaned memory
+Wrote 2470/10000 circuits and cleaned memory
+Wrote 2480/10000 circuits and cleaned memory
+Wrote 2490/10000 circuits and cleaned memory
+Wrote 2500/10000 circuits and cleaned memory
+Wrote 2510/10000 circuits and cleaned memory
+Wrote 2520/10000 circuits and cleaned memory
+Wrote 2530/10000 circuits and cleaned memory
+Wrote 2540/10000 circuits and cleaned memory
+Wrote 2550/10000 circuits and cleaned memory
+Wrote 2560/10000 circuits and cleaned memory
+Wrote 2570/10000 circuits and cleaned memory
+Wrote 2580/10000 circuits and cleaned memory
+Wrote 2590/10000 circuits and cleaned memory
+Wrote 2600/10000 circuits and cleaned memory
+Wrote 2610/10000 circuits and cleaned memory
+Wrote 2620/10000 circuits and cleaned memory
+Wrote 2630/10000 circuits and cleaned memory
+Wrote 2640/10000 circuits and cleaned memory
+Wrote 2650/10000 circuits and cleaned memory
+Wrote 2660/10000 circuits and cleaned memory
+Wrote 2670/10000 circuits and cleaned memory
+Wrote 2680/10000 circuits and cleaned memory
+Wrote 2690/10000 circuits and cleaned memory
+Wrote 2700/10000 circuits and cleaned memory
+Wrote 2710/10000 circuits and cleaned memory
+Wrote 2720/10000 circuits and cleaned memory
+Wrote 2730/10000 circuits and cleaned memory
+Wrote 2740/10000 circuits and cleaned memory
+Wrote 2750/10000 circuits and cleaned memory
+Wrote 2760/10000 circuits and cleaned memory
+Wrote 2770/10000 circuits and cleaned memory
+Wrote 2780/10000 circuits and cleaned memory
+Wrote 2790/10000 circuits and cleaned memory
+Wrote 2800/10000 circuits and cleaned memory
+Wrote 2810/10000 circuits and cleaned memory
+Wrote 2820/10000 circuits and cleaned memory
+Wrote 2830/10000 circuits and cleaned memory
+Wrote 2840/10000 circuits and cleaned memory
+Wrote 2850/10000 circuits and cleaned memory
+Wrote 2860/10000 circuits and cleaned memory
+Wrote 2870/10000 circuits and cleaned memory
+Wrote 2880/10000 circuits and cleaned memory
+Wrote 2890/10000 circuits and cleaned memory
+Wrote 2900/10000 circuits and cleaned memory
+Wrote 2910/10000 circuits and cleaned memory
+Wrote 2920/10000 circuits and cleaned memory
+Wrote 2930/10000 circuits and cleaned memory
+Wrote 2940/10000 circuits and cleaned memory
+Wrote 2950/10000 circuits and cleaned memory
+Wrote 2960/10000 circuits and cleaned memory
+Wrote 2970/10000 circuits and cleaned memory
+Wrote 2980/10000 circuits and cleaned memory
+Wrote 2990/10000 circuits and cleaned memory
+Wrote 3000/10000 circuits and cleaned memory
+Wrote 3010/10000 circuits and cleaned memory
+Wrote 3020/10000 circuits and cleaned memory
+Wrote 3030/10000 circuits and cleaned memory
+Wrote 3040/10000 circuits and cleaned memory
+Wrote 3050/10000 circuits and cleaned memory
+Wrote 3060/10000 circuits and cleaned memory
+Wrote 3070/10000 circuits and cleaned memory
+Wrote 3080/10000 circuits and cleaned memory
+Wrote 3090/10000 circuits and cleaned memory
+Wrote 3100/10000 circuits and cleaned memory
+Wrote 3110/10000 circuits and cleaned memory
+Wrote 3120/10000 circuits and cleaned memory
+Wrote 3130/10000 circuits and cleaned memory
+Wrote 3140/10000 circuits and cleaned memory
+Wrote 3150/10000 circuits and cleaned memory
+Wrote 3160/10000 circuits and cleaned memory
+Wrote 3170/10000 circuits and cleaned memory
+Wrote 3180/10000 circuits and cleaned memory
+Wrote 3190/10000 circuits and cleaned memory
+Wrote 3200/10000 circuits and cleaned memory
+Wrote 3210/10000 circuits and cleaned memory
+Wrote 3220/10000 circuits and cleaned memory
+Wrote 3230/10000 circuits and cleaned memory
+Wrote 3240/10000 circuits and cleaned memory
+Wrote 3250/10000 circuits and cleaned memory
+Wrote 3260/10000 circuits and cleaned memory
+Wrote 3270/10000 circuits and cleaned memory
+Wrote 3280/10000 circuits and cleaned memory
+Wrote 3290/10000 circuits and cleaned memory
+Wrote 3300/10000 circuits and cleaned memory
+Wrote 3310/10000 circuits and cleaned memory
+Wrote 3320/10000 circuits and cleaned memory
+Wrote 3330/10000 circuits and cleaned memory
+Wrote 3340/10000 circuits and cleaned memory
+Wrote 3350/10000 circuits and cleaned memory
+Wrote 3360/10000 circuits and cleaned memory
+Wrote 3370/10000 circuits and cleaned memory
+Wrote 3380/10000 circuits and cleaned memory
+Wrote 3390/10000 circuits and cleaned memory
+Wrote 3400/10000 circuits and cleaned memory
+Wrote 3410/10000 circuits and cleaned memory
+Wrote 3420/10000 circuits and cleaned memory
+Wrote 3430/10000 circuits and cleaned memory
+Wrote 3440/10000 circuits and cleaned memory
+Wrote 3450/10000 circuits and cleaned memory
+Wrote 3460/10000 circuits and cleaned memory
+Wrote 3470/10000 circuits and cleaned memory
+Wrote 3480/10000 circuits and cleaned memory
+Wrote 3490/10000 circuits and cleaned memory
+Wrote 3500/10000 circuits and cleaned memory
+Wrote 3510/10000 circuits and cleaned memory
+Wrote 3520/10000 circuits and cleaned memory
+Wrote 3530/10000 circuits and cleaned memory
+Wrote 3540/10000 circuits and cleaned memory
+Wrote 3550/10000 circuits and cleaned memory
+Wrote 3560/10000 circuits and cleaned memory
+Wrote 3570/10000 circuits and cleaned memory
+Wrote 3580/10000 circuits and cleaned memory
+Wrote 3590/10000 circuits and cleaned memory
+Wrote 3600/10000 circuits and cleaned memory
+Wrote 3610/10000 circuits and cleaned memory
+Wrote 3620/10000 circuits and cleaned memory
+Wrote 3630/10000 circuits and cleaned memory
+Wrote 3640/10000 circuits and cleaned memory
+Wrote 3650/10000 circuits and cleaned memory
+Wrote 3660/10000 circuits and cleaned memory
+Wrote 3670/10000 circuits and cleaned memory
+Wrote 3680/10000 circuits and cleaned memory
+Wrote 3690/10000 circuits and cleaned memory
+Wrote 3700/10000 circuits and cleaned memory
+Wrote 3710/10000 circuits and cleaned memory
+Wrote 3720/10000 circuits and cleaned memory
+Wrote 3730/10000 circuits and cleaned memory
+Wrote 3740/10000 circuits and cleaned memory
+Wrote 3750/10000 circuits and cleaned memory
+Wrote 3760/10000 circuits and cleaned memory
+Wrote 3770/10000 circuits and cleaned memory
+Wrote 3780/10000 circuits and cleaned memory
+Wrote 3790/10000 circuits and cleaned memory
+Wrote 3800/10000 circuits and cleaned memory
+Wrote 3810/10000 circuits and cleaned memory
+Wrote 3820/10000 circuits and cleaned memory
+Wrote 3830/10000 circuits and cleaned memory
+Wrote 3840/10000 circuits and cleaned memory
+Wrote 3850/10000 circuits and cleaned memory
+Wrote 3860/10000 circuits and cleaned memory
+Wrote 3870/10000 circuits and cleaned memory
+Wrote 3880/10000 circuits and cleaned memory
+Wrote 3890/10000 circuits and cleaned memory
+Wrote 3900/10000 circuits and cleaned memory
+Wrote 3910/10000 circuits and cleaned memory
+Wrote 3920/10000 circuits and cleaned memory
+Wrote 3930/10000 circuits and cleaned memory
+Wrote 3940/10000 circuits and cleaned memory
+Wrote 3950/10000 circuits and cleaned memory
+Wrote 3960/10000 circuits and cleaned memory
+Wrote 3970/10000 circuits and cleaned memory
+Wrote 3980/10000 circuits and cleaned memory
+Wrote 3990/10000 circuits and cleaned memory
+Wrote 4000/10000 circuits and cleaned memory
+Wrote 4010/10000 circuits and cleaned memory
+Wrote 4020/10000 circuits and cleaned memory
+Wrote 4030/10000 circuits and cleaned memory
+Wrote 4040/10000 circuits and cleaned memory
+Wrote 4050/10000 circuits and cleaned memory
+Wrote 4060/10000 circuits and cleaned memory
+Wrote 4070/10000 circuits and cleaned memory
+Wrote 4080/10000 circuits and cleaned memory
+Wrote 4090/10000 circuits and cleaned memory
+Wrote 4100/10000 circuits and cleaned memory
+Wrote 4110/10000 circuits and cleaned memory
+Wrote 4120/10000 circuits and cleaned memory
+Wrote 4130/10000 circuits and cleaned memory
+Wrote 4140/10000 circuits and cleaned memory
+Wrote 4150/10000 circuits and cleaned memory
+Wrote 4160/10000 circuits and cleaned memory
+Wrote 4170/10000 circuits and cleaned memory
+Wrote 4180/10000 circuits and cleaned memory
+Wrote 4190/10000 circuits and cleaned memory
+Wrote 4200/10000 circuits and cleaned memory
+Wrote 4210/10000 circuits and cleaned memory
+Wrote 4220/10000 circuits and cleaned memory
+Wrote 4230/10000 circuits and cleaned memory
+Wrote 4240/10000 circuits and cleaned memory
+Wrote 4250/10000 circuits and cleaned memory
+Wrote 4260/10000 circuits and cleaned memory
+Wrote 4270/10000 circuits and cleaned memory
+Wrote 4280/10000 circuits and cleaned memory
+Wrote 4290/10000 circuits and cleaned memory
+Wrote 4300/10000 circuits and cleaned memory
+Wrote 4310/10000 circuits and cleaned memory
+Wrote 4320/10000 circuits and cleaned memory
+Wrote 4330/10000 circuits and cleaned memory
+Wrote 4340/10000 circuits and cleaned memory
+Wrote 4350/10000 circuits and cleaned memory
+Wrote 4360/10000 circuits and cleaned memory
+Wrote 4370/10000 circuits and cleaned memory
+Wrote 4380/10000 circuits and cleaned memory
+Wrote 4390/10000 circuits and cleaned memory
+Wrote 4400/10000 circuits and cleaned memory
+Wrote 4410/10000 circuits and cleaned memory
+Wrote 4420/10000 circuits and cleaned memory
+Wrote 4430/10000 circuits and cleaned memory
+Wrote 4440/10000 circuits and cleaned memory
+Wrote 4450/10000 circuits and cleaned memory
+Wrote 4460/10000 circuits and cleaned memory
+Wrote 4470/10000 circuits and cleaned memory
+Wrote 4480/10000 circuits and cleaned memory
+Wrote 4490/10000 circuits and cleaned memory
+Wrote 4500/10000 circuits and cleaned memory
+Wrote 4510/10000 circuits and cleaned memory
+Wrote 4520/10000 circuits and cleaned memory
+Wrote 4530/10000 circuits and cleaned memory
+Wrote 4540/10000 circuits and cleaned memory
+Wrote 4550/10000 circuits and cleaned memory
+Wrote 4560/10000 circuits and cleaned memory
+Wrote 4570/10000 circuits and cleaned memory
+Wrote 4580/10000 circuits and cleaned memory
+Wrote 4590/10000 circuits and cleaned memory
+Wrote 4600/10000 circuits and cleaned memory
+Wrote 4610/10000 circuits and cleaned memory
+Wrote 4620/10000 circuits and cleaned memory
+Wrote 4630/10000 circuits and cleaned memory
+Wrote 4640/10000 circuits and cleaned memory
+Wrote 4650/10000 circuits and cleaned memory
+Wrote 4660/10000 circuits and cleaned memory
+Wrote 4670/10000 circuits and cleaned memory
+Wrote 4680/10000 circuits and cleaned memory
+Wrote 4690/10000 circuits and cleaned memory
+Wrote 4700/10000 circuits and cleaned memory
+Wrote 4710/10000 circuits and cleaned memory
+Wrote 4720/10000 circuits and cleaned memory
+Wrote 4730/10000 circuits and cleaned memory
+Wrote 4740/10000 circuits and cleaned memory
+Wrote 4750/10000 circuits and cleaned memory
+Wrote 4760/10000 circuits and cleaned memory
+Wrote 4770/10000 circuits and cleaned memory
+Wrote 4780/10000 circuits and cleaned memory
+Wrote 4790/10000 circuits and cleaned memory
+Wrote 4800/10000 circuits and cleaned memory
+Wrote 4810/10000 circuits and cleaned memory
+Wrote 4820/10000 circuits and cleaned memory
+Wrote 4830/10000 circuits and cleaned memory
+Wrote 4840/10000 circuits and cleaned memory
+Wrote 4850/10000 circuits and cleaned memory
+Wrote 4860/10000 circuits and cleaned memory
+Wrote 4870/10000 circuits and cleaned memory
+Wrote 4880/10000 circuits and cleaned memory
+Wrote 4890/10000 circuits and cleaned memory
+Wrote 4900/10000 circuits and cleaned memory
+Wrote 4910/10000 circuits and cleaned memory
+Wrote 4920/10000 circuits and cleaned memory
+Wrote 4930/10000 circuits and cleaned memory
+Wrote 4940/10000 circuits and cleaned memory
+Wrote 4950/10000 circuits and cleaned memory
+Wrote 4960/10000 circuits and cleaned memory
+Wrote 4970/10000 circuits and cleaned memory
+Wrote 4980/10000 circuits and cleaned memory
+Wrote 4990/10000 circuits and cleaned memory
+Wrote 5000/10000 circuits and cleaned memory
+Wrote 5010/10000 circuits and cleaned memory
+Wrote 5020/10000 circuits and cleaned memory
+Wrote 5030/10000 circuits and cleaned memory
+Wrote 5040/10000 circuits and cleaned memory
+Wrote 5050/10000 circuits and cleaned memory
+Wrote 5060/10000 circuits and cleaned memory
+Wrote 5070/10000 circuits and cleaned memory
+Wrote 5080/10000 circuits and cleaned memory
+Wrote 5090/10000 circuits and cleaned memory
+Wrote 5100/10000 circuits and cleaned memory
+Wrote 5110/10000 circuits and cleaned memory
+Wrote 5120/10000 circuits and cleaned memory
+Wrote 5130/10000 circuits and cleaned memory
+Wrote 5140/10000 circuits and cleaned memory
+Wrote 5150/10000 circuits and cleaned memory
+Wrote 5160/10000 circuits and cleaned memory
+Wrote 5170/10000 circuits and cleaned memory
+Wrote 5180/10000 circuits and cleaned memory
+Wrote 5190/10000 circuits and cleaned memory
+Wrote 5200/10000 circuits and cleaned memory
+Wrote 5210/10000 circuits and cleaned memory
+Wrote 5220/10000 circuits and cleaned memory
+Wrote 5230/10000 circuits and cleaned memory
+Wrote 5240/10000 circuits and cleaned memory
+Wrote 5250/10000 circuits and cleaned memory
+Wrote 5260/10000 circuits and cleaned memory
+Wrote 5270/10000 circuits and cleaned memory
+Wrote 5280/10000 circuits and cleaned memory
+Wrote 5290/10000 circuits and cleaned memory
+Wrote 5300/10000 circuits and cleaned memory
+Wrote 5310/10000 circuits and cleaned memory
+Wrote 5320/10000 circuits and cleaned memory
+Wrote 5330/10000 circuits and cleaned memory
+Wrote 5340/10000 circuits and cleaned memory
+Wrote 5350/10000 circuits and cleaned memory
+Wrote 5360/10000 circuits and cleaned memory
+Wrote 5370/10000 circuits and cleaned memory
+Wrote 5380/10000 circuits and cleaned memory
+Wrote 5390/10000 circuits and cleaned memory
+Wrote 5400/10000 circuits and cleaned memory
+Wrote 5410/10000 circuits and cleaned memory
+Wrote 5420/10000 circuits and cleaned memory
+Wrote 5430/10000 circuits and cleaned memory
+Wrote 5440/10000 circuits and cleaned memory
+Wrote 5450/10000 circuits and cleaned memory
+Wrote 5460/10000 circuits and cleaned memory
+Wrote 5470/10000 circuits and cleaned memory
+Wrote 5480/10000 circuits and cleaned memory
+Wrote 5490/10000 circuits and cleaned memory
+Wrote 5500/10000 circuits and cleaned memory
+Wrote 5510/10000 circuits and cleaned memory
+Wrote 5520/10000 circuits and cleaned memory
+Wrote 5530/10000 circuits and cleaned memory
+Wrote 5540/10000 circuits and cleaned memory
+Wrote 5550/10000 circuits and cleaned memory
+Wrote 5560/10000 circuits and cleaned memory
+Wrote 5570/10000 circuits and cleaned memory
+Wrote 5580/10000 circuits and cleaned memory
+Wrote 5590/10000 circuits and cleaned memory
+Wrote 5600/10000 circuits and cleaned memory
+Wrote 5610/10000 circuits and cleaned memory
+Wrote 5620/10000 circuits and cleaned memory
+Wrote 5630/10000 circuits and cleaned memory
+Wrote 5640/10000 circuits and cleaned memory
+Wrote 5650/10000 circuits and cleaned memory
+Wrote 5660/10000 circuits and cleaned memory
+Wrote 5670/10000 circuits and cleaned memory
+Wrote 5680/10000 circuits and cleaned memory
+Wrote 5690/10000 circuits and cleaned memory
+Wrote 5700/10000 circuits and cleaned memory
+Wrote 5710/10000 circuits and cleaned memory
+Wrote 5720/10000 circuits and cleaned memory
+Wrote 5730/10000 circuits and cleaned memory
+Wrote 5740/10000 circuits and cleaned memory
+Wrote 5750/10000 circuits and cleaned memory
+Wrote 5760/10000 circuits and cleaned memory
+Wrote 5770/10000 circuits and cleaned memory
+Wrote 5780/10000 circuits and cleaned memory
+Wrote 5790/10000 circuits and cleaned memory
+Wrote 5800/10000 circuits and cleaned memory
+Wrote 5810/10000 circuits and cleaned memory
+Wrote 5820/10000 circuits and cleaned memory
+Wrote 5830/10000 circuits and cleaned memory
+Wrote 5840/10000 circuits and cleaned memory
+Wrote 5850/10000 circuits and cleaned memory
+Wrote 5860/10000 circuits and cleaned memory
+Wrote 5870/10000 circuits and cleaned memory
+Wrote 5880/10000 circuits and cleaned memory
+Wrote 5890/10000 circuits and cleaned memory
+Wrote 5900/10000 circuits and cleaned memory
+Wrote 5910/10000 circuits and cleaned memory
+Wrote 5920/10000 circuits and cleaned memory
+Wrote 5930/10000 circuits and cleaned memory
+Wrote 5940/10000 circuits and cleaned memory
+Wrote 5950/10000 circuits and cleaned memory
+Wrote 5960/10000 circuits and cleaned memory
+Wrote 5970/10000 circuits and cleaned memory
+Wrote 5980/10000 circuits and cleaned memory
+Wrote 5990/10000 circuits and cleaned memory
+Wrote 6000/10000 circuits and cleaned memory
+Wrote 6010/10000 circuits and cleaned memory
+Wrote 6020/10000 circuits and cleaned memory
+Wrote 6030/10000 circuits and cleaned memory
+Wrote 6040/10000 circuits and cleaned memory
+Wrote 6050/10000 circuits and cleaned memory
+Wrote 6060/10000 circuits and cleaned memory
+Wrote 6070/10000 circuits and cleaned memory
+Wrote 6080/10000 circuits and cleaned memory
+Wrote 6090/10000 circuits and cleaned memory
+Wrote 6100/10000 circuits and cleaned memory
+Wrote 6110/10000 circuits and cleaned memory
+Wrote 6120/10000 circuits and cleaned memory
+Wrote 6130/10000 circuits and cleaned memory
+Wrote 6140/10000 circuits and cleaned memory
+Wrote 6150/10000 circuits and cleaned memory
+Wrote 6160/10000 circuits and cleaned memory
+Wrote 6170/10000 circuits and cleaned memory
+Wrote 6180/10000 circuits and cleaned memory
+Wrote 6190/10000 circuits and cleaned memory
+Wrote 6200/10000 circuits and cleaned memory
+Wrote 6210/10000 circuits and cleaned memory
+Wrote 6220/10000 circuits and cleaned memory
+Wrote 6230/10000 circuits and cleaned memory
+Wrote 6240/10000 circuits and cleaned memory
+Wrote 6250/10000 circuits and cleaned memory
+Wrote 6260/10000 circuits and cleaned memory
+Wrote 6270/10000 circuits and cleaned memory
+Wrote 6280/10000 circuits and cleaned memory
+Wrote 6290/10000 circuits and cleaned memory
+Wrote 6300/10000 circuits and cleaned memory
+Wrote 6310/10000 circuits and cleaned memory
+Wrote 6320/10000 circuits and cleaned memory
+Wrote 6330/10000 circuits and cleaned memory
+Wrote 6340/10000 circuits and cleaned memory
+Wrote 6350/10000 circuits and cleaned memory
+Wrote 6360/10000 circuits and cleaned memory
+Wrote 6370/10000 circuits and cleaned memory
+Wrote 6380/10000 circuits and cleaned memory
+Wrote 6390/10000 circuits and cleaned memory
+Wrote 6400/10000 circuits and cleaned memory
+Wrote 6410/10000 circuits and cleaned memory
+Wrote 6420/10000 circuits and cleaned memory
+Wrote 6430/10000 circuits and cleaned memory
+Wrote 6440/10000 circuits and cleaned memory
+Wrote 6450/10000 circuits and cleaned memory
+Wrote 6460/10000 circuits and cleaned memory
+Wrote 6470/10000 circuits and cleaned memory
+Wrote 6480/10000 circuits and cleaned memory
+Wrote 6490/10000 circuits and cleaned memory
+Wrote 6500/10000 circuits and cleaned memory
+Wrote 6510/10000 circuits and cleaned memory
+Wrote 6520/10000 circuits and cleaned memory
+Wrote 6530/10000 circuits and cleaned memory
+Wrote 6540/10000 circuits and cleaned memory
+Wrote 6550/10000 circuits and cleaned memory
+Wrote 6560/10000 circuits and cleaned memory
+Wrote 6570/10000 circuits and cleaned memory
+Wrote 6580/10000 circuits and cleaned memory
+Wrote 6590/10000 circuits and cleaned memory
+Wrote 6600/10000 circuits and cleaned memory
+Wrote 6610/10000 circuits and cleaned memory
+Wrote 6620/10000 circuits and cleaned memory
+Wrote 6630/10000 circuits and cleaned memory
+Wrote 6640/10000 circuits and cleaned memory
+Wrote 6650/10000 circuits and cleaned memory
+Wrote 6660/10000 circuits and cleaned memory
+Wrote 6670/10000 circuits and cleaned memory
+Wrote 6680/10000 circuits and cleaned memory
+Wrote 6690/10000 circuits and cleaned memory
+Wrote 6700/10000 circuits and cleaned memory
+Wrote 6710/10000 circuits and cleaned memory
+Wrote 6720/10000 circuits and cleaned memory
+Wrote 6730/10000 circuits and cleaned memory
+Wrote 6740/10000 circuits and cleaned memory
+Wrote 6750/10000 circuits and cleaned memory
+Wrote 6760/10000 circuits and cleaned memory
+Wrote 6770/10000 circuits and cleaned memory
+Wrote 6780/10000 circuits and cleaned memory
+Wrote 6790/10000 circuits and cleaned memory
+Wrote 6800/10000 circuits and cleaned memory
+Wrote 6810/10000 circuits and cleaned memory
+Wrote 6820/10000 circuits and cleaned memory
+Wrote 6830/10000 circuits and cleaned memory
+Wrote 6840/10000 circuits and cleaned memory
+Wrote 6850/10000 circuits and cleaned memory
+Wrote 6860/10000 circuits and cleaned memory
+Wrote 6870/10000 circuits and cleaned memory
+Wrote 6880/10000 circuits and cleaned memory
+Wrote 6890/10000 circuits and cleaned memory
+Wrote 6900/10000 circuits and cleaned memory
+Wrote 6910/10000 circuits and cleaned memory
+Wrote 6920/10000 circuits and cleaned memory
+Wrote 6930/10000 circuits and cleaned memory
+Wrote 6940/10000 circuits and cleaned memory
+Wrote 6950/10000 circuits and cleaned memory
+Wrote 6960/10000 circuits and cleaned memory
+Wrote 6970/10000 circuits and cleaned memory
+Wrote 6980/10000 circuits and cleaned memory
+Wrote 6990/10000 circuits and cleaned memory
+Wrote 7000/10000 circuits and cleaned memory
+Wrote 7010/10000 circuits and cleaned memory
+Wrote 7020/10000 circuits and cleaned memory
+Wrote 7030/10000 circuits and cleaned memory
+Wrote 7040/10000 circuits and cleaned memory
+Wrote 7050/10000 circuits and cleaned memory
+Wrote 7060/10000 circuits and cleaned memory
+Wrote 7070/10000 circuits and cleaned memory
+Wrote 7080/10000 circuits and cleaned memory
+Wrote 7090/10000 circuits and cleaned memory
+Wrote 7100/10000 circuits and cleaned memory
+Wrote 7110/10000 circuits and cleaned memory
+Wrote 7120/10000 circuits and cleaned memory
+Wrote 7130/10000 circuits and cleaned memory
+Wrote 7140/10000 circuits and cleaned memory
+Wrote 7150/10000 circuits and cleaned memory
+Wrote 7160/10000 circuits and cleaned memory
+Wrote 7170/10000 circuits and cleaned memory
+Wrote 7180/10000 circuits and cleaned memory
+Wrote 7190/10000 circuits and cleaned memory
+Wrote 7200/10000 circuits and cleaned memory
+Wrote 7210/10000 circuits and cleaned memory
+Wrote 7220/10000 circuits and cleaned memory
+Wrote 7230/10000 circuits and cleaned memory
+Wrote 7240/10000 circuits and cleaned memory
+Wrote 7250/10000 circuits and cleaned memory
+Wrote 7260/10000 circuits and cleaned memory
+Wrote 7270/10000 circuits and cleaned memory
+Wrote 7280/10000 circuits and cleaned memory
+Wrote 7290/10000 circuits and cleaned memory
+Wrote 7300/10000 circuits and cleaned memory
+Wrote 7310/10000 circuits and cleaned memory
+Wrote 7320/10000 circuits and cleaned memory
+Wrote 7330/10000 circuits and cleaned memory
+Wrote 7340/10000 circuits and cleaned memory
+Wrote 7350/10000 circuits and cleaned memory
+Wrote 7360/10000 circuits and cleaned memory
+Wrote 7370/10000 circuits and cleaned memory
+Wrote 7380/10000 circuits and cleaned memory
+Wrote 7390/10000 circuits and cleaned memory
+Wrote 7400/10000 circuits and cleaned memory
+Wrote 7410/10000 circuits and cleaned memory
+Wrote 7420/10000 circuits and cleaned memory
+Wrote 7430/10000 circuits and cleaned memory
+Wrote 7440/10000 circuits and cleaned memory
+Wrote 7450/10000 circuits and cleaned memory
+Wrote 7460/10000 circuits and cleaned memory
+Wrote 7470/10000 circuits and cleaned memory
+Wrote 7480/10000 circuits and cleaned memory
+Wrote 7490/10000 circuits and cleaned memory
+Wrote 7500/10000 circuits and cleaned memory
+Wrote 7510/10000 circuits and cleaned memory
+Wrote 7520/10000 circuits and cleaned memory
+Wrote 7530/10000 circuits and cleaned memory
+Wrote 7540/10000 circuits and cleaned memory
+Wrote 7550/10000 circuits and cleaned memory
+Wrote 7560/10000 circuits and cleaned memory
+Wrote 7570/10000 circuits and cleaned memory
+Wrote 7580/10000 circuits and cleaned memory
+Wrote 7590/10000 circuits and cleaned memory
+Wrote 7600/10000 circuits and cleaned memory
+Wrote 7610/10000 circuits and cleaned memory
+Wrote 7620/10000 circuits and cleaned memory
+Wrote 7630/10000 circuits and cleaned memory
+Wrote 7640/10000 circuits and cleaned memory
+Wrote 7650/10000 circuits and cleaned memory
+Wrote 7660/10000 circuits and cleaned memory
+Wrote 7670/10000 circuits and cleaned memory
+Wrote 7680/10000 circuits and cleaned memory
+Wrote 7690/10000 circuits and cleaned memory
+Wrote 7700/10000 circuits and cleaned memory
+Wrote 7710/10000 circuits and cleaned memory
+Wrote 7720/10000 circuits and cleaned memory
+Wrote 7730/10000 circuits and cleaned memory
+Wrote 7740/10000 circuits and cleaned memory
+Wrote 7750/10000 circuits and cleaned memory
+Wrote 7760/10000 circuits and cleaned memory
+Wrote 7770/10000 circuits and cleaned memory
+Wrote 7780/10000 circuits and cleaned memory
+Wrote 7790/10000 circuits and cleaned memory
+Wrote 7800/10000 circuits and cleaned memory
+Wrote 7810/10000 circuits and cleaned memory
+Wrote 7820/10000 circuits and cleaned memory
+Wrote 7830/10000 circuits and cleaned memory
+Wrote 7840/10000 circuits and cleaned memory
+Wrote 7850/10000 circuits and cleaned memory
+Wrote 7860/10000 circuits and cleaned memory
+Wrote 7870/10000 circuits and cleaned memory
+Wrote 7880/10000 circuits and cleaned memory
+Wrote 7890/10000 circuits and cleaned memory
+Wrote 7900/10000 circuits and cleaned memory
+Wrote 7910/10000 circuits and cleaned memory
+Wrote 7920/10000 circuits and cleaned memory
+Wrote 7930/10000 circuits and cleaned memory
+Wrote 7940/10000 circuits and cleaned memory
+Wrote 7950/10000 circuits and cleaned memory
+Wrote 7960/10000 circuits and cleaned memory
+Wrote 7970/10000 circuits and cleaned memory
+Wrote 7980/10000 circuits and cleaned memory
+Wrote 7990/10000 circuits and cleaned memory
+Wrote 8000/10000 circuits and cleaned memory
+Wrote 8010/10000 circuits and cleaned memory
+Wrote 8020/10000 circuits and cleaned memory
+Wrote 8030/10000 circuits and cleaned memory
+Wrote 8040/10000 circuits and cleaned memory
+Wrote 8050/10000 circuits and cleaned memory
+Wrote 8060/10000 circuits and cleaned memory
+Wrote 8070/10000 circuits and cleaned memory
+Wrote 8080/10000 circuits and cleaned memory
+Wrote 8090/10000 circuits and cleaned memory
+Wrote 8100/10000 circuits and cleaned memory
+Wrote 8110/10000 circuits and cleaned memory
+Wrote 8120/10000 circuits and cleaned memory
+Wrote 8130/10000 circuits and cleaned memory
+Wrote 8140/10000 circuits and cleaned memory
+Wrote 8150/10000 circuits and cleaned memory
+Wrote 8160/10000 circuits and cleaned memory
+Wrote 8170/10000 circuits and cleaned memory
+Wrote 8180/10000 circuits and cleaned memory
+Wrote 8190/10000 circuits and cleaned memory
+Wrote 8200/10000 circuits and cleaned memory
+Wrote 8210/10000 circuits and cleaned memory
+Wrote 8220/10000 circuits and cleaned memory
+Wrote 8230/10000 circuits and cleaned memory
+Wrote 8240/10000 circuits and cleaned memory
+Wrote 8250/10000 circuits and cleaned memory
+Wrote 8260/10000 circuits and cleaned memory
+Wrote 8270/10000 circuits and cleaned memory
+Wrote 8280/10000 circuits and cleaned memory
+Wrote 8290/10000 circuits and cleaned memory
+Wrote 8300/10000 circuits and cleaned memory
+Wrote 8310/10000 circuits and cleaned memory
+Wrote 8320/10000 circuits and cleaned memory
+Wrote 8330/10000 circuits and cleaned memory
+Wrote 8340/10000 circuits and cleaned memory
+Wrote 8350/10000 circuits and cleaned memory
+Wrote 8360/10000 circuits and cleaned memory
+Wrote 8370/10000 circuits and cleaned memory
+Wrote 8380/10000 circuits and cleaned memory
+Wrote 8390/10000 circuits and cleaned memory
+Wrote 8400/10000 circuits and cleaned memory
+Wrote 8410/10000 circuits and cleaned memory
+Wrote 8420/10000 circuits and cleaned memory
+Wrote 8430/10000 circuits and cleaned memory
+Wrote 8440/10000 circuits and cleaned memory
+Wrote 8450/10000 circuits and cleaned memory
+Wrote 8460/10000 circuits and cleaned memory
+Wrote 8470/10000 circuits and cleaned memory
+Wrote 8480/10000 circuits and cleaned memory
+Wrote 8490/10000 circuits and cleaned memory
+Wrote 8500/10000 circuits and cleaned memory
+Wrote 8510/10000 circuits and cleaned memory
+Wrote 8520/10000 circuits and cleaned memory
+Wrote 8530/10000 circuits and cleaned memory
+Wrote 8540/10000 circuits and cleaned memory
+Wrote 8550/10000 circuits and cleaned memory
+Wrote 8560/10000 circuits and cleaned memory
+Wrote 8570/10000 circuits and cleaned memory
+Wrote 8580/10000 circuits and cleaned memory
+Wrote 8590/10000 circuits and cleaned memory
+Wrote 8600/10000 circuits and cleaned memory
+Wrote 8610/10000 circuits and cleaned memory
+Wrote 8620/10000 circuits and cleaned memory
+Wrote 8630/10000 circuits and cleaned memory
+Wrote 8640/10000 circuits and cleaned memory
+Wrote 8650/10000 circuits and cleaned memory
+Wrote 8660/10000 circuits and cleaned memory
+Wrote 8670/10000 circuits and cleaned memory
+Wrote 8680/10000 circuits and cleaned memory
+Wrote 8690/10000 circuits and cleaned memory
+Wrote 8700/10000 circuits and cleaned memory
+Wrote 8710/10000 circuits and cleaned memory
+Wrote 8720/10000 circuits and cleaned memory
+Wrote 8730/10000 circuits and cleaned memory
+Wrote 8740/10000 circuits and cleaned memory
+Wrote 8750/10000 circuits and cleaned memory
+Wrote 8760/10000 circuits and cleaned memory
+Wrote 8770/10000 circuits and cleaned memory
+Wrote 8780/10000 circuits and cleaned memory
+Wrote 8790/10000 circuits and cleaned memory
+Wrote 8800/10000 circuits and cleaned memory
+Wrote 8810/10000 circuits and cleaned memory
+Wrote 8820/10000 circuits and cleaned memory
+Wrote 8830/10000 circuits and cleaned memory
+Wrote 8840/10000 circuits and cleaned memory
+Wrote 8850/10000 circuits and cleaned memory
+Wrote 8860/10000 circuits and cleaned memory
+Wrote 8870/10000 circuits and cleaned memory
+Wrote 8880/10000 circuits and cleaned memory
+Wrote 8890/10000 circuits and cleaned memory
+Wrote 8900/10000 circuits and cleaned memory
+Wrote 8910/10000 circuits and cleaned memory
+Wrote 8920/10000 circuits and cleaned memory
+Wrote 8930/10000 circuits and cleaned memory
+Wrote 8940/10000 circuits and cleaned memory
+Wrote 8950/10000 circuits and cleaned memory
+Wrote 8960/10000 circuits and cleaned memory
+Wrote 8970/10000 circuits and cleaned memory
+Wrote 8980/10000 circuits and cleaned memory
+Wrote 8990/10000 circuits and cleaned memory
+Wrote 9000/10000 circuits and cleaned memory
+Wrote 9010/10000 circuits and cleaned memory
+Wrote 9020/10000 circuits and cleaned memory
+Wrote 9030/10000 circuits and cleaned memory
+Wrote 9040/10000 circuits and cleaned memory
+Wrote 9050/10000 circuits and cleaned memory
+Wrote 9060/10000 circuits and cleaned memory
+Wrote 9070/10000 circuits and cleaned memory
+Wrote 9080/10000 circuits and cleaned memory
+Wrote 9090/10000 circuits and cleaned memory
+Wrote 9100/10000 circuits and cleaned memory
+Wrote 9110/10000 circuits and cleaned memory
+Wrote 9120/10000 circuits and cleaned memory
+Wrote 9130/10000 circuits and cleaned memory
+Wrote 9140/10000 circuits and cleaned memory
+Wrote 9150/10000 circuits and cleaned memory
+Wrote 9160/10000 circuits and cleaned memory
+Wrote 9170/10000 circuits and cleaned memory
+Wrote 9180/10000 circuits and cleaned memory
+Wrote 9190/10000 circuits and cleaned memory
+Wrote 9200/10000 circuits and cleaned memory
+Wrote 9210/10000 circuits and cleaned memory
+Wrote 9220/10000 circuits and cleaned memory
+Wrote 9230/10000 circuits and cleaned memory
+Wrote 9240/10000 circuits and cleaned memory
+Wrote 9250/10000 circuits and cleaned memory
+Wrote 9260/10000 circuits and cleaned memory
+Wrote 9270/10000 circuits and cleaned memory
+Wrote 9280/10000 circuits and cleaned memory
+Wrote 9290/10000 circuits and cleaned memory
+Wrote 9300/10000 circuits and cleaned memory
+Wrote 9310/10000 circuits and cleaned memory
+Wrote 9320/10000 circuits and cleaned memory
+Wrote 9330/10000 circuits and cleaned memory
+Wrote 9340/10000 circuits and cleaned memory
+Wrote 9350/10000 circuits and cleaned memory
+Wrote 9360/10000 circuits and cleaned memory
+Wrote 9370/10000 circuits and cleaned memory
+Wrote 9380/10000 circuits and cleaned memory
+Wrote 9390/10000 circuits and cleaned memory
+Wrote 9400/10000 circuits and cleaned memory
+Wrote 9410/10000 circuits and cleaned memory
+Wrote 9420/10000 circuits and cleaned memory
+Wrote 9430/10000 circuits and cleaned memory
+Wrote 9440/10000 circuits and cleaned memory
+Wrote 9450/10000 circuits and cleaned memory
+Wrote 9460/10000 circuits and cleaned memory
+Wrote 9470/10000 circuits and cleaned memory
+Wrote 9480/10000 circuits and cleaned memory
+Wrote 9490/10000 circuits and cleaned memory
+Wrote 9500/10000 circuits and cleaned memory
+Wrote 9510/10000 circuits and cleaned memory
+Wrote 9520/10000 circuits and cleaned memory
+Wrote 9530/10000 circuits and cleaned memory
+Wrote 9540/10000 circuits and cleaned memory
+Wrote 9550/10000 circuits and cleaned memory
+Wrote 9560/10000 circuits and cleaned memory
+Wrote 9570/10000 circuits and cleaned memory
+Wrote 9580/10000 circuits and cleaned memory
+Wrote 9590/10000 circuits and cleaned memory
+Wrote 9600/10000 circuits and cleaned memory
+Wrote 9610/10000 circuits and cleaned memory
+Wrote 9620/10000 circuits and cleaned memory
+Wrote 9630/10000 circuits and cleaned memory
+Wrote 9640/10000 circuits and cleaned memory
+Wrote 9650/10000 circuits and cleaned memory
+Wrote 9660/10000 circuits and cleaned memory
+Wrote 9670/10000 circuits and cleaned memory
+Wrote 9680/10000 circuits and cleaned memory
+Wrote 9690/10000 circuits and cleaned memory
+Wrote 9700/10000 circuits and cleaned memory
+Wrote 9710/10000 circuits and cleaned memory
+Wrote 9720/10000 circuits and cleaned memory
+Wrote 9730/10000 circuits and cleaned memory
+Wrote 9740/10000 circuits and cleaned memory
+Wrote 9750/10000 circuits and cleaned memory
+Wrote 9760/10000 circuits and cleaned memory
+Wrote 9770/10000 circuits and cleaned memory
+Wrote 9780/10000 circuits and cleaned memory
+Wrote 9790/10000 circuits and cleaned memory
+Wrote 9800/10000 circuits and cleaned memory
+Wrote 9810/10000 circuits and cleaned memory
+Wrote 9820/10000 circuits and cleaned memory
+Wrote 9830/10000 circuits and cleaned memory
+Wrote 9840/10000 circuits and cleaned memory
+Wrote 9850/10000 circuits and cleaned memory
+Wrote 9860/10000 circuits and cleaned memory
+Wrote 9870/10000 circuits and cleaned memory
+Wrote 9880/10000 circuits and cleaned memory
+Wrote 9890/10000 circuits and cleaned memory
+Wrote 9900/10000 circuits and cleaned memory
+Wrote 9910/10000 circuits and cleaned memory
+Wrote 9920/10000 circuits and cleaned memory
+Wrote 9930/10000 circuits and cleaned memory
+Wrote 9940/10000 circuits and cleaned memory
+Wrote 9950/10000 circuits and cleaned memory
+Wrote 9960/10000 circuits and cleaned memory
+Wrote 9970/10000 circuits and cleaned memory
+Wrote 9980/10000 circuits and cleaned memory
+Wrote 9990/10000 circuits and cleaned memory
+Wrote 10000/10000 circuits and cleaned memory
+Sign list successfully saved to /home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_256-q-4-dT-0.1-T-1/sign_list-N-100-n-1-p-10000-Δ-pi_over_256-T-1-q-4.json
 Cleanup complete.
 [GENERATION 1] Finished.
 
@@ -32,94 +1031,4 @@ Starting Lie phase...
 
 Starting trotterThenTEPAI phase...
 
-[TROTTER THEN TEPAI 1] Starting with parameters:
-{
-    "path": "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-\u0394-pi_over_1024-q-20-dT-0.2-T-2",
-    "trotterN": 400,
-    "trottern": 40,
-    "trotterT": 4,
-    "flip": true,
-    "confirm": true
-}
-Running Trotter for N=400, n_snapshot=40, T=4, q=20
-The number of qubit:20
-Number of terms in the Hamiltonian:80
-Snapshot 1 / 40
-Snapshot 2 / 40
-Snapshot 3 / 40
-Snapshot 4 / 40
-Snapshot 5 / 40
-Snapshot 6 / 40
-Snapshot 7 / 40
-Snapshot 8 / 40
-Snapshot 9 / 40
-Snapshot 10 / 40
-Snapshot 11 / 40
-Snapshot 12 / 40
-Snapshot 13 / 40
-Snapshot 14 / 40
-Snapshot 15 / 40
-Snapshot 16 / 40
-Snapshot 17 / 40
-Snapshot 18 / 40
-Snapshot 19 / 40
-Snapshot 20 / 40
-Snapshot 21 / 40
-Snapshot 22 / 40
-Snapshot 23 / 40
-Snapshot 24 / 40
-Snapshot 25 / 40
-Snapshot 26 / 40
-Snapshot 27 / 40
-Snapshot 28 / 40
-Snapshot 29 / 40
-Snapshot 30 / 40
-Snapshot 31 / 40
-Snapshot 32 / 40
-Snapshot 33 / 40
-Snapshot 34 / 40
-Snapshot 35 / 40
-Snapshot 36 / 40
-Snapshot 37 / 40
-Snapshot 38 / 40
-Snapshot 39 / 40
-Snapshot 40 / 40
-Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-400-T-4-q-20.csv
-Lie bonds saved to TE-PAI-noSampling/data/bonds/lie-bond-N-400-T-4-q-20.csv
-Running Trotter for N=400, n_snapshot=10, T=2.0, q=20
-The number of qubit:20
-Number of terms in the Hamiltonian:80
-Snapshot 1 / 10
-Snapshot 2 / 10
-Snapshot 3 / 10
-Snapshot 4 / 10
-Snapshot 5 / 10
-Snapshot 6 / 10
-Snapshot 7 / 10
-Snapshot 8 / 10
-Snapshot 9 / 10
-Snapshot 10 / 10
-Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-400-T-1002.0-q-20-fixedCircuit.csv
-Lie bonds saved to TE-PAI-noSampling/data/bonds/lie-bond-N-400-T-2.0-q-20.csv
-Running pool for 10 runs
-Run: 1
-Run: 2
-Run: 3
-Run: 4
-Run: 5
-Run: 6
-Run: 7
-Run: 8
-Run: 9
-Run: 10
-Plotting data saved to: TE-PAI-noSampling/data/plotting/N-1000-n-1-p-100-Δ-pi_over_1024-T-6.0-q-20-dT-0.2.csv
-Traceback (most recent call last):
-  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/calculate.py", line 120, in <module>
-    main()
-  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/calculate.py", line 105, in main
-    trotterThenTEPAI(trotterN=trotterN,
-  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/circuitSimulatorMPS.py", line 632, in trotterThenTEPAI
-    organize_trotter_tepai()
-  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/circuitSimulatorMPS.py", line 699, in organize_trotter_tepai
-    raise ValueError(f"q mismatch among files: {q_vals}")
-ValueError: q mismatch among files: {'30', '20'}
+All tasks completed.
