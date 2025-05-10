@@ -5,115 +5,90 @@ Starting TE-PAI simulation...
 
 Starting generation phase...
 
+[GENERATION 1] Starting with parameters:
+{
+    "numQs": 20,
+    "\u0394": 10,
+    "T": 2,
+    "dT": 0.2,
+    "N": 1000,
+    "circuit_pool_size": 100
+}
+[20, 10, 2, 0.2, 1000, 100]
+The number of qubit:20
+Number of terms in the Hamiltonian:80
+calculate.py loaded
+calculate.py loaded
+calculate.py loaded
+Wrote 50/100 circuits and cleaned memory
+Wrote 100/100 circuits and cleaned memory
+Sign list successfully saved to /home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-20-dT-0.2-T-2/sign_list-N-1000-n-1-p-100-Δ-pi_over_1024-T-2-q-20.json
+Cleanup complete.
+[GENERATION 1] Finished.
+
 Starting simulation phase...
 
-[SIMULATION 1] Simulating for path: TE-PAI-noSampling/data/circuits/N-1000-n-1-p-1000-Δ-pi_over_1024-q-50-dT-0.3-T-3
-Running pool for 100 runs
-Run: 1
-Run: 2
-Run: 3
-Run: 4
-Run: 5
-Run: 6
-Run: 7
-Run: 8
-Run: 9
-Run: 10
-Run: 11
-Run: 12
-Run: 13
-Run: 14
-Run: 15
-Run: 16
-Run: 17
-Run: 18
-Run: 19
-Run: 20
-Run: 21
-Run: 22
-Run: 23
-Run: 24
-Run: 25
-Run: 26
-Run: 27
-Run: 28
-Run: 29
-Run: 30
-Run: 31
-Run: 32
-Run: 33
-Run: 34
-Run: 35
-Run: 36
-Run: 37
-Run: 38
-Run: 39
-Run: 40
-Run: 41
-Run: 42
-Run: 43
-Run: 44
-Run: 45
-Run: 46
-Run: 47
-Run: 48
-Run: 49
-Run: 50
-Run: 51
-Run: 52
-Run: 53
-Run: 54
-Run: 55
-Run: 56
-Run: 57
-Run: 58
-Run: 59
-Run: 60
-Run: 61
-Run: 62
-Run: 63
-Run: 64
-Run: 65
-Run: 66
-Run: 67
-Run: 68
-Run: 69
-Run: 70
-Run: 71
-Run: 72
-Run: 73
-Run: 74
-Run: 75
-Run: 76
-Run: 77
-Run: 78
-Run: 79
-Run: 80
-Run: 81
-Run: 82
-Run: 83
-Run: 84
-Run: 85
-Run: 86
-Run: 87
-Run: 88
-Run: 89
-Run: 90
-Run: 91
-Run: 92
-Run: 93
-Run: 94
-Run: 95
-Run: 96
-Run: 97
-Run: 98
-Run: 99
-Run: 100
-Plotting data saved to: TE-PAI-noSampling/data/plotting/N-1000-n-1-p-1000-Δ-pi_over_1024-T-3.0-q-50-dT-0.3.csv
-Costs: [ 7.31  9.35 11.44 13.46 15.09 17.16 19.63 22.43 25.74 28.69]
-Data saved to TE-PAI-noSampling/data/circuits/N-1000-n-1-p-1000-Δ-pi_over_1024-q-50-dT-0.3-T-3/contraction_costs.csv
-The number of qubit:50
-Number of terms in the Hamiltonian:200
+Starting Lie phase...
+
+Starting trotterThenTEPAI phase...
+
+[TROTTER THEN TEPAI 1] Starting with parameters:
+{
+    "path": "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-\u0394-pi_over_1024-q-20-dT-0.2-T-2",
+    "trotterN": 400,
+    "trottern": 40,
+    "trotterT": 4,
+    "flip": true,
+    "confirm": true
+}
+Running Trotter for N=400, n_snapshot=40, T=4, q=20
+The number of qubit:20
+Number of terms in the Hamiltonian:80
+Snapshot 1 / 40
+Snapshot 2 / 40
+Snapshot 3 / 40
+Snapshot 4 / 40
+Snapshot 5 / 40
+Snapshot 6 / 40
+Snapshot 7 / 40
+Snapshot 8 / 40
+Snapshot 9 / 40
+Snapshot 10 / 40
+Snapshot 11 / 40
+Snapshot 12 / 40
+Snapshot 13 / 40
+Snapshot 14 / 40
+Snapshot 15 / 40
+Snapshot 16 / 40
+Snapshot 17 / 40
+Snapshot 18 / 40
+Snapshot 19 / 40
+Snapshot 20 / 40
+Snapshot 21 / 40
+Snapshot 22 / 40
+Snapshot 23 / 40
+Snapshot 24 / 40
+Snapshot 25 / 40
+Snapshot 26 / 40
+Snapshot 27 / 40
+Snapshot 28 / 40
+Snapshot 29 / 40
+Snapshot 30 / 40
+Snapshot 31 / 40
+Snapshot 32 / 40
+Snapshot 33 / 40
+Snapshot 34 / 40
+Snapshot 35 / 40
+Snapshot 36 / 40
+Snapshot 37 / 40
+Snapshot 38 / 40
+Snapshot 39 / 40
+Snapshot 40 / 40
+Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-400-T-4-q-20.csv
+Lie bonds saved to TE-PAI-noSampling/data/bonds/lie-bond-N-400-T-4-q-20.csv
+Running Trotter for N=400, n_snapshot=10, T=2.0, q=20
+The number of qubit:20
+Number of terms in the Hamiltonian:80
 Snapshot 1 / 10
 Snapshot 2 / 10
 Snapshot 3 / 10
@@ -124,7 +99,27 @@ Snapshot 7 / 10
 Snapshot 8 / 10
 Snapshot 9 / 10
 Snapshot 10 / 10
-Data saved to TE-PAI-noSampling/data/plotting/lie-N-100-T-3.0-q-50.csv
-[SIMULATION 1] Finished.
-
-All tasks completed.
+Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-400-T-1002.0-q-20-fixedCircuit.csv
+Lie bonds saved to TE-PAI-noSampling/data/bonds/lie-bond-N-400-T-2.0-q-20.csv
+Running pool for 10 runs
+Run: 1
+Run: 2
+Run: 3
+Run: 4
+Run: 5
+Run: 6
+Run: 7
+Run: 8
+Run: 9
+Run: 10
+Plotting data saved to: TE-PAI-noSampling/data/plotting/N-1000-n-1-p-100-Δ-pi_over_1024-T-6.0-q-20-dT-0.2.csv
+Traceback (most recent call last):
+  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/calculate.py", line 120, in <module>
+    main()
+  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/calculate.py", line 105, in main
+    trotterThenTEPAI(trotterN=trotterN,
+  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/circuitSimulatorMPS.py", line 632, in trotterThenTEPAI
+    organize_trotter_tepai()
+  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/circuitSimulatorMPS.py", line 699, in organize_trotter_tepai
+    raise ValueError(f"q mismatch among files: {q_vals}")
+ValueError: q mismatch among files: {'30', '20'}
