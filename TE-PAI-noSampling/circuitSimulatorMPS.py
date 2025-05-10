@@ -1054,7 +1054,6 @@ def plot_gate_counts(path, n, bins=10):
     q = int(q)
     N = int(N)
     T = round(float(T), 8)
-    dT = T / n
     Δ = parse_pi_over(Δ)
     circuit_pool, sign_pool = data_arrs[0]
     print(n)
