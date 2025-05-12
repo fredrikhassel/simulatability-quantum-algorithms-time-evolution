@@ -1,3 +1,4 @@
+from collections import defaultdict
 import csv
 import os
 import json
@@ -19,58 +20,145 @@ import cotengra as ctg
 from qiskit import QuantumCircuit, transpile
 from scipy.stats import linregress
 from scipy.optimize import curve_fit
+import matplotlib.colors as mcolors
+from scipy.linalg import expm
+
+tab_colors = {
+    "red":    mcolors.TABLEAU_COLORS["tab:red"],
+    "green":  mcolors.TABLEAU_COLORS["tab:green"],
+    "blue":   mcolors.TABLEAU_COLORS["tab:blue"],
+    "purple":   mcolors.TABLEAU_COLORS["tab:purple"],
+    "cyan":   mcolors.TABLEAU_COLORS["tab:cyan"],
+    "orange": mcolors.TABLEAU_COLORS["tab:orange"]
+}
+
+gate_colors = {
+    "h":   (tab_colors["red"],   "white"),
+    "z":   (tab_colors["green"], "white"),
+    "rxx": (tab_colors["blue"],  "white"),
+    "ryy": (tab_colors["purple"],  "white"),
+    "rzz": (tab_colors["cyan"],  "white"),
+    "zz":  (tab_colors["blue"],  "white"),
+    "rz":  (tab_colors["orange"], "black"),
+}
 
 def JSONtoDict(folder_name):
     try:
         files = os.listdir(folder_name)
     except FileNotFoundError:
+        # fallback from “folder.0” → “folder”
         if folder_name.endswith('.0'):
-            fallback_name = folder_name[:-2]  # removes the '.0'
+            fallback_name = folder_name[:-2]
             try:
                 files = os.listdir(fallback_name)
+                folder_name = fallback_name
             except FileNotFoundError:
                 raise FileNotFoundError(f"Neither '{folder_name}' nor '{fallback_name}' could be found.")
         else:
-            raise FileNotFoundError(f"'{folder_name}' could not be found.")    
-    
-    # Regular expressions for matching filenames
-    gates_pattern = re.compile(r"gates_arr-N-(\d+)-n-(\d+)-[cp]-(\d+)-Δ-([\w_]+)-T-([\d.]+)-q-(\d+)\.json")
-    sign_pattern = re.compile(r"sign_list-N-(\d+)-n-(\d+)-[cp]-(\d+)-Δ-([\w_]+)-T-([\d.]+)-q-(\d+)\.json")
-    
-    gates_dict = {}
-    sign_dict = {}
-    
-    for file in files:
-        gates_match = gates_pattern.match(file)
-        sign_match = sign_pattern.match(file)
-        
-        if gates_match:
-            key = gates_match.groups()
-            gates_dict[key] = os.path.join(folder_name, file)
-        elif sign_match:
-            key = sign_match.groups()
-            sign_dict[key] = os.path.join(folder_name, file)
-    
+            try:
+                files = os.listdir(folder_name+".0")
+                folder_name = folder_name+".0"
+            except FileNotFoundError:
+                raise FileNotFoundError(f"'{folder_name}' could not be found.")
+
+    # Regex: optional batch digits after prefix, then the six parameters
+    gates_pattern = re.compile(
+        r"^gates_arr(\d*)-N-(\d+)-n-(\d+)-[cp]-(\d+)-Δ-([\w_]+)-T-([\d.]+)-q-(\d+)\.json$"
+    )
+    sign_pattern = re.compile(
+        r"^sign_list(\d*)-N-(\d+)-n-(\d+)-[cp]-(\d+)-Δ-([\w_]+)-T-([\d.]+)-q-(\d+)\.json$"
+    )
+
+    # Collect all filepaths by parameter-set → list of (batch, path)
+    gates_files = defaultdict(list)
+    sign_files = defaultdict(list)
+
+    for fname in files:
+        gm = gates_pattern.match(fname)
+        sm = sign_pattern.match(fname)
+
+        if gm:
+            batch_str, *params = gm.groups()
+            batch = int(batch_str) if batch_str else 1
+            key = tuple(params)  # (N, n, cp, Δ, T, q)
+            gates_files[key].append((batch, os.path.join(folder_name, fname)))
+
+        elif sm:
+            batch_str, *params = sm.groups()
+            batch = int(batch_str) if batch_str else 1
+            key = tuple(params)
+            sign_files[key].append((batch, os.path.join(folder_name, fname)))
+
     paired_data = {}
-    
-    for key in gates_dict:
-        if key in sign_dict:
-            with open(gates_dict[key], 'r') as f:
-                gates_content = json.load(f)
-            with open(sign_dict[key], 'r') as f:
-                sign_content = json.load(f)
-            
-            paired_data[key] = {
-                "gates": gates_content,
-                "signs": sign_content
-            }
-        else:
-            print(f"Warning: No matching sign_list file for {gates_dict[key]}")
-    
-    for key in sign_dict:
-        if key not in gates_dict:
-            print(f"Warning: No matching gates_arr file for {sign_dict[key]}")
-    
+
+    # For each parameter-set that has gates files...
+    for key, g_list in gates_files.items():
+        if key not in sign_files:
+            for _b, path in g_list:
+                print(f"Warning: No matching sign_list file for {path}")
+            continue
+
+        s_list = sign_files[key]
+
+        # Align on batch index
+        batches = sorted({b for b, _ in g_list} & {b for b, _ in s_list})
+        if len(batches) < len(g_list) or len(batches) < len(s_list):
+            # some gates or signs are unmatched
+            extra_g = set(b for b, _ in g_list) - set(batches)
+            extra_s = set(b for b, _ in s_list) - set(batches)
+            for b in extra_g:
+                print(f"Warning: No matching sign_list for gates_arr{b}-…")
+            for b in extra_s:
+                print(f"Warning: No matching gates_arr for sign_list{b}-…")
+
+        # Build offset-rebased combined dicts
+        combined_gates = {}
+        combined_signs = {}
+        offset = 0
+
+        for b in sorted(batches):
+            g_path = next(path for (batch, path) in g_list if batch == b)
+            s_path = next(path for (batch, path) in s_list if batch == b)
+
+            with open(g_path, 'r') as f:
+                g_data = json.load(f)
+            with open(s_path, 'r') as f:
+                s_data = json.load(f)
+
+
+            # pull out overhead if you need it later (optional)
+            overhead = s_data.get("overhead")
+
+            # only keep strictly numeric keys for sorting & rebasing
+            numeric_keys = [k for k in s_data.keys() if k.isdigit()]
+
+            for orig_key in sorted(numeric_keys, key=int):
+                new_key = str(offset + int(orig_key))
+                combined_signs[new_key] = s_data[orig_key]
+
+            # if you still want to carry the overhead float through:
+            if overhead is not None:
+                combined_signs["overhead"] = overhead
+
+            # Merge g_data
+            for orig_key in sorted(g_data.keys(), key=int):
+                new_key = str(offset + int(orig_key))
+                combined_gates[new_key] = g_data[orig_key]
+
+            # bump offset
+            offset = max(offset, max(int(k) for k in combined_gates.keys()))
+
+        paired_data[key] = {
+            "gates": combined_gates,
+            "signs": combined_signs
+        }
+
+    # Warn about any sign-only sets
+    for key in sign_files:
+        if key not in gates_files:
+            for b, path in sign_files[key]:
+                print(f"Warning: No matching gates_arr file for {path}")
+
     return paired_data
 
 def HDF5toDict(folder_name):
@@ -173,7 +261,7 @@ def applyGates(circuit, gates):
             raise ValueError(f"Unsupported number of qubits for gate {quimb_gate_name}: {len(qubit_indices)}")
 
 def measure(circuit,q, optimize):
-    val = np.abs(circuit.local_expectation(qu.pauli('X'), (0)))
+    val = np.real(circuit.local_expectation(qu.pauli('X'), (0)))
     return (val+1)/2
 
 def getSucessive(data_arrs,q, flip=False):
@@ -246,7 +334,7 @@ def getPool(data_arrs,params,dT, draw, optimize=None, flip=False, fixedCircuit=N
     stds = np.std(results, axis=1)
 
     if fixedCircuit == None:
-        averages = np.insert(averages, 0, 0)
+        averages = np.insert(averages, 0, 1)
     else:
         averages = np.insert(averages, 0, measure(fixedCircuit, q, optimize))
     stds = np.insert(stds, 0, 0)
@@ -409,10 +497,19 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
             applyGates(circuit, gates[k])
 
         if draw and i == 0:
-            circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
+            #circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
             qiskit = quimb_to_qiskit(circuit)
-            qiskit.draw("mpl", scale=0.4)
+            style = {
+                "displaycolor": gate_colors,
+                "textcolor":      "#222222",    # global text
+                "gatetextcolor":  "#FFFFFF",    # fallback gate label color
+                "linecolor":      "#666666",    # qubit wire
+                "creglinecolor":  "#999999",    # classical wire
+                "backgroundcolor": "#FFFFFF",   # canvas
+            }
+            qiskit.draw("mpl", scale=1, style=style)
             plt.show()
+            return
 
         # Measure immediately after applying
         result = measure(circuit, q, False)
@@ -457,6 +554,109 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
         plt.scatter(range(len(res)), res, color='red', label='Quimb')
         plt.legend()
         plt.show()
+
+def trotterComparison(N, n_snapshot, T, q):
+    _, res10, _, _ = trotter(10, 10, T, q, False, flip=True)
+    Ts, res, complexity, circuit = trotter(N, n_snapshot, T, q, False, flip=True)
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+
+    # 1) Pauli matrices and tensor‐product helper
+    I = np.eye(2, dtype=complex)
+    X = np.array([[0,1],[1,0]], dtype=complex)
+    Y = np.array([[0,-1j],[1j,0]], dtype=complex)
+    Z = np.array([[1,0],[0,-1]], dtype=complex)
+    H1 = (X + Z)/np.sqrt(2)             # single‐qubit Hadamard
+    paulis = {'X':X, 'Y':Y, 'Z':Z}
+
+    def kron_n(ops):
+        out = ops[0]
+        for A in ops[1:]:
+            out = np.kron(out, A)
+        return out
+
+    def term_op(gate, qubits, n):
+        """Build the 2^n×2^n operator for gate on given qubits."""
+        if gate in ("XX","YY","ZZ"):
+            p = gate[0]
+            ops = [paulis[p] if i in qubits else I for i in range(n)]
+        else:
+            ops = [paulis[gate] if i in qubits else I for i in range(n)]
+        return kron_n(ops)
+
+    # 2) Instantiate your Hamiltonian (time‐independent in practice)
+    H     = Hamiltonian.spin_chain_hamil(q, freqs)
+
+    # 3) Assemble the full H matrix at any t (all coeffs are constant)
+    terms = H.get_term(0)   # [(gate, qubits, coef), ...]
+    dim   = 2**q
+    H_mat = np.zeros((dim,dim), dtype=complex)
+    H_all  = kron_n([H1]*q)             # H⊗H⊗…⊗H on all qubits
+    for gate, qubits, coef in terms:
+        H_mat += coef * term_op(gate, qubits, q)
+
+    # 4) Exponentiate and evolve
+
+    P = []
+    P10 = []
+    indices = np.linspace(0, len(Ts) - 1, 11, dtype=int)
+    Ts10 = [Ts[i] for i in indices]
+    print(Ts10)
+    print(Ts)
+
+    for t in Ts:
+        U   = expm(-1j * H_mat * t)   # exact time‐evolution operator
+        psi0 = np.zeros(dim, dtype=complex)
+        psi0[q//2] = 1.                   # example: start in |5⟩
+        psi0 = H_all @ psi0
+        psiT  = U @ psi0
+
+        # 5) Measure X₀ and compute P(X₀=+1)
+        X0    = term_op('X', [0], q)
+        expX0 = np.real(np.vdot(psiT, X0 @ psiT))
+        P_plus = (expX0 + 1)/2
+        P.append(P_plus)
+        if t in Ts10:
+            P10.append(P_plus)
+
+
+    error = np.array(P) - np.array(res)
+    error10 = np.array(P10) - np.array(res10)
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+    # Top: Exact vs Trotterized
+    ax1.plot(Ts, P,
+            label='Exact exponentiated Hamiltonian',
+            color="gray")
+
+    # scatter with larger points
+    ax1.scatter(Ts,  res,  label=f'Trotterization N = {N}',
+                marker='o', s=30)    # <-- was s=16
+    ax1.scatter(Ts10, res10, label='Trotterization N = 10',
+                marker='o', s=30)    # <-- was s=16
+
+    ax1.set_ylabel(r"$P(\langle X_0 \rangle = +1)$")
+    ax1.set_title(r'Probability of measuring $\langle X_0 \rangle$ = +1')
+    ax1.legend()
+
+    # Bottom: Absolute error
+    # use markersize (diameter) for the plot markers
+    ax2.plot(Ts,   error,
+            label=f'N = {N}, Abs. mean = {np.mean(np.abs(error)):.3f}',
+            marker='o', markersize=6)   # <-- you can tweak this
+    ax2.plot(Ts10, error10,
+            label=f'N = 10, Abs. mean = {np.mean(np.abs(error10)):.2f}',
+            marker='o', markersize=6)
+
+    ax2.set_xlabel('Time T')
+    ax2.set_ylabel('Error')
+    ax2.set_title('Trotterization Error')
+    ax2.legend()
+
+    plt.tight_layout()
+    #plt.show()
+    plt.savefig("TE-PAI-noSampling/data/trotterComparison.png", dpi=300)
 
 def quimb_to_qiskit(quimb_circ):
     """
@@ -1115,11 +1315,15 @@ def draw_circuits(path, n, flip=True):
 
     circuit_pool, sign_pool = data_arrs[0]
     quimb = getCircuit(q, flip=flip, mps=False)
-    for i in range(n):
+    for i in range(5):
         circuit = circuit_pool[i]
         applyGates(quimb,circuit)
-        quimb.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
-
+        tags   = ['PSI0', 'Z', 'RZ', 'RZZ', 'RXX', 'RYY', 'H']
+        colors = [gate_colors[tag.lower()][0] if tag.lower() in gate_colors else "#888888" for tag in tags]
+        quimb.psi.draw(color=tags,
+         custom_colors=colors,
+         layout='kamada_kawai')
+        return
 
 #plot_bond_data(r"TE-PAI-noSampling\data\trotterThenTEPAI\q-10-N1-100-T1-2-N2-1000-p-100-T2-3.0-dt-0.1")
 #organize_trotter_tepai()
