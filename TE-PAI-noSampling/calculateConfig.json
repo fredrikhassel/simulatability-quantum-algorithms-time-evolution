@@ -5,7 +5,7 @@
         "T": 1,
         "dT": 0.1,
         "N": 100,
-        "circuit_pool_size": 10000
+        "circuit_pool_size": 2000
         }
    },
     "simulate": {},
