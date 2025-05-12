@@ -55,7 +55,7 @@ class TE_PAI:
         index = batch_sampling(np.array(self.probs), num_circuits)
 
         # how many chunks of 100?
-        chunk = 1000
+        chunk = 500
         num_chunks = (num_circuits + chunk-1) // chunk
 
         for chunk_idx in range(num_chunks):
