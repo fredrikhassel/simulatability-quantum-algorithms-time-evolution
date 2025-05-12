@@ -51,69 +51,95 @@ class TE_PAI:
         res = batch_sampling(np.array(self.probs), n)
         return [sum(len(r) for r in re) for re in res]
 
-
-
     def run_te_pai(self, num_circuits, sign_file_path, gates_file_path, overhead, err=None):
         index = batch_sampling(np.array(self.probs), num_circuits)
-        sign_list = []
 
-        # Open file and write starting brace
-        with open(gates_file_path, 'w') as f:
-            f.write('{\n')
-            first_entry = True
+        # how many chunks of 100?
+        chunk = 1000
+        num_chunks = (num_circuits + chunk-1) // chunk
 
-            with mp.Pool(4) as pool:
-                for i, (sign_val, circuit) in enumerate(
-                    pool.imap_unordered(partial(self.gen_rand_cir_with_details, err=err), index), start=1
-                ):
-                    sign_list.append(sign_val)
+        for chunk_idx in range(num_chunks):
+            # slice of the global index for this chunk
+            start = chunk_idx * chunk
+            end = min(start + chunk, num_circuits)
+            idx_chunk = index[start:end]
+            chunk_size = end - start
 
-                    # Build and write the circuit
-                    circuit_dict = {}
-                    for snap_idx, snapshot in enumerate(circuit, start=1):
-                        snapshot_dict = {}
-                        for gate_idx, gate in enumerate(snapshot, start=1):
-                            if not isinstance(gate, (list, tuple)) or len(gate) != 3:
-                                print(f"Malformed gate at snapshot {snap_idx}, gate_idx {gate_idx}: {gate}")
-                                continue
-                            snapshot_dict[str(gate_idx)] = {
-                                "gate_name": gate[0],
-                                "angle": float(gate[1]),
-                                "qubits": list(gate[2])
-                            }
-                        circuit_dict[str(snap_idx)] = snapshot_dict
-                        del snapshot_dict
+            # --- build per-chunk gates filename with suffix right after 'gates_arr' ---
+            g_dir, g_base = os.path.split(gates_file_path)
+            head_g, tail_g = g_base.split('-N-', 1)               # head_g == 'gates_arr'
+            suffix = '' if chunk_idx == 0 else str(chunk_idx + 1)
+            this_gates_name = f"{head_g}{suffix}-N-{tail_g}"     # e.g. 'gates_arr2-N-...'
+            this_gates_path = os.path.join(g_dir, this_gates_name)
 
-                    if not first_entry:
-                        f.write(',\n')
-                    first_entry = False
-                    f.write(f'"{i}":')
-                    json.dump(circuit_dict, f)
-                    f.flush()
-                    os.fsync(f.fileno())
+            # --- same for sign_list ---
+            s_dir, s_base = os.path.split(sign_file_path)
+            head_s, tail_s = s_base.split('-N-', 1)              # head_s == 'sign_list'
+            this_sign_name = f"{head_s}{suffix}-N-{tail_s}"
+            this_sign_path = os.path.join(s_dir, this_sign_name)
 
-                    # Kill memory now
-                    del circuit_dict
-                    del circuit
-                    gc.collect()
+            # generate this chunk’s gate JSON
+            sign_list = []
+            with open(this_gates_path, 'w') as f:
+                f.write('{\n')
+                first_entry = True
 
-                    if i % 10 == 0:
-                        print(f"Wrote {i}/{num_circuits} circuits and cleaned memory")
+                with mp.Pool(4) as pool:
+                    for j, (sign_val, circuit) in enumerate(
+                        pool.imap_unordered(
+                            partial(self.gen_rand_cir_with_details, err=err),
+                            idx_chunk
+                        ),
+                        start=1
+                    ):
+                        sign_list.append(sign_val)
 
-            f.write('\n}')  # close JSON object
+                        # build the circuit dict exactly as before
+                        circuit_dict = {}
+                        for snap_idx, snapshot in enumerate(circuit, start=1):
+                            snapshot_dict = {}
+                            for gate_idx, gate in enumerate(snapshot, start=1):
+                                if not isinstance(gate, (list, tuple)) or len(gate) != 3:
+                                    print(f"Malformed gate at snapshot {snap_idx}, gate_idx {gate_idx}: {gate}")
+                                    continue
+                                snapshot_dict[str(gate_idx)] = {
+                                    "gate_name": gate[0],
+                                    "angle": float(gate[1]),
+                                    "qubits": list(gate[2])
+                                }
+                            circuit_dict[str(snap_idx)] = snapshot_dict
+                            del snapshot_dict
 
-        # Save sign list
-        sign_data = {"overhead": overhead}
-        for i, sign_val in enumerate(sign_list):
-            sign_data[str(i + 1)] = sign_val
+                        if not first_entry:
+                            f.write(',\n')
+                        first_entry = False
 
-        try:
-            with open(sign_file_path, 'w') as file:
-                json.dump(sign_data, file, indent=4)
-            print(f"Sign list successfully saved to {sign_file_path}")
-        except Exception as e:
-            print(f"Error saving sign list file: {e}")
+                        f.write(f'"{j}":')
+                        json.dump(circuit_dict, f)
+                        f.flush()
+                        os.fsync(f.fileno())
 
+                        # free memory
+                        del circuit_dict
+                        del circuit
+                        gc.collect()
+
+                        if j % 10 == 0:
+                            print(f"Wrote {j}/{chunk_size} circuits in chunk {chunk_idx+1}/{num_chunks}")
+
+                f.write('\n}')
+
+            # now save this chunk’s sign list
+            sign_data = {"overhead": overhead}
+            for k, sign_val in enumerate(sign_list, start=1):
+                sign_data[str(k)] = sign_val
+
+            try:
+                with open(this_sign_path, 'w') as file:
+                    json.dump(sign_data, file, indent=4)
+                print(f"Sign list successfully saved to {this_sign_path}")
+            except Exception as e:
+                print(f"Error saving sign list file: {e}")
 
  
 
