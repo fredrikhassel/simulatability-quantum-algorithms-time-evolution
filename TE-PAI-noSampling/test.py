@@ -1,9 +1,9 @@
 from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,trotter, plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai, parse,draw_circuits, trotterComparison
-path = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-300-Δ-pi_over_1024-q-4-dT-0.1-T-1.0"
+path = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-4-dT-0.1-T-1"
 #draw_circuits(path, 10)
-parse(path, True, False, False, False, True)
+#parse(path, True, False, False, False, True)
 #organize_trotter_tepai()
-#plot_gate_counts(path, n=10, bins=20)
+plot_gate_counts(path, n=10, bins=10)
 #plot_bond_data()
 if False:
     trotter(N=100,
@@ -51,5 +51,5 @@ if False:
 
 
 #plot_bond_data("TE-PAI-noSampling/data/trotterThenTEPAI/q-20-N1-400-T1-4.0-N2-1000-p-100-T2-6.0-dt-0.2")
-plot_data_from_folder("TE-PAI-noSampling/data/plotting")
+#plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 #plotComplexityFromFolder(path, False)
