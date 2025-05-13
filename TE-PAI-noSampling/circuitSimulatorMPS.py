@@ -23,6 +23,8 @@ from scipy.optimize import curve_fit
 import matplotlib.colors as mcolors
 from scipy.linalg import expm
 from collections import Counter
+from scipy.stats import norm
+
 
 
 tab_colors = {
@@ -1266,44 +1268,69 @@ def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds"):
 def plot_gate_counts(path, n, bins=10):
     path = strip_trailing_dot_zero(path)
     data_dict = JSONtoDict(path)
-    data_arrs,Ts,params,pool = DictToArr(data_dict, True)
-    N,_,c,Δ,T,q = params
+    data_arrs, Ts, params, pool = DictToArr(data_dict, True)
+    N, _, c, Δ, T, q = params
     q = int(q)
     N = int(N)
     T = round(float(T), 8)
     Δ = parse_pi_over(Δ)
     circuit_pool, sign_pool = data_arrs[0]
-    print(n)
 
-    circuit_lengths = []
-    for circuit in circuit_pool:
-        circuit_lengths.append(len(circuit))
+    # gather circuit lengths in blocks of size n
+    circuit_lengths = [len(c) for c in circuit_pool]
     circuit_lengths = group_sum(circuit_lengths, n)
-    experimental_length = np.mean(np.array(circuit_lengths))
+    experimental_length = np.mean(circuit_lengths)
 
-    # Setting up TE-PAI
+    # theoretical expected length
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
     hamil = Hamiltonian.spin_chain_hamil(q, freqs)
     te_pai = TE_PAI(hamil, q, Δ, T, N, n)
     theoretical_length = te_pai.expected_num_gates
-    print(f"Theoretical length of circuit: {theoretical_length}, Experimental length of circuit: {experimental_length}, difference: {(theoretical_length-experimental_length)/theoretical_length}")
+    sigma = np.sqrt(theoretical_length)
+
+    print(f"Theoretical length: {theoretical_length:.4f}, "
+          f"Experimental length: {experimental_length:.4f}, "
+          f"Rel. diff: {(theoretical_length - experimental_length)/theoretical_length:.4%}")
+
+    # plot
     plt.figure(figsize=(8, 5))
-    
-    # Plot histogram
-    plt.hist(circuit_lengths, bins=bins, density=True, alpha=0.6, edgecolor='black')
-    
-    # Plot theoretical mean line
-    plt.axvline(theoretical_length, color='gray', linestyle='dotted', linewidth=2, label=f"Theoretical length = {theoretical_length:.2f}")
-    
-    # Add labels and legend
+    # histogram
+    counts, bins_edges, _ = plt.hist(
+        circuit_lengths,
+        bins=bins,
+        density=True,
+        alpha=0.6,
+        edgecolor='black',
+        label="TE-PAI circuit lengths"
+    )
+
+    # normal pdf overlay
+    x = np.linspace(bins_edges[0], bins_edges[-1], 1000)
+    y = norm.pdf(x, loc=theoretical_length, scale=sigma)
+    plt.plot(
+        x,
+        y,
+        'r--',
+        linewidth=2,
+        label=fr'$\mathcal{{N}}(\nu_\infty,\,\sqrt{{\nu_\infty}})$'
+    )
+
+    # theoretical mean line
+    plt.axvline(
+        theoretical_length,
+        color='gray',
+        linestyle='dotted',
+        linewidth=2,
+        label=fr"$\nu_\infty = {theoretical_length:.2f}$"
+    )
+
     plt.xlabel("Circuit length")
-    plt.ylabel("Probability Density")
-    plt.title("Histogram of circuit lengths with expected number of gates")
+    plt.ylabel("Probability density")
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.3)
     plt.tight_layout()
-    plt.show()
+    plt.savefig("TE-PAI-circuit-lengths.png", dpi=300)
 
 def parse_pi_over(text):
     if text.startswith("pi_over_"):
@@ -1467,8 +1494,6 @@ def show_otimization(path, indices, flip=True):
 
     plt.show()
 
-
-
 def compare_optimization(qc, qc_opt):
     # before and after
     before = Counter(qc.count_ops())
@@ -1483,9 +1508,26 @@ def compare_optimization(qc, qc_opt):
         sign = "+" if delta>0 else ""
         print(f"  {gate:6s}: {sign}{delta}")
 
-    return # (number of gates in qc, number of gates in qc_opt)
+    total_before = sum(before.values())
+    total_after  = sum(after.values())
+    return total_before, total_after
 
+def calc_optimization(path, flip=True):
+    path = strip_trailing_dot_zero(path)
+    data_dict = JSONtoDict(path)
+    data_arrs, Ts, params, pool = DictToArr(data_dict, True)
+    N, _, c, Δ, T, q = params
+    q = int(q); N = int(N)
+    T = round(float(T), 8)
+    Δ = parse_pi_over(Δ)
+    circuit_pool, sign_pool = data_arrs[0]
+    quimb = getCircuit(q, flip=flip, mps=False)
+    for i in range(len(circuit_pool)):
+        applyGates(quimb, circuit_pool[i])
 
+    qiskit = quimb_to_qiskit(quimb)
+    qc_opt = transpile(qiskit, optimization_level=3)
+    compare_optimization(qiskit, qc_opt)
 
 
 

@@ -1,10 +1,11 @@
-from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,trotter, plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai, parse,draw_circuits, trotterComparison,show_otimization
-path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-4-dT-0.01-T-0.1"
-show_otimization(path,1)
+from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,trotter, plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai, parse,draw_circuits, trotterComparison,show_otimization,calc_optimization
+path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-4-dT-0.1-T-1"
+calc_optimization(path)
+#show_otimization(path,1)
 #draw_circuits(path, variants=False)
 #parse(path, True, False, False, False, True)
 #organize_trotter_tepai()
-#plot_gate_counts(path, n=10, bins=10)
+#plot_gate_counts(path, n=10, bins=8)
 #plot_bond_data()
 
 if False:
