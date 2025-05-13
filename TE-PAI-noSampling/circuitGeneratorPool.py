@@ -98,11 +98,11 @@ if __name__ == '__main__':
     if True:
         # Example parameters
         numQs = 4
-        Δ = 10
+        Δ = 8
         T = 1.0
         dT = 0.1
-        N = 100
-        circuit_pool_size = 300
+        N = 1000
+        circuit_pool_size = 100
 
         # Generate circuits with the specified parameters
         generate((numQs, Δ, T, dT, N, circuit_pool_size))
