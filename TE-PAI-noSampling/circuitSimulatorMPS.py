@@ -22,6 +22,8 @@ from scipy.stats import linregress
 from scipy.optimize import curve_fit
 import matplotlib.colors as mcolors
 from scipy.linalg import expm
+from collections import Counter
+
 
 tab_colors = {
     "red":    mcolors.TABLEAU_COLORS["tab:red"],
@@ -456,7 +458,7 @@ def checkEqual(gates, gatesSim):
     print("These arrays have the same structure and gates.")
     return True
 
-def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None):
+def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True):
     print(f"Running Trotter for N={N}, n_snapshot={n_snapshot}, T={T}, q={q}")
     circuit = None
     
@@ -476,6 +478,7 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
             (pauli, 2 * coef * T / N, ind)
             for (pauli, ind, coef) in terms[i]
         ]
+
     
     if fixedCircuit == None:
         res = [1]
@@ -488,16 +491,30 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
 
         # Fresh circuit each time
         if fixedCircuit == None:
-            circuit = getCircuit(q, flip=flip)
+            circuit = getCircuit(q, flip=flip, mps=mps)
         else:
             circuit = fixedCircuit.copy()
+        if draw:
+            circuit = getCircuit(q, flip=flip, mps=False)
 
         # Apply gates up to current time
         for k in range(i + 1):
             applyGates(circuit, gates[k])
 
         if draw and i == 0:
-            #circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
+            print(gates[0])
+            print(f"length of gates: {len(gates[0])}")
+            tags   = ['PSI0', 'Z', 'RZ', 'RZZ', 'RXX', 'RYY', 'H']
+            colors = [
+                gate_colors[tag.lower()][0]
+                if tag.lower() in gate_colors else "#888888"
+                for tag in tags
+            ]
+            fig1, ax1 = plt.subplots()
+            circuit.psi.draw(color=tags,
+            custom_colors=colors, layout="kamada_kawai", ax=ax1)
+            ax1.axis('off')
+            #fig1.savefig("trotterEx", dpi=300, bbox_inches="tight")
             qiskit = quimb_to_qiskit(circuit)
             style = {
                 "displaycolor": gate_colors,
@@ -508,8 +525,8 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
                 "backgroundcolor": "#FFFFFF",   # canvas
             }
             qiskit.draw("mpl", scale=1, style=style)
-            plt.show()
-            return
+            #plt.savefig("trotterExQiskit", dpi=300, bbox_inches="tight")
+            #return
 
         # Measure immediately after applying
         result = measure(circuit, q, False)
@@ -1303,27 +1320,175 @@ def group_sum(arr, n):
         raise ValueError("Array length must be divisible by n.")
     return [sum(arr[i:i+n]) for i in range(0, len(arr), n)]
 
-def draw_circuits(path, n, flip=True):
+def draw_circuits(path, flip=True, variants=True):
+    # — your existing setup —
     path = strip_trailing_dot_zero(path)
     data_dict = JSONtoDict(path)
-    data_arrs,Ts,params,pool = DictToArr(data_dict, True)
-    N,_,c,Δ,T,q = params
-    q = int(q)
-    N = int(N)
+    data_arrs, Ts, params, pool = DictToArr(data_dict, True)
+    N, _, c, Δ, T, q = params
+    q = int(q); N = int(N)
     T = round(float(T), 8)
     Δ = parse_pi_over(Δ)
 
     circuit_pool, sign_pool = data_arrs[0]
+    tags   = ['PSI0', 'Z', 'RZ', 'RZZ', 'RXX', 'RYY', 'H']
+    colors = [
+        gate_colors[tag.lower()][0]
+        if tag.lower() in gate_colors else "#888888"
+        for tag in tags
+    ]
+
+    # fix to first 9 circuits in a 3x3 grid
+    if variants:
+        n_plots = 9
+        dT = T / n_plots
+        fig, axes = plt.subplots(3, 3, figsize=(12, 9))
+        axes = axes.flatten()
+    else:
+        n_plots = 5
+        fig, axes = plt.subplots(n_plots, 3, figsize=(15, 15))
+        quimb = getCircuit(q, flip=flip, mps=False)
+
+        Ts = np.linspace(0.1, 0.5, n_plots)
+        Ns = [1, 4, 7, 10, 13]
+        for i,t in enumerate(Ts):
+            _, _, _, circuit = trotter(N=Ns[i], n_snapshot=1, T=t, q=q, compare=False, save=False, draw=False, flip=flip, mps=False)
+            
+            print(circuit.num_gates)
+
+            circuit.psi.draw(
+                color=tags,
+                custom_colors=colors,
+                layout='kamada_kawai',
+                ax=axes[i][0]
+            )
+            axes[i][0].get_legend().remove()
+
+
+    for i in range(n_plots):
+        if variants:
+            ax = axes[i]
+            i = 10*i
+            print(f"length of circuit {i}: {len(circuit_pool[i])}")
+            # fresh circuit each time
+            quimb = getCircuit(q, flip=flip, mps=False)
+            applyGates(quimb, circuit_pool[i])
+
+            quimb.psi.draw(
+                color=tags,
+                custom_colors=colors,
+                layout='kamada_kawai',
+                ax=ax
+            )
+            
+        else:
+            ax = axes[i][1]
+            applyGates(quimb, circuit_pool[i*7])
+            print(f"Random length: {quimb.num_gates}")
+            quimb.psi.draw(
+                color=tags,
+                custom_colors=colors,
+                layout='kamada_kawai',
+                ax=ax
+            )
+
+            if i > 0:
+                ax.get_legend().remove()
+
+            ax = axes[i][2]
+            applyGates(quimb, circuit_pool[i*7])
+            quimb.amplitude_rehearse(simplify_sequence='ADCRS')['tn'].draw(
+                color=tags,
+                custom_colors=colors,
+                layout='kamada_kawai',
+                ax=ax
+            )
+            ax.get_legend().remove()
+
+
+        # only keep legend on the first subplot
+        if i > 0:
+            leg = ax.get_legend()
+            if leg:
+                leg.remove()
+
+        # caption as T = (i+1)*dT
+        ax.axis('off')
+
+    plt.tight_layout()
+    plt.savefig("circuitComparisons.png", dpi=600)
+    #plt.show()
+
+def show_otimization(path, indices, flip=True):
+    path = strip_trailing_dot_zero(path)
+    data_dict = JSONtoDict(path)
+    data_arrs, Ts, params, pool = DictToArr(data_dict, True)
+    N, _, c, Δ, T, q = params
+    q = int(q); N = int(N)
+    T = round(float(T), 8)
+    Δ = parse_pi_over(Δ)
+    circuit_pool, sign_pool = data_arrs[0]
     quimb = getCircuit(q, flip=flip, mps=False)
-    for i in range(5):
-        circuit = circuit_pool[i]
-        applyGates(quimb,circuit)
-        tags   = ['PSI0', 'Z', 'RZ', 'RZZ', 'RXX', 'RYY', 'H']
-        colors = [gate_colors[tag.lower()][0] if tag.lower() in gate_colors else "#888888" for tag in tags]
-        quimb.psi.draw(color=tags,
-         custom_colors=colors,
-         layout='kamada_kawai')
-        return
+    for i in range(indices):
+        applyGates(quimb, circuit_pool[i])
+    qiskit = quimb_to_qiskit(quimb)
+    style = {
+                "displaycolor": gate_colors,
+                "textcolor":      "#222222",    # global text
+                "gatetextcolor":  "#FFFFFF",    # fallback gate label color
+                "linecolor":      "#666666",    # qubit wire
+                "creglinecolor":  "#999999",    # classical wire
+                "backgroundcolor": "#FFFFFF",   # canvas
+            }
+    # 1) make the optimized copy
+    native_gates = ['h', 'z', 'rz', 'rxx', 'ryy', 'rzz']
+    qc_opt = transpile(qiskit, optimization_level=3, basis_gates=native_gates)
+
+    # 2) set up a tall, wide figure
+    fig, axes = plt.subplots(2, 1,
+                            figsize=(20, 10),
+                            constrained_layout=True)
+
+    # 3a) draw the original
+    qiskit.draw(output='mpl',
+            ax=axes[0],
+            fold=-1,      # disable pagination → one long line
+            scale=0.8,
+            style=style)
+
+    # 3b) draw the optimized
+    qc_opt.draw(output='mpl',
+                ax=axes[1],
+                fold=-1,
+                scale=0.8,
+                style=style)
+    
+    print(compare_optimization(qiskit, qc_opt))
+
+    plt.show()
+
+
+
+def compare_optimization(qc, qc_opt):
+    # before and after
+    before = Counter(qc.count_ops())
+    after  = Counter(qc_opt.count_ops())
+
+    # compute net change for every gate in either circuit
+    all_gates = set(before) | set(after)
+    net_diff = {g: after[g] - before[g] for g in all_gates}
+
+    print("Net change (after - before):")
+    for gate, delta in net_diff.items():
+        sign = "+" if delta>0 else ""
+        print(f"  {gate:6s}: {sign}{delta}")
+
+    return # (number of gates in qc, number of gates in qc_opt)
+
+
+
+
+
 
 #plot_bond_data(r"TE-PAI-noSampling\data\trotterThenTEPAI\q-10-N1-100-T1-2-N2-1000-p-100-T2-3.0-dt-0.1")
 #organize_trotter_tepai()
