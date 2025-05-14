@@ -311,6 +311,7 @@ def getPool(data_arrs,params,dT, draw, optimize=None, flip=False, fixedCircuit=N
     circuit_pool, sign_pool = data_arrs[0]
     n_timesteps = round(T/dT)
     results = [[] for _ in range(n_timesteps)]
+    bonds = [[] for _ in range(n_timesteps)]
     costs = [[] for _ in range(n_timesteps)]
     n_circuits = int(len(sign_pool) / n_timesteps)
     Ts = np.arange(0, T+dT, dT)
@@ -329,11 +330,15 @@ def getPool(data_arrs,params,dT, draw, optimize=None, flip=False, fixedCircuit=N
             quimb = fixedCircuit.copy()
         for i,(circuit,sign) in enumerate(zip(circuits,signs)):
             applyGates(quimb,circuit)
-            costs[i].append(getComplexity(quimb))#quimb.psi.contraction_cost())
+            bond, cost = getComplexity(quimb)
+            bonds[i].append(bond)
+            costs[i].append(cost)
+            #quimb.psi.contraction_cost())
             #quimb.amplitude_rehearse(simplify_sequence='RL')['tn'].draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
             results[i].append(measure(quimb,q, optimize)*sign)
 
     costs = np.mean(costs, axis=1)
+    bonds = np.mean(bonds, axis=1)
     averages = np.mean(results, axis=1)
     stds = np.std(results, axis=1)
 
@@ -344,9 +349,9 @@ def getPool(data_arrs,params,dT, draw, optimize=None, flip=False, fixedCircuit=N
     stds = np.insert(stds, 0, 0)
 
     if draw:
-        return averages,stds, quimb, costs
+        return averages,stds, quimb, [bonds,costs]
     else:
-        return averages,stds, None, costs
+        return averages,stds, None, [bonds,costs]
 
 def generate_random_indices(pool_size, output_length, entry_length):
     rng = np.random.default_rng(0)  # Create RNG instance with optional seed
@@ -487,7 +492,8 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
     else:
         res = [measure(fixedCircuit, q, False)]
 
-    complexity = [0]
+    bonds = []
+    costs = []
     for i, gs in enumerate(gates):
         print(f"Snapshot {i+1} / {len(gates)}")
 
@@ -532,7 +538,9 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
 
         # Measure immediately after applying
         result = measure(circuit, q, False)
-        complexity.append(getComplexity(circuit))
+        bond, cost = getComplexity(circuit)
+        costs.append(cost)
+        bonds.append(bond)
         res.append(result)
 
     if save:
@@ -557,12 +565,12 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
         
         with open(file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["x", "y"])
-            writer.writerows(zip(Ts, complexity))
+            writer.writerow(["x", "y", "z"])
+            writer.writerows(zip(Ts, bonds, costs))
         print(f"Lie bonds saved to {file_path}")
 
     if not compare:
-        return (Ts, res, complexity, circuit) 
+        return (Ts, res, [bonds, costs], circuit) 
     
     if compare:
         checkEqual(gates, gatesSim)
@@ -810,22 +818,22 @@ def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False):
     if costs[0] != None:
         return costs
 
-def save_trotter(x, y, N, n, T, q, base_dir='TE-PAI-noSampling/data/plotting'):
+def save_trotter(x, y, z, N, n, T, q, base_dir='TE-PAI-noSampling/data/plotting'):
     # Ensure target directory exists
     os.makedirs(base_dir, exist_ok=True)
     
     # Build filename
-    filename = f"trotter-bonds-N-{N}-n-{n}-{T}-q-{q}.csv"
+    filename = f"trotter-bonds-N-{N}-n-{n}-T-{T}-q-{q}.csv"
     filepath = os.path.join(base_dir, filename)
     
     # Write CSV
     with open(filepath, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['x', 'y'])
-        for xi, yi in zip(x, y):
-            writer.writerow([xi, yi])
+        writer.writerow(['x', 'y', 'z'])
+        for xi, yi, zi in zip(x, y, z):
+            writer.writerow([xi, yi, zi])
 
-def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, optimize=False, flip=False, confirm=False):
+def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, optimize=False, flip=False, confirm=False,  base_dir='TE-PAI-noSampling/data/plotting'):
     folder = strip_trailing_dot_zero(folder)
     data_dict = JSONtoDict(folder)
     data_arrs,Ts,params,pool = DictToArr(data_dict, True)
@@ -835,10 +843,14 @@ def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, op
     # Running the trotter simulation up to a time trotterT
     # NB: T =/= trotterT
     trotterTs, res, complexity, circuit = trotter(N=trotterN, n_snapshot=trottern, T=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip)
-    save_trotter(trotterTs, complexity, trotterN, trottern, trotterT, q)
+    print(complexity)
+    save_trotter(trotterTs, complexity[0], complexity[1], trotterN, trottern, trotterT, q)
+
+    print(f"T-trotterT: {T-trotterT}")
 
     if confirm:
-        trotter(N=trotterN, n_snapshot=10, T=T, startTime=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit, )
+        confirmTs, _, confirmComp, _ = trotter(N=trotterN, n_snapshot=10, T=T, startTime=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit, )
+        save_trotter(confirmTs, confirmComp[0], confirmComp[1], trotterN, 10, T, q)
 
     char = "c"
     dT = extract_dT_value(folder)
@@ -849,6 +861,15 @@ def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, op
     pattern = r"dT-([0-9]+(?:\.[0-9]+)?)"
     match = re.search(pattern, folder)
     saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char)
+
+    filename = f"TEPAI-bonds-N-{N}-n-{n}-T-{T}-q-{q}.csv"
+    filepath = os.path.join(base_dir, filename)
+    with open(filepath, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['x', 'y', 'z'])
+        for xi, yi, zi in zip(Ts, costs[0], costs[1]):
+            writer.writerow([xi, yi, zi])
+
     organize_trotter_tepai()
    
 def organize_trotter_tepai(
@@ -878,7 +899,8 @@ def organize_trotter_tepai(
         r"-T-(?P<T2>[0-9.]+)-q-(?P<q>\d+)-dT-(?P<dt>[0-9.]+)\.csv$"
     )
     pat_trot = re.compile(
-        r"^trotter-bonds-N-(?P<N>\d+)-n-(?P<n>\d+)-(?P<T>[0-9.]+)-q-(?P<q>\d+)\.csv$"
+        r"^(?:trotter|TEPAI)-bonds-N-(?P<N>\d+)-n-(?P<n>\d+)-T-(?P<T>[0-9.]+)-q-(?P<q>\d+)\.csv$",
+        re.IGNORECASE
     )
 
     lie_runs    = []
@@ -979,42 +1001,61 @@ def plot_trotter_then_tepai(
     base_dir: Path = Path("TE-PAI-noSampling/data/trotterThenTEPAI")
 ):
     """
-    Locate folder q-{q}-N1-{N1}-T1-{T1}-N2-{N2}-p-{p}-T2-{T2}-dt-{dt}, then:
+    Locate folder q-{q}-N1-{N1}-T1-{T1}-N2-{N2}-p-{p}-T-{T2}-dt-{dt}, then:
       • If 2 lie-*.csv:
          – smaller-T: darkblue solid
          – larger-T: gray dashed
       • If 1 lie-*.csv:
          – that run: darkblue solid
       • TE-PAI: tab:blue errorbars
+      • Bond data: two trotter-bonds files plus one TEPAI-bonds file plotted in second subplot
+      • Skip first data point for the smaller-T trotter-bonds
+      • Skip first data point for the TEPAI-bonds, and shift its x-values by the max x of the first trotter-bonds
 
     X axis = time, Y axis = x expectation value.
     Title = "Trotterization followed by TE-PAI for {q} qubits for total time {T1+T2}"
     """
+    # Build folder path
     folder = base_dir / f"q-{q}-N1-{N1}-T1-{float(T1)}-N2-{N2}-p-{p}-T2-{float(T2)}-dt-{dt}"
     if not folder.is_dir():
         raise FileNotFoundError(f"No such folder: {folder}")
 
+    # Compile filename patterns
     pat_lie = re.compile(r"^lie-N-(?P<N>\d+)-T-(?P<T>[0-9.]+)-q-(?P<q>\d+)(?:-fixedCircuit)?\.csv$")
     pat_tep = re.compile(
         r"^N-(?P<N2>\d+)-n-(?P<n>\d+)-p-(?P<p>\d+)-Δ-pi_over_[^–]+"
         r"-T-(?P<T2>[0-9.]+)-q-(?P<q>\d+)-dT-(?P<dt>[0-9.]+)\.csv$"
     )
+    # Match both trotter-bonds and TEPAI-bonds (type captured)
+    pat_bonds = re.compile(
+        r"^(?P<type>trotter|TE-?PAI)-bonds-N-(?P<N>\d+)-n-(?P<n>\d+)-T-(?P<T>\d+(?:\.\d+)?)-q-(?P<q>\d+)\.csv$",
+        re.IGNORECASE
+    )
 
+    # Containers for runs
     lie_runs = []
     tep_file = None
+    bond_runs = []
 
+    # Scan directory for matching files
     for f in folder.iterdir():
-        if not f.is_file(): continue
+        if not f.is_file():
+            continue
         if (m := pat_lie.match(f.name)):
             gd = m.groupdict()
             lie_runs.append((f, float(gd["T"]), int(gd["N"])))
         elif pat_tep.match(f.name):
             tep_file = f
+        elif (m := pat_bonds.match(f.name)):
+            gd = m.groupdict()
+            bond_runs.append((f, gd))
 
     if tep_file is None:
         raise FileNotFoundError("No TE-PAI file found in folder")
+    if len(bond_runs) != 3:
+        raise FileNotFoundError("Expected 3 bond CSV files (2 trotter + 1 TEPAI) in folder")
 
-    # load TE-PAI
+    # Load TE-PAI data
     x_t, y_t, e_t = [], [], []
     with tep_file.open() as fp:
         next(fp)
@@ -1022,8 +1063,8 @@ def plot_trotter_then_tepai(
             xi, yi, erri = line.strip().split(',')
             x_t.append(float(xi)); y_t.append(float(yi)); e_t.append(float(erri))
 
-    plt.figure()
-    # handle 1 or 2 lie runs
+    # --- Subplot 1: Trotterization + TE-PAI continuation ---
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 5))
     if len(lie_runs) == 1:
         file_s, _, N_s = lie_runs[0]
         x_s, y_s = [], []
@@ -1032,51 +1073,74 @@ def plot_trotter_then_tepai(
             for line in fp:
                 xi, yi = line.strip().split(',')
                 x_s.append(float(xi)); y_s.append(float(yi))
-        plt.plot(x_s, y_s,
-                 linestyle='-',
-                 color='darkblue',
-                 label=f"Trotterization-N-{N_s}")
-    elif len(lie_runs) == 2:
-        # sort by T
-        lie_runs.sort(key=lambda t: t[1])
-        (f_s, _, N_s), (f_l, _, N_l) = lie_runs
-        # small T
-        x_s, y_s = [], []
-        with f_s.open() as fp:
-            next(fp)
-            for line in fp:
-                xi, yi = line.strip().split(',')
-                x_s.append(float(xi)); y_s.append(float(yi))
-        plt.plot(x_s, y_s,
-                 linestyle='-',
-                 color='darkblue',
-                 label=f"Trotterization-N-{N_s}")
-        # large T
-        x_l, y_l = [], []
-        with f_l.open() as fp:
-            next(fp)
-            for line in fp:
-                xi, yi = line.strip().split(',')
-                x_l.append(float(xi)); y_l.append(float(yi))
-        plt.plot(x_l, y_l,
-                 linestyle='--',
-                 color='gray',
-                 label=f"Trotterization-N-{N_l}")
+        ax1.plot(x_s, y_s, linestyle='-', color='darkblue', label=f"Trotterization-N-{N_s}")
     else:
-        raise FileNotFoundError("Expected 1 or 2 lie files in folder")
-
-    # TE-PAI continuation
-    plt.errorbar(x_t, y_t, yerr=e_t,
-                 fmt='o', linestyle='-',
-                 color='tab:blue',
+        lie_runs.sort(key=lambda t: t[1])
+        (f_small, _, N_small), (f_large, _, N_large) = lie_runs
+        # smaller-T trotter
+        xs, ys = [], []
+        with f_small.open() as fp:
+            next(fp)
+            for line in fp:
+                xi, yi = line.strip().split(',')
+                xs.append(float(xi)); ys.append(float(yi))
+        ax1.plot(xs, ys, linestyle='-', color='darkblue', label=f"Trotterization-N-{N_small}")
+        # larger-T trotter
+        xl, yl = [], []
+        with f_large.open() as fp:
+            next(fp)
+            for line in fp:
+                xi, yi = line.strip().split(',')
+                xl.append(float(xi)); yl.append(float(yi))
+        ax1.plot(xl, yl, linestyle='--', color='gray', label=f"Trotterization-N-{N_large}")
+    ax1.errorbar(x_t, y_t, yerr=e_t, fmt='o', linestyle='-', color='tab:blue',
                  label=f"TE-PAI continuation-N-{N2}-p-{p}")
+    ax1.set_xlabel("time"); ax1.set_ylabel("x expectation value"); ax1.legend()
 
-    plt.xlabel("time")
-    plt.ylabel("x expectation value")
-    total_time = T1 + T2
-    plt.title(f"Trotterization followed by TE-PAI for {q} qubits for total time {total_time}")
-    plt.legend()
-    plt.tight_layout()
+    # --- Subplot 2: Bond data ---
+    # Separate trotter vs TEPAI
+    trotter_runs = [br for br in bond_runs if br[1]['type'].lower().startswith('trotter')]
+    tepai_runs = [br for br in bond_runs if br[1]['type'].lower().replace('-', '') == 'tepai']
+    # Sort trotter by T
+    trotter_runs.sort(key=lambda t: float(t[1]['T']))
+    # First trotter (small)
+    f_s, gd_s = trotter_runs[0];  xs2, ys2, zs2 = [], [], []
+    with f_s.open() as fp:
+        next(fp)
+        print(f_s)
+        print(fp)
+        for line in fp:
+            xi, yi, zi = line.strip().split(',')
+            xs2.append(float(xi)); ys2.append(float(yi)); zs2.append(float(zi))
+
+    ax3.plot(xs2, zs2, linestyle='-', marker='o', label=f"trotter-costs-N-{gd_s['N']}-n-{gd_s['n']}-T-{gd_s['T']}")
+    ax2.plot(xs2, ys2, linestyle='-', marker='o', label=f"trotter-bonds-N-{gd_s['N']}-n-{gd_s['n']}-T-{gd_s['T']}")
+    # Second trotter (large)
+    f_l, gd_l = trotter_runs[1]; xl2, yl2, zl2 = [], [], []
+    with f_l.open() as fp:
+        next(fp)
+        for line in fp:
+            xi, yi, zi = line.strip().split(',')
+            xl2.append(float(xi)); yl2.append(float(yi)); zl2.append(float(zi))
+    ax3.plot(xl2, zl2, linestyle='--', marker='o', label=f"trotter-costs-N-{gd_l['N']}-n-{gd_l['n']}-T-{gd_l['T']}")
+    ax2.plot(xl2, yl2, linestyle='--', marker='o', label=f"trotter-bonds-N-{gd_l['N']}-n-{gd_l['n']}-T-{gd_l['T']}")
+    # TEPAI-bonds
+    if tepai_runs:
+        f_t, gd_t = tepai_runs[0]; xt, yt, zt = [], [], []
+        with f_t.open() as fp:
+            next(fp)
+            for line in fp:
+                xi, yi, zi = line.strip().split(',')
+                xt.append(float(xi)); yt.append(float(yi)); zt.append(float(zi))
+        ax3.plot(xt, zt, linestyle='-', marker='x', color='tab:orange', label=f"TEPAI-costs-N-{gd_t['N']}-n-{gd_t['n']}-T-{gd_t['T']}")
+        ax2.plot(xt, yt, linestyle='-', marker='x', color='tab:orange', label=f"TEPAI-bonds-N-{gd_t['N']}-n-{gd_t['n']}-T-{gd_t['T']}")
+
+    ax2.set_xlabel("time"); ax2.set_ylabel("x expectation value");
+    ax2.set_title(f"Bond data for {q} qubits")
+    ax2.legend()
+
+    fig.suptitle(f"Trotterization followed by TE-PAI for {q} qubits for total time {T1+T2}")
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
 
 def compareCosts(poolCosts, successCosts, T, N):
@@ -1152,12 +1216,26 @@ def showComplexity(costs, T, N, output_folder=None):
     #plt.show()
     
 def getComplexity(circuit):
-    #result = circuit.amplitude_rehearse(optimize="greedy")
-    #return result['W']
-    return circuit.psi.max_bond()
-    #rehs = circuit.to_dense_rehearse()
-    #cs = rehs['tree'].contraction_cost()
-   #return cs
+
+    mps = circuit.psi
+    costs = mps.contraction_cost(optimize="greedy", output_inds=())
+
+    # 1. Naïve cost (always 128 for N=4):
+    print("Default cost:", mps.contraction_cost())
+
+    # 2. Searched cost via optimize:
+    print("Greedy cost:", mps.contraction_cost(optimize="greedy"))
+
+    # 3. ContractionTree for absolute cost:
+    tree = mps.contraction_tree(optimize="greedy")
+    print("Absolute FLOPs:", tree.contraction_cost(log=None))
+
+    # 4. PathInfo for detailed view:
+    info = mps.contraction_info(optimize="greedy")
+    print("Flops from PathInfo:", info)
+
+    tree = circuit.psi.contraction_tree(optimize="greedy")
+    return circuit.psi.max_bond(), info.naive_cost
 
 def plotComplexityFromFolder(folder_path, semilogy=True):
     if folder_path is None:
