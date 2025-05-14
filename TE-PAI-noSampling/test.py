@@ -1,6 +1,6 @@
 from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,trotter, plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai, parse,draw_circuits, trotterComparison,show_otimization,calc_optimization
-path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-4-dT-0.1-T-1"
-calc_optimization(path)
+path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_256-q-10-dT-0.1-T-1"
+#calc_optimization(path)
 #show_otimization(path,1)
 #draw_circuits(path, variants=False)
 #parse(path, True, False, False, False, True)
@@ -17,7 +17,7 @@ if False:
         save=True, 
         draw=False, 
         flip=True)
-if False:
+if True:
     trotterThenTEPAI(path, 
                      saveAndPlot=False,
                      trotterN=100,
@@ -27,15 +27,15 @@ if False:
                      flip=True,
                      confirm=True)
 
-if False:
+if True:
     plot_trotter_then_tepai(
-        q = 20,
-        N1= 400,
-        T1= 4,
+        q = 10,
+        N1= 100,
+        T1= 2,
         N2= 1000,
         p = 100,
-        T2 = 6,
-        dt= 0.2)
+        T2 = 3,
+        dt= 0.1)
     
 if False:
     trotter(N=10, 
