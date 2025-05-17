@@ -24,7 +24,7 @@ import matplotlib.colors as mcolors
 from scipy.linalg import expm
 from collections import Counter
 from scipy.stats import norm
-
+import ast
 
 
 tab_colors = {
@@ -264,7 +264,7 @@ def applyGates(circuit, gates):
         else:
             raise ValueError(f"Unsupported number of qubits for gate {quimb_gate_name}: {len(qubit_indices)}")
 
-def measure(circuit,q, optimize):
+def measure(circuit,q=0, optimize=False):
     val = np.real(circuit.local_expectation(qu.pauli('X'), (0)))
     return (val+1)/2
 
@@ -304,7 +304,7 @@ def loss_fn(psi, ham):
     energy_tn = b | h | k
     return energy_tn ^ ...
 
-def getPool(data_arrs,params,dT, draw, optimize=None, flip=False, fixedCircuit=None):
+def getPool(data_arrs,params, dT, draw, optimize=None, flip=False, fixedCircuit=None, start=None):
     N,n,c,Δ,T,q = params
     T = float(T)
     q = int(q)
@@ -333,9 +333,11 @@ def getPool(data_arrs,params,dT, draw, optimize=None, flip=False, fixedCircuit=N
             bond, cost = getComplexity(quimb)
             bonds[i].append(bond)
             costs[i].append(cost)
-            #quimb.psi.contraction_cost())
-            #quimb.amplitude_rehearse(simplify_sequence='RL')['tn'].draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
             results[i].append(measure(quimb,q, optimize)*sign)
+            if start != None:
+                print(f"Starting tol: {start} versus {cost}")
+                if cost > start:
+                    break
 
     costs = np.mean(costs, axis=1)
     bonds = np.mean(bonds, axis=1)
@@ -493,6 +495,7 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
         res = [measure(fixedCircuit, q, False)]
 
     bonds = []
+    lengths = []
     costs = []
     for i, gs in enumerate(gates):
         print(f"Snapshot {i+1} / {len(gates)}")
@@ -537,11 +540,14 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
             #return
 
         # Measure immediately after applying
-        result = measure(circuit, q, False)
         bond, cost = getComplexity(circuit)
+        result = measure(circuit, q, False)
         costs.append(cost)
         bonds.append(bond)
         res.append(result)
+        lengths.append(circuit.num_gates)
+
+    lengths = [l*bonds[i]**3 for i,l in enumerate(lengths)]
 
     if save:
         save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
@@ -558,15 +564,17 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
             writer.writerows(zip(Ts, res))
         print(f"Lie data saved to {file_path}")
 
-        save_path = os.path.join("TE-PAI-noSampling", "data", "bonds")
+        save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
         os.makedirs(save_path, exist_ok=True)
         file_name = f"lie-bond-N-{N}-T-{T}-q-{q}.csv"
         file_path = os.path.join(save_path, file_name)
         
+        Ts = [t+float(T/n_snapshot) for t in Ts]
+
         with open(file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["x", "y", "z"])
-            writer.writerows(zip(Ts, bonds, costs))
+            writer.writerow(["x", "y", "z", "l"])
+            writer.writerows(zip(Ts, bonds, costs, lengths))
         print(f"Lie bonds saved to {file_path}")
 
     if not compare:
@@ -781,7 +789,8 @@ def quimb_to_qiskit(quimb_circ):
     return qc
 
 def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False):
-    folder = strip_trailing_dot_zero(folder)
+    if not os.path.isdir(folder):
+        folder = strip_trailing_dot_zero(folder)
 
     if isJSON:
         data_dict = JSONtoDict(folder)
@@ -815,15 +824,17 @@ def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False):
         trotter(100,10,float(T),int(q),compare=False,save=True, flip=flip)
         plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
-    if costs[0] != None:
+    if costs[0][0] != None:
         return costs
 
-def save_trotter(x, y, z, N, n, T, q, base_dir='TE-PAI-noSampling/data/plotting'):
+def save_trotter(x, y, z, N, n, T, q, base_dir='TE-PAI-noSampling/data/plotting', fixed=False):
     # Ensure target directory exists
     os.makedirs(base_dir, exist_ok=True)
     
     # Build filename
     filename = f"trotter-bonds-N-{N}-n-{n}-T-{T}-q-{q}.csv"
+    if fixed:
+        filename = f"trotter-bonds-N-{N}-n-{n}-T-{T}-q-{q}-fixedCircuit.csv"
     filepath = os.path.join(base_dir, filename)
     
     # Write CSV
@@ -832,6 +843,267 @@ def save_trotter(x, y, z, N, n, T, q, base_dir='TE-PAI-noSampling/data/plotting'
         writer.writerow(['x', 'y', 'z'])
         for xi, yi, zi in zip(x, y, z):
             writer.writerow([xi, yi, zi])
+
+def mainCalc(tepaiPath, finalT1, N1, n1, N2, finalT2, confirm=False, flip=True):
+    params = parse_path(tepaiPath)
+    q = params['q']
+    dT = params['dT']
+    print(params['Δ'])
+    pattern = r'^pi_over_(\d+(?:\.\d+)?)$'
+    m = re.match(pattern, params['Δ'])
+    divisor = float(m.group(1))
+    Δ = np.pi / divisor
+
+    # Performing main trotterization
+    ts1, res1, comp1, circ1 = trotter(N=N1, n_snapshot=n1, T=finalT1, q=int(q), compare=False, save=True, draw=False, flip=flip)
+    circuit = circ1.copy()
+    save_trotter(ts1, comp1[0], comp1[1], N1, n1, finalT1, q)
+
+    # Performing continuing trotterization
+    if confirm:
+            ts2, res2, comp2, circ2 = trotter(N=N2, n_snapshot=10, T=finalT2, startTime=finalT1, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit)
+            save_trotter(ts2, comp2[0], comp1[1], N2, 10, finalT2, q, fixed=True)
+
+    # Performing TE-PAI
+    tepaiPath = strip_trailing_dot_zero(tepaiPath)
+    data_dict = JSONtoDict(tepaiPath)
+    data_arrs,Ts,params2,pool = DictToArr(data_dict, True)
+    circuit = circ1.copy()
+    averages, stds, circuit, costs = getPool(data_arrs, params2, dT, False, False, flip=flip, fixedCircuit = circuit)
+    Ts = np.linspace(finalT1,finalT1 + finalT2,len(averages))
+    saveData(params['N'],params['n'],params['p'],params['Δ'],Ts,q,dT,averages,stds,"p")
+
+    # Saving TEPAI costs
+    base_dir='TE-PAI-noSampling/data/plotting'
+    filename = f"TEPAI-bonds-N-{params['N']}-n-{params['n']}-T-{params['T']}-q-{q}.csv"
+    filepath = os.path.join(base_dir, filename)
+    with open(filepath, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['x', 'y', 'z'])
+        for xi, yi, zi in zip(Ts, costs[0], costs[1]):
+            writer.writerow([xi, yi, zi])
+
+    # Saving circuit lengths
+    n = int(params['T'] / params['dT'])
+    len1 = len(circ1.gates)
+    len2 = len(circ2.gates)
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    te_pai = TE_PAI(hamil, q, Δ, params['dT'], 1000, 1)
+    lentep = te_pai.expected_num_gates
+    lengths1 = [(len1/n1)*i for i in range(1, n1+1)]
+    lengths2 = [(len2/10)*i for i in range(1, 11)]
+    lengthstep = [(lentep/n)*i for i in range(1, n+1)]
+    filename = f"lengths.csv"
+    filepath = os.path.join(base_dir, filename)
+    with open(filepath, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['trotter1', 'trotter2', 'TEPAI'])
+        writer.writerow([lengths1, lengths2, lengthstep])
+
+    organize_trotter_tepai()
+
+def plotMainCalc(folder):
+    trotsim1  = [[], []]; trotsim2  = [[], []]; paisim  = [[], [], []]
+    trotbond1 = [[], []]; trotbond2 = [[], []]; paibond = [[], []]
+    trotcost1 = [[], []]; trotcost2 = [[], []]; paicost = [[], []]
+    
+    params = folder.split("-")
+    folder = Path(folder)
+    for file in folder.iterdir():
+        match file.name:
+            case "lengths.csv":
+                with file.open() as fp:
+                    next(fp)
+                    line = next(fp)
+                    reader = csv.reader([line.strip()])
+                    row = next(reader)
+                    trotterLengths1 = ast.literal_eval(row[0])
+                    trotterLengths2 = ast.literal_eval(row[1])
+                    tePAILengths   = ast.literal_eval(row[2])
+
+            case name if name.startswith("lie"):
+                second = name.endswith("fixedCircuit.csv")
+                with file.open() as fp:
+                    next(fp)
+                    for line in fp:
+                        xi, yi = map(float, line.split(','))
+                        if second:
+                            trotsim2[0].append(xi); trotsim2[1].append(yi)
+                        else:
+                            trotsim1[0].append(xi); trotsim1[1].append(yi)
+
+            case name if name.startswith("N"):
+                with file.open() as fp:
+                    next(fp)
+                    for line in fp:
+                        xi, yi, zi = map(float, line.split(','))
+                        paisim[0].append(xi); paisim[1].append(yi); paisim[2].append(zi)
+
+            case name if name.startswith("trotter-bonds"):
+                second = name.endswith("fixedCircuit.csv")
+                with file.open() as fp:
+                    next(fp)
+                    for line in fp:
+                        xi, yi, zi = map(float, line.split(','))
+                        if not second:
+                            trotbond1[0].append(xi)
+                            trotbond1[1].append(yi)
+                            trotcost1[0].append(xi)
+                            trotcost1[1].append(zi)
+                        else:
+                            trotbond2[0].append(xi)
+                            trotbond2[1].append(yi)
+                            trotcost2[0].append(xi)
+                            trotcost2[1].append(zi)
+
+            case name if name.startswith("TEPAI-bonds"):
+                with file.open() as fp:
+                    next(fp)
+                    for line in fp:
+                        xi, yi, zi = map(float, line.split(','))
+                        paibond[0].append(xi)
+                        paibond[1].append(yi)
+                        paicost[0].append(xi)
+                        paicost[1].append(zi)
+
+    # complexity
+    trotcost1[1] = np.array(trotterLengths1) * np.array(trotbond1[1])**3
+    times2        = [t - (trotbond2[0][0] - trotbond1[0][-1]) for t in trotcost2[0]]
+    trotcost2[1] = np.array(trotterLengths2 + np.max(trotterLengths1)) * np.array(trotbond2[1])**3
+    paicost[1]   = np.array(tePAILengths   + np.max(trotterLengths1)) * np.array(paibond[1])**3
+
+   # keys to drop entirely
+    drop_keys = {'TE', 'PAI', 'noSampling/data/trotterThenTEPAI/Δ', 'T1', 'T2', 'dt'}
+
+    # pair up and filter
+    it = iter(params)
+    filtered_pairs = [(k, v) for k, v in zip(it, it) if k not in drop_keys]
+
+    # format and join
+    title = " | ".join(f"{v}={k}" for k, v in filtered_pairs)
+
+   # 1) Grab the final values of the initial run:
+    t0        = trotbond1[0][-1]       # final time of init trotter
+    bond_last = trotbond1[1][-1]       # final bond of init trotter
+    cost_last = trotcost1[1][-1]       # final cost of init trotter
+    len_last  = trotterLengths1[-1]    # final # gates of init trotter
+
+    # 2) Make everything a NumPy array:
+    trotbond2[0]      = np.array(trotbond2[0])
+    trotbond2[1]      = np.array(trotbond2[1])
+    paibond   [0]     = np.array(paibond   [0])
+    paibond   [1]     = np.array(paibond   [1])
+    trotcost2[0]      = np.array(trotcost2[0])
+    trotcost2[1]      = np.array(trotcost2[1])
+    paicost   [0]     = np.array(paicost   [0])
+    paicost   [1]     = np.array(paicost   [1])
+    trotterLengths2   = np.array(trotterLengths2)
+    tePAILengths      = np.array(tePAILengths)
+
+    # 3) Prepend the initial‐final to each continuation series:
+    trotbond2[0]     = np.concatenate(([t0],           trotbond2[0]))
+    trotbond2[1]     = np.concatenate(([bond_last],    trotbond2[1]))
+    paibond   [0]    = np.concatenate(([t0],           paibond[0]))
+    paibond   [1]    = np.concatenate(([bond_last],    paibond[1]))
+
+    trotcost2[0]     = np.concatenate(([t0],           trotcost2[0]))
+    trotcost2[1]     = np.concatenate(([cost_last],    trotcost2[1]))
+    paicost   [0]    = np.concatenate(([t0],           paicost[0]))
+    paicost   [1]    = np.concatenate(([cost_last],    paicost[1]))
+
+    trotterLengths2  = np.concatenate(([len_last],     trotterLengths2))
+    tePAILengths     = np.concatenate(([len_last],     tePAILengths))
+
+    te_start = paisim[0][0]
+    te_end   = paisim[0][-1]
+    times = trotbond2[0]
+
+    t_trot = np.array(trotsim1[0] + trotsim2[0])
+    y_trot = np.array(trotsim1[1] + trotsim2[1])
+    t_cost = np.concatenate([trotcost1[0], trotcost2[0]])
+    c_cost = np.concatenate([trotcost1[1], trotcost2[1]])
+    threshold  = paicost[1].max()
+    cutoff_idx = np.argmax(c_cost > threshold)
+    cutoff_time = t_cost[cutoff_idx]
+
+    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    axes = axes.flatten()
+    fig.suptitle(title)
+
+    # 1) Full sim
+    ax0 = axes[0]
+    ax0.plot(trotsim1[0], trotsim1[1], color='black', label='Init Trotter')
+    ax0.plot(trotsim2[0], trotsim2[1], color='gray',  label='Cont Trotter')
+    ax0.errorbar(paisim[0], paisim[1], yerr=paisim[2],
+                 color='tab:green', label='TE-PAI')
+    ax0.set_ylabel('Observable')
+    ax0.set_title('1) Full Simulation')
+    ax0.legend(); ax0.grid(True)
+
+    # 2) Zoom only on TE-PAI window (masking)
+    ax1 = axes[1]
+    t1, y1 = np.array(trotsim1[0]), np.array(trotsim1[1])
+    t2, y2 = np.array(trotsim2[0]), np.array(trotsim2[1])
+    tp, yp, ep = np.array(paisim[0]), np.array(paisim[1]), np.array(paisim[2])
+    m1 = (t1 >= te_start) & (t1 <= te_end)
+    m2 = (t2 >= te_start) & (t2 <= te_end)
+    mp = (tp >= te_start) & (tp <= te_end)
+    ax1.plot(t1[m1], y1[m1], color='black', label='Init Trotter')
+    ax1.plot(t2[m2], y2[m2], color='gray',  label='Cont Trotter')
+    ax1.errorbar(tp[mp], yp[mp], yerr=ep[mp], color='tab:green', label='TE-PAI')
+    ax1.set_xlabel('Time')
+    ax1.set_title('2) Zoom on TE-PAI Region')
+    ax1.legend(); ax1.grid(True)
+
+    # 3) Cutoff & improvement regions
+    ax2 = axes[2]
+    ax2.plot(t_trot[t_trot <= cutoff_time],
+             y_trot[t_trot <= cutoff_time],
+             color='black', label='Trotter (cutoff)')
+    ax2.axvline(cutoff_time, linestyle='--', color='black')
+    ax2.errorbar(paisim[0], paisim[1], yerr=paisim[2],
+                 color='tab:green', label='TE-PAI')
+    ax2.axvline(te_end, linestyle='--', color='tab:green')
+    ax2.axvspan(te_start, cutoff_time, color='gray', alpha=0.2)
+    ax2.axvspan(cutoff_time, te_end,     color='tab:green', alpha=0.2)
+    ax2.set_title('3) Cutoff & Improvement') 
+    ax2.legend(); ax2.grid(True)
+
+    # 4) Bond sizes
+    ax3 = axes[3]
+    ax3.plot(trotbond1[0], trotbond1[1], color='black', label='Init Trotter')
+    ax3.plot(times,       trotbond2[1], color='gray',  label='Cont Trotter')
+    ax3.plot(paibond[0],  paibond[1],   color='tab:green', label='TE-PAI')
+    ax3.set_xlabel('Time'); ax3.set_ylabel('Max bond')
+    ax3.set_title('4) Bond Dimension')
+    ax3.legend(); ax3.grid(True)
+
+    # 5) Gate counts
+    ax4 = axes[4]
+    adj_t2  = trotterLengths2.copy()
+    adj_te  = tePAILengths.copy()
+    adj_t2[1:] += len_last
+    adj_te[1:] += len_last
+    ax4.plot(trotbond1[0], trotterLengths1, color='black', label='Init Trotter')
+    ax4.plot(times,       adj_t2,          color='gray',  label='Cont Trotter')
+    ax4.plot(times,       adj_te,          color='tab:green', label='TE-PAI')
+    ax4.set_xlabel('Time'); ax4.set_ylabel('# gates')
+    ax4.set_title('5) Gate Count')
+    ax4.legend(); ax4.grid(True)
+
+    # 6) Calculation cost
+    ax5 = axes[5]
+    ax5.plot(trotcost1[0], trotcost1[1], color='black', label='Init Trotter')
+    ax5.plot(times,        trotcost2[1],  color='gray',  label='Cont Trotter')
+    ax5.plot(times,        paicost[1],    color='tab:green', label='TE-PAI')
+    ax5.set_xlabel('Time'); ax5.set_ylabel('Cost')
+    ax5.set_title('6) Compute Cost')
+    ax5.legend(); ax5.grid(True)
+
+    plt.tight_layout()
+    plt.show()
 
 def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, optimize=False, flip=False, confirm=False,  base_dir='TE-PAI-noSampling/data/plotting'):
     folder = strip_trailing_dot_zero(folder)
@@ -843,13 +1115,10 @@ def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, op
     # Running the trotter simulation up to a time trotterT
     # NB: T =/= trotterT
     trotterTs, res, complexity, circuit = trotter(N=trotterN, n_snapshot=trottern, T=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip)
-    print(complexity)
     save_trotter(trotterTs, complexity[0], complexity[1], trotterN, trottern, trotterT, q)
 
-    print(f"T-trotterT: {T-trotterT}")
-
     if confirm:
-        confirmTs, _, confirmComp, _ = trotter(N=trotterN, n_snapshot=10, T=T, startTime=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit, )
+        confirmTs, _, confirmComp, _ = trotter(N=trotterN, n_snapshot=10, T=T, startTime=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit)
         save_trotter(confirmTs, confirmComp[0], confirmComp[1], trotterN, 10, T, q)
 
     char = "c"
@@ -871,7 +1140,7 @@ def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, op
             writer.writerow([xi, yi, zi])
 
     organize_trotter_tepai()
-   
+
 def organize_trotter_tepai(
     plotting_dir: Path = Path("TE-PAI-noSampling/data/plotting"),
     target_base:  Path = Path("TE-PAI-noSampling/data/trotterThenTEPAI"),
@@ -880,50 +1149,54 @@ def organize_trotter_tepai(
     Finds in `plotting_dir`:
       • One or two files matching `lie-N-{N}-T-{T}-q-{q}(…).csv`
       • Exactly one TE-PAI file matching
-          N-{N2}-n-{n}-p-{p}-Δ-pi_over_{X}-T-{T2}-q-{q}-dT-{dt}.csv
+          N-{N2}-n-{n}-p-{p}-Δ-pi_over_{delta}-T-{T2}-q-{q}-dT-{dt}.csv
       • Any number of trotter-bonds files matching
-          trotter-bonds-N-{N}-n-{n}-{T}-q-{q}.csv
+          trotter-bonds-N-{N}-n-{n}-T-{T}-q-{q}.csv
+      • Optionally, a file named `lengths.csv`
 
     Builds (or replaces) a folder named
-      q-{q}-N1-{N1}-T1-{T1}-N2-{N2}-p-{p}-T2-{T2}-dt-{dt}
+      Δ-pi_over-{delta}-q-{q}-N1-{N1}-T1-{T1}-N2-{N2}-p-{p}-T2-{T2}-dt-{dt}
 
-    Moves all lie-file(s), all trotter-bonds files, and the TE-PAI file
-    into that folder, then into `target_base`.
+    Moves all lie-file(s), all trotter-bonds files, the TE-PAI file,
+    and (if present) `lengths.csv` into that folder, then into `target_base`.
     """
     # patterns
     pat_lie = re.compile(
         r"^lie-N-(?P<N>\d+)-T-(?P<T>[0-9.]+)-q-(?P<q>\d+)(?:-[^.]+)?\.csv$"
     )
     pat_tep = re.compile(
-        r"^N-(?P<N2>\d+)-n-(?P<n>\d+)-p-(?P<p>\d+)-Δ-pi_over_[^–]+"
+        r"^N-(?P<N2>\d+)-n-(?P<n>\d+)-p-(?P<p>\d+)-Δ-pi_over_(?P<delta>[^-]+)"
         r"-T-(?P<T2>[0-9.]+)-q-(?P<q>\d+)-dT-(?P<dt>[0-9.]+)\.csv$"
     )
     pat_trot = re.compile(
-        r"^(?:trotter|TEPAI)-bonds-N-(?P<N>\d+)-n-(?P<n>\d+)-T-(?P<T>[0-9.]+)-q-(?P<q>\d+)\.csv$",
+        r"^(?:trotter|TEPAI)-bonds-N-(?P<N>\d+)-n-(?P<n>\d+)-T-(?P<T>[0-9.]+)-q-(?P<q>\d+)(?:-[^.]+)?\.csv$",
         re.IGNORECASE
     )
 
-    lie_runs    = []
-    tep_match   = None
+    lie_runs     = []
+    tep_match    = None
     trotter_runs = []
+    lengths_file = None
 
     # scan directory
     for f in plotting_dir.iterdir():
         if not f.is_file():
             continue
-        if (m := pat_lie.match(f.name)):
+        name = f.name
+        if (m := pat_lie.match(name)):
             gd = m.groupdict()
             lie_runs.append((f,
                              float(gd["T"]),    # for sorting
                              gd["T"],           # for exact naming
                              gd["N"],
                              gd["q"]))
-        elif (m := pat_tep.match(f.name)):
+        elif (m := pat_tep.match(name)):
             tep_match = (f, m.groupdict())
-        elif (m := pat_trot.match(f.name)):
+        elif (m := pat_trot.match(name)):
             gd = m.groupdict()
-            trotter_runs.append((f,
-                                  gd["q"]))
+            trotter_runs.append((f, gd["q"]))
+        elif name == "lengths.csv":
+            lengths_file = f
 
     # require ≥1 lie-file and exactly 1 TE-PAI
     if len(lie_runs) < 1 or tep_match is None:
@@ -934,9 +1207,9 @@ def organize_trotter_tepai(
         )
 
     # collect all q-values for consistency
-    q_vals = { q for *_, q in lie_runs } \
-           | { tep_match[1]["q"] } \
-           | { q for _, q in trotter_runs }
+    q_vals = {q for *_, q in lie_runs} \
+           | {tep_match[1]["q"]} \
+           | {q for _, q in trotter_runs}
     if len(q_vals) != 1:
         raise ValueError(f"q mismatch among files: {q_vals}")
     q_str = q_vals.pop()
@@ -947,14 +1220,16 @@ def organize_trotter_tepai(
 
     # TE-PAI params (use raw strings for naming)
     tep_f, tep_g = tep_match
-    N2_str = tep_g["N2"]
-    p_str  = tep_g["p"]
-    T2_str = tep_g["T2"]
-    dt_str = tep_g["dt"]
+    N2_str    = tep_g["N2"]
+    p_str     = tep_g["p"]
+    delta_str = tep_g["delta"]
+    T2_str    = tep_g["T2"]
+    dt_str    = tep_g["dt"]
 
-    # build folder name
+    # build folder name including delta
     folder_name = (
-        f"q-{q_str}"
+        f"Δ-pi_over-{delta_str}"
+        f"-q-{q_str}"
         f"-N1-{N1_str}-T1-{float(T1_str)}"
         f"-N2-{N2_str}-p-{p_str}-T2-{float(T2_str)}-dt-{dt_str}"
     )
@@ -974,7 +1249,7 @@ def organize_trotter_tepai(
     staging.mkdir(parents=True)
 
     # move lie-files
-    for f, _, _, _, _ in lie_runs:
+    for f, *_ in lie_runs:
         shutil.move(str(f), staging / f.name)
 
     # move trotter-bonds files
@@ -984,13 +1259,167 @@ def organize_trotter_tepai(
     # move TE-PAI file
     shutil.move(str(tep_f), staging / tep_f.name)
 
+    # move lengths.csv if found
+    if lengths_file is not None:
+        shutil.move(str(lengths_file), staging / lengths_file.name)
+
     # relocate folder to target_base
     shutil.move(str(staging), target)
 
-    print(f"Moved {len(lie_runs)} lie-file(s), {len(trotter_runs)} trotter-bonds file(s), "
-          f"+ 1 TE-PAI file into {target}")
+    msg = (
+        f"Moved {len(lie_runs)} lie-file(s), {len(trotter_runs)} trotter-bonds file(s), "
+        f"+ 1 TE-PAI file"
+    )
+    if lengths_file:
+        msg += ", + lengths.csv"
+    msg += f" into {target}"
+    print(msg)
+
+def getTrotterPai(folder):
+    pat_lie = re.compile(r"^lie-N-(?P<N>\d+)-T-(?P<T>[0-9.]+)-q-(?P<q>\d+)(?:-fixedCircuit)?\.csv$")
+    pat_tep = re.compile(
+        r"^N-(?P<N2>\d+)-n-(?P<n>\d+)-p-(?P<p>\d+)-Δ-pi_over_[^–]+"
+        r"-T-(?P<T2>[0-9.]+)-q-(?P<q>\d+)-dT-(?P<dt>[0-9.]+)\.csv$"
+    )
+    # Match both trotter-bonds and TEPAI-bonds (type captured)
+    pat_bonds = re.compile(
+        r"^(?P<type>trotter|TE-?PAI)-bonds-N-(?P<N>\d+)-n-(?P<n>\d+)-T-(?P<T>\d+(?:\.\d+)?)-q-(?P<q>\d+)(?:-fixedCircuit)?\.csv$",
+        re.IGNORECASE
+    )
+    
+    # Containers for runs
+    lie_runs = []
+    tep_file = None
+    bond_runs = []
+    trotterLengths = []
+    tepLengths = []
+
+    # Scan directory for matching files
+    folder_name = folder
+    folder = Path(folder)
+    for f in folder.iterdir():
+        if not f.is_file():
+            continue
+        if (m := pat_lie.match(f.name)):
+            gd = m.groupdict()
+            lie_runs.append((f, float(gd["T"]), int(gd["N"])))
+        elif pat_tep.match(f.name):
+            tep_file = f
+        elif (m := pat_bonds.match(f.name)):
+            gd = m.groupdict()
+            bond_runs.append((f, gd))
+
+    if tep_file is None:
+        raise FileNotFoundError("No TE-PAI file found in folder")
+    if len(bond_runs) != 3:
+        raise FileNotFoundError(f"Expected 3 bond CSV files (2 trotter + 1 TEPAI) in folder FOUND ONLY {len(bond_runs)}")
+
+    # Load TE-PAI data
+    x_t, y_t, e_t = [], [], []
+    n_tep = 0
+    q = int(tep_file.name.split("-")[11])
+    Δ = int(tep_file.name.split("-")[7].split("_")[2])
+    p = int(tep_file.name.split("-")[5])
+    Δ = np.pi / Δ
+    T1= float(folder_name.split("-")[10])
+    N1= float(folder_name.split("-")[8])
+    T2= float(folder_name.split("-")[16])
+    N2= float(folder_name.split("-")[12])
+    with tep_file.open() as fp:
+        next(fp)
+        for line in fp:
+            n_tep += 1
+            xi, yi, erri = line.strip().split(',')
+            x_t.append(float(xi)); y_t.append(float(yi)); e_t.append(float(erri))
+
+    dt2 = (T2 - T1) / n_tep
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    te_pai = TE_PAI(hamil, q, Δ, dt2, 1000, n_tep)
+    tep_len = te_pai.expected_num_gates
+
+    return lie_runs, bond_runs, x_t, y_t, e_t, q, N1, N2, p, T1, dt2, tep_len
+
+def plotTrotterPAI(folder):
+    lie_runs, bond_runs, x_t, y_t, e_t, q, N1, N2, p, T1, dt2, tep_len = (getTrotterPai(folder))
+    # --- Subplot 1: Trotterization + TE-PAI continuation ---
+    n1 = 0
+    n2 = 0
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 5))
+    lie_runs.sort(key=lambda t: t[1])
+    (f_small, _, N_small), (f_large, _, N_large) = lie_runs
+    # smaller-T trotter
+    xs, ys = [], []
+    with f_small.open() as fp:
+        next(fp)
+        for line in fp:
+            xi, yi = line.strip().split(',')
+            xs.append(float(xi)); ys.append(float(yi))
+            n2 += 1
+    ax1.plot(xs, ys, linestyle='-', color='darkblue', label=f"Trotterization-N-{N_small}")
+    # larger-T trotter
+    xl, yl = [], []
+    with f_large.open() as fp:
+        next(fp)
+        for line in fp:
+            xi, yi = line.strip().split(',')
+            xl.append(float(xi)); yl.append(float(yi))
+            n1 += 1
+    ax1.plot(xl, yl, linestyle='--', color='gray', label=f"Trotterization-N-{N_large}")
+    ax1.errorbar(x_t, y_t, yerr=e_t, fmt='o', linestyle='-', color='tab:blue',
+                 label=f"TE-PAI continuation-N-{N2}-p-{p}")
+    ax1.set_xlabel("time"); ax1.set_ylabel("x expectation value"); ax1.legend()
+    
+    _, _, _, circuit1 = trotter(int(N1), 1, T1/n1, q, compare=False, save=False, flip=True)
+    _, _, _, circuit2 = trotter(int(N2), 1, dt2, q, compare=False, save=False, flip=True)
+    trotter1_len = len(circuit1.gates)
+    trotter2_len = len(circuit2.gates)
+
+    # Separate trotter vs TEPAI
+    trotter_runs = [br for br in bond_runs if br[1]['type'].lower().startswith('trotter')]
+    tepai_runs = [br for br in bond_runs if br[1]['type'].lower().replace('-', '') == 'tepai']
+    # Sort trotter by T
+    trotter_runs.sort(key=lambda t: float(t[1]['T']))
+    # First trotter (small)
+    f_s, gd_s = trotter_runs[0];  xs2, ys2, zs2 = [], [], []
+    with f_s.open() as fp:
+        next(fp)
+        for line in fp:
+            xi, yi, zi = line.strip().split(',')
+            xs2.append(float(xi)); ys2.append(float(yi)); zs2.append(float(zi))
+
+    ys2 = np.array(ys2)
+    zs2 = [trotter1_len * i * ys**3 for i, ys in enumerate(ys2)]
+    ax3.plot(xs2, zs2, linestyle='-', marker='o', label=f"trotter-duration-N-{gd_s['N']}-n-{gd_s['n']}-T-{gd_s['T']}")
+    ax2.plot(xs2, ys2, linestyle='-', marker='o', label=f"trotter-bonds-N-{gd_s['N']}-n-{gd_s['n']}-T-{gd_s['T']}")
+    # Second trotter (large)
+    f_l, gd_l = trotter_runs[1]; xl2, yl2, zl2 = [], [], []
+    with f_l.open() as fp:
+        next(fp)
+        for line in fp:
+            xi, yi, zi = line.strip().split(',')
+            xl2.append(float(xi)); yl2.append(float(yi)); zl2.append(float(zi))
+    yls = np.array(yl2)
+    zl2 = [trotter2_len * i * yls**3 for i, yls in enumerate(yl2)]
+    ax3.plot(xl2, zl2, linestyle='--', marker='o', label=f"trotter-duration-N-{gd_l['N']}-n-{gd_l['n']}-T-{gd_l['T']}")
+    ax2.plot(xl2, yl2, linestyle='--', marker='o', label=f"trotter-bonds-N-{gd_l['N']}-n-{gd_l['n']}-T-{gd_l['T']}")
+    # TEPAI-bonds
+    if tepai_runs:
+        f_t, gd_t = tepai_runs[0]; xt, yt, zt = [], [], []
+        with f_t.open() as fp:
+            next(fp)
+            for line in fp:
+                xi, yi, zi = line.strip().split(',')
+                xt.append(float(xi)); yt.append(float(yi)); zt.append(float(zi))
+        yt = np.array(yt)
+        zt = [tep_len * i * yt**3 for i, yt in enumerate(yt)]
+        ax3.plot(xt, zt, linestyle='-', marker='x', color='tab:orange', label=f"TEPAI-costs-N-{gd_t['N']}-n-{gd_t['n']}-T-{gd_t['T']}")
+        ax2.plot(xt, yt, linestyle='-', marker='x', color='tab:orange', label=f"TEPAI-bonds-N-{gd_t['N']}-n-{gd_t['n']}-T-{gd_t['T']}")
+    plt.show()
 
 def plot_trotter_then_tepai(
+    Δ_name: str,
     q: int,
     N1: int,
     T1: float,
@@ -1016,7 +1445,7 @@ def plot_trotter_then_tepai(
     Title = "Trotterization followed by TE-PAI for {q} qubits for total time {T1+T2}"
     """
     # Build folder path
-    folder = base_dir / f"q-{q}-N1-{N1}-T1-{float(T1)}-N2-{N2}-p-{p}-T2-{float(T2)}-dt-{dt}"
+    folder = base_dir / f"Δ-{Δ_name}-q-{q}-N1-{N1}-T1-{float(T1)}-N2-{N2}-p-{p}-T2-{float(T2)}-dt-{dt}"
     if not folder.is_dir():
         raise FileNotFoundError(f"No such folder: {folder}")
 
@@ -1097,7 +1526,6 @@ def plot_trotter_then_tepai(
                  label=f"TE-PAI continuation-N-{N2}-p-{p}")
     ax1.set_xlabel("time"); ax1.set_ylabel("x expectation value"); ax1.legend()
 
-    # --- Subplot 2: Bond data ---
     # Separate trotter vs TEPAI
     trotter_runs = [br for br in bond_runs if br[1]['type'].lower().startswith('trotter')]
     tepai_runs = [br for br in bond_runs if br[1]['type'].lower().replace('-', '') == 'tepai']
@@ -1106,9 +1534,6 @@ def plot_trotter_then_tepai(
     # First trotter (small)
     f_s, gd_s = trotter_runs[0];  xs2, ys2, zs2 = [], [], []
     with f_s.open() as fp:
-        next(fp)
-        print(f_s)
-        print(fp)
         for line in fp:
             xi, yi, zi = line.strip().split(',')
             xs2.append(float(xi)); ys2.append(float(yi)); zs2.append(float(zi))
@@ -1206,36 +1631,184 @@ def showComplexity(costs, T, N, output_folder=None):
         csv_path = os.path.join(output_folder, 'contraction_costs.csv')
         df.to_csv(csv_path, index=False)
         print(f"Data saved to {csv_path}")
-    
-    #plt.plot(times, costs, label="Contraction costs")
-    #plt.xlabel("Time")
-    #plt.ylabel("Total cost")
-    #plt.title("Contraction costs over time")
-    #plt.legend()
-    #plt.grid(True)
-    #plt.show()
-    
+   
+def save_costs_csv(folder_path, Ts, costs, filename='output.csv'):
+    """
+    Saves Ts and costs into a CSV file in the given folder.
+
+    Parameters
+    ----------
+    folder_path : str
+        Path to the folder where the CSV should be saved.
+    Ts : Iterable
+        Sequence of x-values.
+    costs : sequence of two iterables
+        costs[0] → y-values, costs[1] → z-values.
+    filename : str, optional
+        Name of the CSV file (default 'output.csv').
+    """
+    # 1. Ensure the folder exists
+    os.makedirs(folder_path, exist_ok=True)
+
+    # 2. Build the full file path
+    file_path = os.path.join(folder_path, filename)
+
+    # 3. Write the CSV
+    with open(file_path, mode='w', newline='') as f:
+        writer = csv.writer(f)
+        # header
+        writer.writerow(['x', 'y', 'z'])
+        # rows
+        for x, y, z in zip(Ts, costs[0], costs[1]):
+            writer.writerow([x, y, z])
+
+    print(f"Saved CSV to {file_path}")
+
+def load_costs_csv(folder_path, filename='output.csv'):
+    """
+    If `<folder_path>/<filename>` exists, read its 'x','y','z' columns
+    and return them as (Ts, ys, zs). Otherwise return None.
+
+    Parameters
+    ----------
+    folder_path : str
+        Path to the folder where the CSV might live.
+    filename : str, optional
+        Name of the CSV file (default 'output.csv').
+
+    Returns
+    -------
+    tuple of lists (Ts, ys, zs) or None
+    """
+    file_path = os.path.join(folder_path, filename)
+    if not os.path.isfile(file_path):
+        print(f"No file named {filename!r} found in folder {folder_path!r}.")
+        return None
+
+    Ts, ys, zs = [], [], []
+    with open(file_path, mode='r', newline='') as f:
+        reader = csv.DictReader(f)
+        expected = ['x', 'y', 'z']
+        if reader.fieldnames != expected:
+            raise ValueError(f"Unexpected columns: {reader.fieldnames!r}, expected {expected!r}")
+        for row in reader:
+            Ts.append(float(row['x']))
+            ys.append(float(row['y']))
+            zs.append(float(row['z']))
+
+    return Ts, ys, zs
+
+def parse_path(path):
+    pattern = re.compile(
+        r'N-(?P<N>[^-]+)'
+        r'-n-(?P<n>[^-]+)'
+        r'-p-(?P<p>[^-]+)'
+        r'-Δ-(?P<Δ>[^-]+)'
+        r'-q-(?P<q>[^-]+)'
+        r'-dT-(?P<dT>[^-]+)'
+        r'-T-(?P<T>[^-]+)'
+    )
+    m = pattern.search(path)
+    if not m:
+        raise ValueError(f"Path does not match expected format: {path!r}")
+
+    def _convert(val):
+        # try int, then float, otherwise leave as string
+        try:
+            return int(val)
+        except ValueError:
+            try:
+                return float(val)
+            except ValueError:
+                return val
+
+    params = {k: _convert(v) for k, v in m.groupdict().items()}
+    return params
+
 def getComplexity(circuit):
 
     mps = circuit.psi
     costs = mps.contraction_cost(optimize="greedy", output_inds=())
 
     # 1. Naïve cost (always 128 for N=4):
-    print("Default cost:", mps.contraction_cost())
+    #print("Default cost:", mps.contraction_cost())
 
     # 2. Searched cost via optimize:
-    print("Greedy cost:", mps.contraction_cost(optimize="greedy"))
+    #print("Greedy cost:", mps.contraction_cost(optimize="greedy"))
 
     # 3. ContractionTree for absolute cost:
     tree = mps.contraction_tree(optimize="greedy")
-    print("Absolute FLOPs:", tree.contraction_cost(log=None))
+    #print("Absolute FLOPs:", tree.contraction_cost(log=None))
 
     # 4. PathInfo for detailed view:
     info = mps.contraction_info(optimize="greedy")
-    print("Flops from PathInfo:", info)
+    #print("Flops from PathInfo:", info)
 
     tree = circuit.psi.contraction_tree(optimize="greedy")
     return circuit.psi.max_bond(), info.naive_cost
+
+def compareComplexity(paths, flip=True):
+    bonds = []
+    costs = []
+    times = []
+    labels = []
+    lengths = []
+
+    for path in paths:
+        data_dict = JSONtoDict(path)
+        data_arrs, Ts, params, pool = DictToArr(data_dict, True)
+        paramDict = parse_path(path)
+        dT = paramDict['dT']
+        Δ_name = paramDict['Δ']
+        N, _, c, Δ, T, q = params
+        q = int(q); N = int(N)
+        T = round(float(T), 8)
+        Δ = parse_pi_over(Δ)
+        labels.append(f"q-{q}-N-{N}-T-{T}-dT-{dT}-Δ-{Δ_name}")
+
+        if load_costs_csv(path, filename='cost.csv') == None:
+            averages, stds, circuit, cost = getPool(data_arrs, params, dT, False, False, flip=flip)
+            timesteps = len(averages)-1
+        else:
+            ts, bs, cs = load_costs_csv(path, filename='cost.csv')
+            cost = [bs, cs]
+            timesteps = len(ts)
+        Ts = np.linspace(dT, T, timesteps)
+        
+        length = []
+        circuit_pool, sign_pool = data_arrs[0]
+        mean_length = sum(len(el) for el in circuit_pool) / len(circuit_pool) if circuit_pool else 0
+        for i in range(len(Ts)):
+            length.append(mean_length*(i+1))
+
+        times.append(Ts)
+        bonds.append(cost[0])
+        costs.append(cost[1])
+        lengths.append(length)
+        save_costs_csv(path, Ts, cost, filename='cost.csv')
+
+    bonds = np.array(bonds)
+    lengths = np.array(lengths)
+    durations = 8 * lengths * bonds ** 3
+
+    # Plotting
+    fig, axs = plt.subplots(1,3, figsize=(12, 4))
+    for bond, cost, time, label, duration in zip(bonds, costs, times, labels, durations):
+        if bond is not None:
+            axs[0].plot(time, bond, label=f"{label}-bond")
+        if cost is not None:
+            axs[1].plot(time, cost, label=f"{label}-cost")
+        if length is not None:
+            axs[2].plot(time, duration, label=f"{label}-duration")
+        
+        #print(duration[-1]/np.max(durations))    
+    
+    axs[0].set_title("Max bond size")
+    axs[1].set_title("Contraction cost")
+    axs[2].set_title("Estimated calculation duration")
+    axs[0].legend(loc='upper center', bbox_to_anchor=(0.5, -0.15))
+    plt.tight_layout()
+    plt.show()
 
 def plotComplexityFromFolder(folder_path, semilogy=True):
     if folder_path is None:
@@ -1606,8 +2179,6 @@ def calc_optimization(path, flip=True):
     qiskit = quimb_to_qiskit(quimb)
     qc_opt = transpile(qiskit, optimization_level=3)
     compare_optimization(qiskit, qc_opt)
-
-
 
 
 #plot_bond_data(r"TE-PAI-noSampling\data\trotterThenTEPAI\q-10-N1-100-T1-2-N2-1000-p-100-T2-3.0-dt-0.1")
