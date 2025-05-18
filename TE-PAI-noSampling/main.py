@@ -68,7 +68,8 @@ class TE_PAI:
             # --- build per-chunk gates filename with suffix right after 'gates_arr' ---
             g_dir, g_base = os.path.split(gates_file_path)
             head_g, tail_g = g_base.split('-N-', 1)               # head_g == 'gates_arr'
-            suffix = '' if chunk_idx == 0 else str(chunk_idx + 1)
+            #suffix = '' if chunk_idx == 0 else str(chunk_idx + 1)
+            suffix = str(chunk_idx + 1)
             this_gates_name = f"{head_g}{suffix}-N-{tail_g}"     # e.g. 'gates_arr2-N-...'
             this_gates_path = os.path.join(g_dir, this_gates_name)
 
