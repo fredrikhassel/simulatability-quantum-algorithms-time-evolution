@@ -974,15 +974,7 @@ def plotMainCalc(folder):
     trotcost2[1] = np.array(trotterLengths2 + np.max(trotterLengths1)) * np.array(trotbond2[1])**3
     paicost[1]   = np.array(tePAILengths   + np.max(trotterLengths1)) * np.array(paibond[1])**3
 
-   # keys to drop entirely
-    drop_keys = {'TE', 'PAI', 'noSampling/data/trotterThenTEPAI/Δ', 'T1', 'T2', 'dt'}
-
-    # pair up and filter
-    it = iter(params)
-    filtered_pairs = [(k, v) for k, v in zip(it, it) if k not in drop_keys]
-
-    # format and join
-    title = " | ".join(f"{v}={k}" for k, v in filtered_pairs)
+    title = f"q={params[6]} | Δ={params[3]}-{params[4]} | N1={params[8]} | N2={params[12]} | p={params[14]}" 
 
    # 1) Grab the final values of the initial run:
     t0        = trotbond1[0][-1]       # final time of init trotter

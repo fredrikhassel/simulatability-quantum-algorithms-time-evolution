@@ -97,8 +97,8 @@ def generate(params):
 if __name__ == '__main__':
     if True:
         # Example parameters
-        numQs = 10
-        Δ = 14
+        numQs = 20
+        Δ = 10
         T = 1.0
         dT = 0.1
         N = 1000
