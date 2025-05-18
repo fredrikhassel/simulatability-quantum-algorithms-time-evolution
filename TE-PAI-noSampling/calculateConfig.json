@@ -1,11 +1,11 @@
 {
    "generate": {"1": {
-        "numQs": 4,
-        "Δ": 8,
+        "numQs": 100,
+        "Δ": 12,
         "T": 1,
         "dT": 0.1,
-        "N": 100,
-        "circuit_pool_size": 10000
+        "N": 1000,
+        "circuit_pool_size": 100
         }
    },
     "simulate": {},

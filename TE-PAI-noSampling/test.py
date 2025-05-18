@@ -3,7 +3,7 @@ from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,t
 
 import time
 
-path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-10-dT-0.1-T-1"
+path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-100-dT-0.1-T-1"
 #parse(path, True, False, True, False, True)
 #calc_optimization(path)
 #show_otimization(path,1)
@@ -32,9 +32,9 @@ if True:
                      optimize=False, 
                      flip=True,
                      confirm=True) """
-    path = "TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-4096-q-10-N1-100-T1-2.0-N2-1000-p-100-T2-3.0-dt-0.1"
-    #mainCalc(path, 2, 100, 10, 100, 1, True, True)
-    plotMainCalc(path)
+    mainCalc(path, 5, 100, 10, 100, 1, True, True)
+    plotpath = "TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-1024-q-100-N1-100-T1-5.0-N2-1000-p-100-T2-6.0-dt-0.1"
+    plotMainCalc(plotpath)
 
 if False:
     T = 2
