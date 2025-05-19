@@ -9,3 +9,4 @@ TE-PAI-noSampling/data/circuits/N-1000-n-1-p-1000-Δ-pi_over_1024-q-50-dT-0.3-T-
 TE-PAI-noSampling/data/circuits/N-1000-n-1-p-1000-Δ-pi_over_1024-q-50-dT-0.3-T-3/gates_arr-N-1000-n-1-p-1000-Δ-pi_over_1024-T-3-q-50.json
 TE-PAI-noSampling/data/circuits/**/gates_arr-*.json
 /TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_8192-q-100-dT-0.1-T-1/gates_arr1-N-1000-n-1-p-100-Δ-pi_over_8192-T-1-q-100.json
+/TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_8192-q-100-dT-0.1-T-1/gates_arr1-N-1000-n-1-p-100-Δ-pi_over_8192-T-1-q-100.json
