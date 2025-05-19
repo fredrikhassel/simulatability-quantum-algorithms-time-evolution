@@ -1,45 +1,51 @@
 nohup: ignoring input
-calculate.py loaded
-Starting main process...
-Starting TE-PAI simulation...
-
-Starting generation phase...
-
-[GENERATION 1] Starting with parameters:
-{
-    "numQs": 10,
-    "\u0394": 6,
-    "T": 1,
-    "dT": 0.1,
-    "N": 1000,
-    "circuit_pool_size": 100
-}
-[10, 6, 1, 0.1, 1000, 100]
-The number of qubit:10
-Number of terms in the Hamiltonian:40
-calculate.py loaded
-calculate.py loaded
-calculate.py loaded
-calculate.py loaded
-calculate.py loaded
-Wrote 10/100 circuits in chunk 1/1
-Wrote 20/100 circuits in chunk 1/1
-Wrote 30/100 circuits in chunk 1/1
-Wrote 40/100 circuits in chunk 1/1
-Wrote 50/100 circuits in chunk 1/1
-Wrote 60/100 circuits in chunk 1/1
-Wrote 70/100 circuits in chunk 1/1
-Wrote 80/100 circuits in chunk 1/1
-Wrote 90/100 circuits in chunk 1/1
-Wrote 100/100 circuits in chunk 1/1
-Sign list successfully saved to /home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_64-q-10-dT-0.1-T-1/sign_list1-N-1000-n-1-p-100-Δ-pi_over_64-T-1-q-10.json
-Cleanup complete.
-[GENERATION 1] Finished.
-
-Starting simulation phase...
-
-Starting Lie phase...
-
-Starting trotterThenTEPAI phase...
-
-All tasks completed.
+/home/hasselgren/myenv/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hasselgren/myenv/lib/python3.12/site-packages/quimb/tensor/decomp.py:347: UserWarning: Got: Internal algorithm failed to converge., falling back to scipy gesvd driver.
+  warnings.warn(f"Got: {e}, falling back to scipy gesvd driver.")
+pi_over_8192
+Running Trotter for N=100, n_snapshot=10, T=3, q=100
+The number of qubit:100
+Number of terms in the Hamiltonian:400
+Snapshot 1 / 10
+Snapshot 2 / 10
+Snapshot 3 / 10
+Snapshot 4 / 10
+Snapshot 5 / 10
+Snapshot 6 / 10
+Snapshot 7 / 10
+Snapshot 8 / 10
+Snapshot 9 / 10
+Snapshot 10 / 10
+Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-100-T-3-q-100.csv
+Lie bonds saved to TE-PAI-noSampling/data/plotting/lie-bond-N-100-T-3-q-100.csv
+Running Trotter for N=100, n_snapshot=10, T=1, q=100
+The number of qubit:100
+Number of terms in the Hamiltonian:400
+Snapshot 1 / 10
+Snapshot 2 / 10
+Snapshot 3 / 10
+Snapshot 4 / 10
+Snapshot 5 / 10
+Snapshot 6 / 10
+Snapshot 7 / 10
+Snapshot 8 / 10
+Snapshot 9 / 10
+Snapshot 10 / 10
+Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-100-T-1001-q-100-fixedCircuit.csv
+Lie bonds saved to TE-PAI-noSampling/data/plotting/lie-bond-N-100-T-1-q-100.csv
+Running pool for 10 runs
+Run: 1
+Run: 2
+Run: 3
+Run: 4
+Run: 5
+Run: 6
+Run: 7
+Run: 8
+Run: 9
+Run: 10
+Plotting data saved to: TE-PAI-noSampling/data/plotting/N-1000-n-1-p-100-Δ-pi_over_8192-T-4.0-q-100-dT-0.1.csv
+The number of qubit:100
+Number of terms in the Hamiltonian:400
+Moved 3 lie-file(s), 4 trotter-bonds file(s), + 1 TE-PAI file, + lengths.csv into TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-8192-q-100-N1-100-T1-3.0-N2-1000-p-100-T2-4.0-dt-0.1
