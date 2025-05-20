@@ -1882,8 +1882,13 @@ def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds"):
             gd = m1.groupdict()
             df = pd.read_csv(fp, header=0)
             x, y = df.iloc[:, 0], df.iloc[:, 1]
-            label = f"lie-bond N={gd['N']}, T={gd['T']}, q={gd['q']}"
-            plt.plot(x, y, label=label)
+            label = f"n = {gd['q']}"
+            x = x.to_list(); y = y.to_list()
+
+            if x[0] != 0:
+                x.insert(0, 0); y.insert(0,0)
+
+            plt.plot(x, y, label=label, linewidth=2)
             found_any = True
             continue
 
@@ -1900,12 +1905,18 @@ def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds"):
     if not found_any:
         return
 
-    plt.title("Bond size over time")
-    plt.xlabel("time")
-    plt.ylabel("max_bond")
-    plt.grid(True)
-    plt.legend()
+    #plt.title("Bond size over time")
+    plt.xlabel("Time", fontsize=14)
+    plt.ylabel("Maximum Bond Dimension", fontsize=14)
+        # Tick size and style
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    # Add a grid
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+    # Improve legend
+    plt.legend(title="Snapshots", fontsize=12, title_fontsize=13, loc='upper left', frameon=True, fancybox=True, shadow=True)
     plt.tight_layout()
+    plt.savefig("bond_growth.png", dpi=300)
     plt.show()
 
 def plot_gate_counts(path, n, bins=10):

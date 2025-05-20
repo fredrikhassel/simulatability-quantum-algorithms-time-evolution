@@ -11,18 +11,22 @@ path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_8192-q-100-d
 #parse(path, True, False, False, False, True)
 #organize_trotter_tepai()
 #plot_gate_counts(path, n=10, bins=8)
+plot_data_from_folder("TE-PAI-noSampling/data/bonds")
+
 #plot_bond_data()
 
 if False:
-    trotter(N=1000,
-        n_snapshot=30, 
-        T=3, 
-        q=10, 
+    trotter(N=10,
+        n_snapshot=10, 
+        T=10, 
+        q=4, 
         compare=False, 
         save=True, 
         draw=False, 
         flip=True)
-if True:
+    
+    
+if False:
     """
     trotterThenTEPAI(path, 
                      saveAndPlot=False,
@@ -32,9 +36,9 @@ if True:
                      optimize=False, 
                      flip=True,
                      confirm=True) """
-    mainCalc(path, 3, 100, 10, 100, 1, True, True)
+    #mainCalc(path, 3, 100, 10, 100, 1, True, True)
     plotpath = "TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-8192-q-100-N1-100-T1-3.0-N2-1000-p-100-T2-4.0-dt-0.1"
-    #plotMainCalc(plotpath)
+    plotMainCalc(plotpath)
 
 if False:
     T = 2
@@ -52,13 +56,13 @@ if False:
 
 if False:
     plot_trotter_then_tepai(
-        Δ_name='pi_over-1024',
-        q = 10,
+        Δ_name='pi_over-8192',
+        q = 100,
         N1= 100,
-        T1= 2,
+        T1= 3,
         N2= 1000,
         p = 100,
-        T2 = 3,
+        T2 = 4,
         dt= 0.1)
     
 
@@ -94,5 +98,4 @@ if False:
 
 
 #plot_bond_data("TE-PAI-noSampling/data/trotterThenTEPAI/q-20-N1-400-T1-4.0-N2-1000-p-100-T2-6.0-dt-0.2")
-#plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 #plotComplexityFromFolder(path, False)
