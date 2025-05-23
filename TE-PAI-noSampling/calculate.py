@@ -1,5 +1,6 @@
 print("calculate.py loaded")
 import warnings
+import os
 
 # match on the exact warning text:
 warnings.filterwarnings(
@@ -21,6 +22,9 @@ from circuitSimulatorMPS import parse, trotter, showComplexity, trotterThenTEPAI
 import multiprocessing
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
+
+print("Current working directory:", os.getcwd())
+
 
 
 def getqT(path):

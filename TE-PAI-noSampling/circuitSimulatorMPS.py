@@ -26,6 +26,22 @@ from collections import Counter
 from scipy.stats import norm
 import ast
 
+plt.rcParams.update({
+        'font.size': 12,
+        'font.family': 'serif',
+        'axes.labelsize': 14,
+        'legend.fontsize': 12,
+        'xtick.labelsize': 12,
+        'ytick.labelsize': 12,
+        'grid.linestyle': '--',
+        'grid.linewidth': 0.5,
+        'grid.alpha': 0.7,
+        'lines.linewidth': 2,
+        'lines.markersize': 5,
+        'errorbar.capsize': 3,
+        'savefig.dpi': 300,
+        'figure.autolayout': True,
+    })
 
 tab_colors = {
     "red":    mcolors.TABLEAU_COLORS["tab:red"],
@@ -363,7 +379,7 @@ def extract_dT_value(string):
     match = re.search(r'dT-([\d\.]+)', string)
     return float(match.group(1)) if match else None
 
-def plot_data_from_folder(folderpath):
+def plot_data_from_folder(folderpath, ax=None):
     quimb_pattern = re.compile(r'N-(\d+)-n-(\d+)-([cp])-(\d+)-Δ-(\w+)-T-([\d\.]+)-q-(\d+)-dT-([\d\.]+)\.csv')
     lie_pattern = re.compile(r'lie-N-(\d+)-T-((?:\d+\.\d+)|(?:\d+))-q-(\d+)\.csv')
     
@@ -371,6 +387,7 @@ def plot_data_from_folder(folderpath):
     lie_data = []
     
     for filename in os.listdir(folderpath):
+        print(filename)
         filepath = os.path.join(folderpath, filename)
         
         quimb_match = quimb_pattern.match(filename)
@@ -379,7 +396,7 @@ def plot_data_from_folder(folderpath):
         if lie_match:
             df = pd.read_csv(filepath)
             if df.shape[1] >= 2:
-                label = f"N-{lie_match.group(1)} T-{lie_match.group(2)} q-{lie_match.group(3)}"
+                label = f"N = {lie_match.group(1)}"
                 lie_data.append((df.iloc[:, 0], df.iloc[:, 1], label))
 
 
@@ -397,22 +414,96 @@ def plot_data_from_folder(folderpath):
                 if(len(lie_data) == 0):
                     label = f"N-{quimb_match.group(1)} {lab}-{quimb_match.group(4)} Δ-{quimb_match.group(5)} T-{quimb_match.group(6)} q-{quimb_match.group(7)} dT-{quimb_match.group(8)}"
                 else:
-                    label = f"N-{quimb_match.group(1)} {lab}-{quimb_match.group(4)} Δ-{quimb_match.group(5)} dT-{quimb_match.group(8)}"
+                    delta = quimb_match.group(5)
+                    denominator = delta[len("pi_over_"):]
+                    power = int(denominator).bit_length() - 1
+                    delta = r"\frac{{\pi}}{{2^{{{}}}}}".format(power)
+                    label = f"Pool size = {quimb_match.group(4)}, Δ = ${delta}$, dT = {quimb_match.group(8)}"
                 quimb_data.append((df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2], label))
         
-    plt.figure(figsize=(10, 6))
+
+    # prepare axes
+    created_fig = False
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10,6))
+        created_fig = True
     
-    for x, y, error, label in quimb_data:
-        plt.errorbar(x, y, yerr=error, fmt='-o', label=f'Random ({label})', alpha=0.6)
+    # plot quimb error-bars
+    for x, y, err, label in quimb_data:
+        x = x.to_list()
+        y = y.to_list()
+        err = err.to_list()
+        x.insert(0,0)
+        y.insert(0,1)
+        err.insert(0,0)
+
+        ax.errorbar(
+            x, y, yerr=err,
+            label=f'TE-PAI ({label})',
+            capsize=3, elinewidth=1.5,
+            marker='o', markersize=5, color="tab:green"
+        )
     
-    for x, y, label in lie_data:
-        plt.plot(x, y, color="tab:red", label=f'Lie Data ({label})')
+    # plot lie data
+    colors = ["gray", "black"]
+    linestyles = ["--", "-"]
+
+    if(len(lie_data)==1):
+        x, y, label = lie_data[0]
+        x = x.to_list()
+        y = y.to_list()
+        ax.plot(
+            x, y,
+            label=f'Trotterization ({label})',
+            linewidth=2,
+            color="black",
+        )
+
+    else:
+        for i,(x, y, label) in enumerate(lie_data):
+            ax.plot(
+                x, y,
+                label=f'Trotterization ({label})',
+                linewidth=2,
+                color=colors[i%2],
+                linestyle=linestyles[i%2]
+            )
     
-    plt.xlabel('Time')
-    plt.ylabel('X expectation value')
-    plt.legend()
-    plt.title('Random tensor-networks and Lie Data Comparison')
-    plt.show()
+    ax.grid(True, which='both')
+    ax.legend(loc='upper right')
+    ax.set_xlabel('Time')
+    ax.set_ylabel(r'$\langle X_0 \rangle$')
+    if created_fig:
+        plt.tight_layout()
+        plt.show()
+    
+    return ax
+
+def plot_data_two_folders(folder1, folder2):
+    """
+    Plot the contents of two folders side-by-side for direct comparison.
+    """
+    fig, axes = plt.subplots(2, 1, figsize=(10, 12))
+    
+    plot_data_from_folder(folder1, ax=axes[0])
+    axes[0].text(
+        0.05, 0.65, os.path.basename(folder1),
+        transform=axes[0].transAxes,
+        fontsize=12, fontweight='bold',
+        verticalalignment='top', horizontalalignment='left',
+        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8)
+    )    
+    plot_data_from_folder(folder2, ax=axes[1])
+    axes[1].text(
+        0.05, 0.65, os.path.basename(folder2),
+        transform=axes[1].transAxes,
+        fontsize=12, fontweight='bold',
+        verticalalignment='top', horizontalalignment='left',
+        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8)
+    )    
+    plt.tight_layout()
+    plt.savefig("firstTEPAI")
+    #plt.show()
 
 def plot_data(Ts, averages, stds):
     plt.figure(figsize=(8, 6))
@@ -806,7 +897,7 @@ def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False):
         dT = extract_dT_value(folder)
         char = "p"
         averages, stds, circuit, costs = getPool(data_arrs, params,dT, draw, optimize, flip=flip)
-        Ts = np.linspace(dT,T,len(averages))
+        Ts = np.linspace(0,T,len(averages))
         if draw:
             circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
             if optimize:
@@ -904,7 +995,7 @@ def mainCalc(tepaiPath, finalT1, N1, n1, N2, finalT2, confirm=False, flip=True):
 
     organize_trotter_tepai()
 
-def plotMainCalc(folder):
+def plotMainCalc(folder, both=True):
     trotsim1  = [[], []]; trotsim2  = [[], []]; paisim  = [[], [], []]
     trotbond1 = [[], []]; trotbond2 = [[], []]; paibond = [[], []]
     trotcost1 = [[], []]; trotcost2 = [[], []]; paicost = [[], []]
@@ -995,15 +1086,16 @@ def plotMainCalc(folder):
     tePAILengths      = np.array(tePAILengths)
 
     # 3) Prepend the initial‐final to each continuation series:
-    trotbond2[0]     = np.concatenate(([t0],           trotbond2[0]))
-    trotbond2[1]     = np.concatenate(([bond_last],    trotbond2[1]))
-    paibond   [0]    = np.concatenate(([t0],           paibond[0]))
-    paibond   [1]    = np.concatenate(([bond_last],    paibond[1]))
+    if both:
+        trotbond2[0]     = np.concatenate(([t0],           trotbond2[0]))
+        trotbond2[1]     = np.concatenate(([bond_last],    trotbond2[1]))
+        paibond   [0]    = np.concatenate(([t0],           paibond[0]))
+        paibond   [1]    = np.concatenate(([bond_last],    paibond[1]))
 
-    trotcost2[0]     = np.concatenate(([t0],           trotcost2[0]))
-    trotcost2[1]     = np.concatenate(([cost_last],    trotcost2[1]))
-    paicost   [0]    = np.concatenate(([t0],           paicost[0]))
-    paicost   [1]    = np.concatenate(([cost_last],    paicost[1]))
+        trotcost2[0]     = np.concatenate(([t0],           trotcost2[0]))
+        trotcost2[1]     = np.concatenate(([cost_last],    trotcost2[1]))
+        paicost   [0]    = np.concatenate(([t0],           paicost[0]))
+        paicost   [1]    = np.concatenate(([cost_last],    paicost[1]))
 
     trotterLengths2  = np.concatenate(([len_last],     trotterLengths2))
     tePAILengths     = np.concatenate(([len_last],     tePAILengths))
@@ -1027,7 +1119,7 @@ def plotMainCalc(folder):
     # 1) Full sim
     ax0 = axes[0]
     ax0.plot(trotsim1[0], trotsim1[1], color='black', label='Init Trotter')
-    ax0.plot(trotsim2[0], trotsim2[1], color='gray',  label='Cont Trotter')
+    ax0.plot(trotsim2[0], trotsim2[1], color='gray', linestyle='--',  label='Cont Trotter')
     ax0.errorbar(paisim[0], paisim[1], yerr=paisim[2],
                  color='tab:green', label='TE-PAI')
     ax0.set_ylabel('Observable')
@@ -1043,7 +1135,7 @@ def plotMainCalc(folder):
     m2 = (t2 >= te_start) & (t2 <= te_end)
     mp = (tp >= te_start) & (tp <= te_end)
     ax1.plot(t1[m1], y1[m1], color='black', label='Init Trotter')
-    ax1.plot(t2[m2], y2[m2], color='gray',  label='Cont Trotter')
+    ax1.plot(t2[m2], y2[m2], color='gray',  label='Cont Trotter', linestyle="--")
     ax1.errorbar(tp[mp], yp[mp], yerr=ep[mp], color='tab:green', label='TE-PAI')
     ax1.set_xlabel('Time')
     ax1.set_title('2) Zoom on TE-PAI Region')
@@ -1059,7 +1151,7 @@ def plotMainCalc(folder):
                  color='tab:green', label='TE-PAI')
     ax2.axvline(te_end, linestyle='--', color='tab:green')
     ax2.axvspan(te_start, cutoff_time, color='gray', alpha=0.2)
-    ax2.axvspan(cutoff_time, te_end,     color='tab:green', alpha=0.2)
+    ax2.axvspan(cutoff_time, te_end, label='TE-PAI advantage',     color='tab:green', alpha=0.2)
     ax2.set_title('3) Cutoff & Improvement') 
     ax2.legend(); ax2.grid(True)
 
@@ -1076,14 +1168,20 @@ def plotMainCalc(folder):
     ax4 = axes[4]
     adj_t2  = trotterLengths2.copy()
     adj_te  = tePAILengths.copy()
-    adj_t2[1:] += len_last
-    adj_te[1:] += len_last
+    if both:
+        adj_t2[1:] += len_last
+        adj_te[1:] += len_last
+    else:
+        adj_t2[1:] += len_last
+        adj_te[1:] += len_last
+        times = np.insert(times, 0, np.max(trotbond1[0]))
     ax4.plot(trotbond1[0], trotterLengths1, color='black', label='Init Trotter')
     ax4.plot(times,       adj_t2,          color='gray',  label='Cont Trotter')
     ax4.plot(times,       adj_te,          color='tab:green', label='TE-PAI')
     ax4.set_xlabel('Time'); ax4.set_ylabel('# gates')
     ax4.set_title('5) Gate Count')
     ax4.legend(); ax4.grid(True)
+    times = trotbond2[0]
 
     # 6) Calculation cost
     ax5 = axes[5]
@@ -1908,7 +2006,7 @@ def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds"):
     #plt.title("Bond size over time")
     plt.xlabel("Time", fontsize=14)
     plt.ylabel("Maximum Bond Dimension", fontsize=14)
-        # Tick size and style
+    # Tick size and style
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
     # Add a grid
