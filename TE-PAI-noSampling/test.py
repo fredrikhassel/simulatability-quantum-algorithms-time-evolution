@@ -17,8 +17,8 @@ import time
 
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting")'
 path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-10-dT-0.1-T-1"
-manyCalc(path, 2, [0, 1], 2000, 10, True)
-plotManyCalc("TE-PAI-noSampling/data/manyCalc/N-2000-p-100-Δ-pi_over_4096-T-2-q-10")
+manyCalc(path, 3, [0, 1, 2], 3000, 12, True)
+plotManyCalc("TE-PAI-noSampling/data/manyCalc/N-300-p-100-Δ-pi_over_4096-T-3-q-10")
 
 if False:
     trotter(N=1000,
