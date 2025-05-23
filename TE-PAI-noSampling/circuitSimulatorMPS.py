@@ -1107,7 +1107,7 @@ def manyCalc(tepaiPath, Tf, Tis, N, n, flip=True):
         # Saving circuit lengths
 
 def plotManyCalc(folder):
-    trotterData = [[], [], [0], [0]]
+    trotterData = [[], [], [], []]
     paiDatas = []
     order = {}
 
@@ -1154,6 +1154,9 @@ def plotManyCalc(folder):
                         xi, yi, zi = map(float, line.split(','))
                         paiDatas[index][3].append(yi)
 
+
+    print(trotterData[0])
+
     # Calculating costs
     trotterLens = [trotterLen*i for i in range(len(trotterData[0]))]
     tepaiLens = []
@@ -1185,6 +1188,8 @@ def plotManyCalc(folder):
 
     # 2. Bonds
     ax = axes[0, 1]
+    if t_bonds[0] != 0:
+        t_bonds = np.insert(t_bonds, 0, 0)
     ax.plot(t_times, t_bonds, label='Trotter', lw=2)
     for i, ds in enumerate(paiDatas):
         p_times, _, _, p_bonds = ds
@@ -1205,6 +1210,8 @@ def plotManyCalc(folder):
 
     # 4. Costs
     ax = axes[1, 1]
+    if t_costs[0] != 0:
+        t_costs = np.insert(t_costs, 0, 0)
     ax.plot(t_times, t_costs, label='Trotter', lw=2)
     for i, ds in enumerate(paiDatas):
         p_times = ds[0]
