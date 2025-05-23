@@ -322,6 +322,7 @@ def loss_fn(psi, ham):
 
 def getPool(data_arrs,params, dT, draw, optimize=None, flip=False, fixedCircuit=None, start=None):
     N,n,c,Δ,T,q = params
+    print(f"Pool with: T:{T}, dT:{dT}")
     T = float(T)
     q = int(q)
     circuit_pool, sign_pool = data_arrs[0]
@@ -558,9 +559,10 @@ def checkEqual(gates, gatesSim):
     print("These arrays have the same structure and gates.")
     return True
 
-def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True):
+def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True, circuitList = False):
     print(f"Running Trotter for N={N}, n_snapshot={n_snapshot}, T={T}, q={q}")
     circuit = None
+    circuits = []
     
     times = np.linspace(startTime, startTime+float(T), int(N))
     Ts = np.linspace(startTime, startTime+float(T), int(n_snapshot)+1)
@@ -637,6 +639,7 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
         bonds.append(bond)
         res.append(result)
         lengths.append(circuit.num_gates)
+        circuits.append(circuit.copy())
 
     lengths = [l*bonds[i]**3 for i,l in enumerate(lengths)]
 
@@ -668,9 +671,11 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
             writer.writerows(zip(Ts, bonds, costs, lengths))
         print(f"Lie bonds saved to {file_path}")
 
-    if not compare:
+    if not compare and not circuitList:
         return (Ts, res, [bonds, costs], circuit) 
-    
+    if not compare and circuitList:
+        return (Ts, res, [bonds, costs], circuits)
+
     if compare:
         checkEqual(gates, gatesSim)
         resSim, gatesSim = trotterSimulation(hamil, N, n_snapshot, 1, 1, T, q)
@@ -994,6 +999,226 @@ def mainCalc(tepaiPath, finalT1, N1, n1, N2, finalT2, confirm=False, flip=True):
         writer.writerow([lengths1, lengths2, lengthstep])
 
     organize_trotter_tepai()
+
+def manyCalc(tepaiPath, Tf, Tis, N, n, flip=True):
+    params = parse_path(tepaiPath)
+    q = params['q']
+    dT = params['dT']
+    print(params['Δ'])
+    pattern = r'^pi_over_(\d+(?:\.\d+)?)$'
+    m = re.match(pattern, params['Δ'])
+    divisor = float(m.group(1))
+    Δ = np.pi / divisor
+    ts, res, comp, circuits = trotter(N=N, n_snapshot=n, T=Tf, q=int(q), compare=False, save=True, draw=False, flip=flip, circuitList=True)
+    #save_trotter(ts, comp[0], comp[1], N, n, Tf, q)
+
+    # Performing TE-PAI
+    tepaiPath = strip_trailing_dot_zero(tepaiPath)
+    data_dict = JSONtoDict(tepaiPath)
+    data_arrs,Ts,params2,pool = DictToArr(data_dict, True)
+    data_indices = []
+    mini = 10000
+    for T in Tis:
+        change = Tf-T
+        string = np.floor(change/dT)
+        shots  = len(data_arrs[0][0]) / string
+        if shots < mini:
+            mini = shots
+    for T in Tis:
+        change = Tf-T
+        string = np.floor(change/dT)
+        data_indices.append(int(string * mini))
+
+    # Calculating timestep lengths
+    trotterLen = circuits[0].num_gates
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    te_pai = TE_PAI(hamil, q, Δ, params['dT'], 1000, 1)
+    tepaiLen = te_pai.expected_num_gates
+
+    for i,Ti in enumerate(Tis):
+        if Ti == 0:
+            circuit = getCircuit(q, flip, True)
+        else:
+            closest_index = min(range(len(ts)), key=lambda i: abs(ts[i] - Ti))
+            circuit = circuits[closest_index]
+        print(f"Starting with circuit with: {circuit.num_gates}  gates.")
+
+        # Cutting data to same number of shots
+        data = data_arrs
+        circuit_pool, sign_pool = data[0]
+        circuit_pool = circuit_pool[:data_indices[i]]
+        sign_pool = sign_pool[:data_indices[i]]
+        data[0] = circuit_pool, sign_pool
+
+        # Changint parameters:
+        N2,n,c,Δ,T,q = params2
+        T = Tf-Ti
+        params2 = N2,n,c,Δ,T,q
+
+        # Performing TEPAI
+        averages, stds, circuit, costs = getPool(data_arrs=data, params=params2, dT=dT, 
+                                                 draw=False, optimize=False, flip=flip, fixedCircuit = circuit)
+        Ts = np.linspace(Ti,Tf,len(averages))
+
+        # Saving TEPAI
+        base_dir='TE-PAI-noSampling/data/plotting'
+        filename = f"N-{N}-n-{n}-p-{params['p']}-Δ-{params['Δ']}-T-{Tf}-q-{q}-dT-{dT}-Ti-{Ti}.csv"
+        filepath = os.path.join(base_dir, filename)
+        with open(filepath, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['Lengths(Trotter-TEPAI)', trotterLen, tepaiLen])
+            for xi, yi, zi in zip(Ts, averages, stds):
+                writer.writerow([xi, yi, zi])
+        base_dir='TE-PAI-noSampling/data/plotting'
+        filename = f"TEPAI-bonds-N-{params['N']}-n-{params['n']}-T-{params['T']}-q-{q}-Ti-{Ti}.csv"
+        filepath = os.path.join(base_dir, filename)
+        with open(filepath, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['x', 'y', 'z'])
+            for xi, yi, zi in zip(Ts, costs[0], costs[1]):
+                writer.writerow([xi, yi, zi])
+
+        # Define the destination directory
+        destination_root = 'TE-PAI-noSampling/data/manyCalc'
+        foldername = f"N-{N}-p-{params['p']}-Δ-{params['Δ']}-T-{Tf}-q-{q}"
+        destination_path = os.path.join(destination_root, foldername)
+
+        # Create the folder if it doesn't exist
+        os.makedirs(destination_path, exist_ok=True)
+
+        # List of files to move
+        files_to_move = [
+            f"N-{N}-n-{n}-p-{params['p']}-Δ-{params['Δ']}-T-{Tf}-q-{q}-dT-{dT}-Ti-{Ti}.csv",
+            f"TEPAI-bonds-N-{params['N']}-n-{params['n']}-T-{params['T']}-q-{q}-Ti-{Ti}.csv",
+            f"lie-N-{N}-T-{Tf}-q-{q}.csv",
+            f"lie-bond-N-{N}-T-{Tf}-q-{q}.csv"
+        ]
+
+        # Move each file
+        source_base = 'TE-PAI-noSampling/data/plotting'
+        for filename in files_to_move:
+            src = os.path.join(source_base, filename)
+            dst = os.path.join(destination_path, filename)
+            if os.path.exists(src):
+                shutil.move(src, dst)
+
+        # Saving circuit lengths
+
+def plotManyCalc(folder):
+    trotterData = [[], [], [0], [0]]
+    paiDatas = []
+    order = {}
+
+    params = folder.split("-")
+    folder = Path(folder)
+    for file in folder.iterdir():
+        match file.name:
+            case name if name.startswith("lie-N"):
+                with file.open() as fp:
+                    next(fp)
+                    for line in fp:
+                        xi, yi = map(float, line.split(','))
+                        trotterData[0].append(xi); trotterData[1].append(yi)
+
+            case name if name.startswith("N"):
+                Ti = float(name.split('-')[-1].replace('.csv', ''))
+                order[Ti] = (len(paiDatas))
+                closest_index = min(range(len(trotterData[0])), key=lambda i: abs(trotterData[0][i] - Ti))
+                paiDatas.append([[], [], [], trotterData[2][:closest_index+1]])
+
+                with file.open() as fp:
+                    header = next(fp)
+                    numbers = header.split(',')[1:]  # Skip the first element, get the numbers
+                    numbers = [float(num) for num in numbers]
+                    trotterLen = numbers[0]; tepaiLen = numbers[1]
+                    for line in fp:
+                        xi, yi, zi = map(float, line.split(','))
+                        paiDatas[-1][0].append(xi); paiDatas[-1][1].append(yi); paiDatas[-1][2].append(zi)
+
+            case name if name.startswith("lie-bond"):
+                with file.open() as fp:
+                    next(fp)
+                    for line in fp:
+                        xi, yi, zi, li = map(float, line.split(','))
+                        trotterData[2].append(yi)
+                        trotterData[3].append(li)
+                        
+            case name if name.startswith("TEPAI-bonds"):
+                Ti = float(name.split('-')[-1].replace('.csv', ''))
+                index = order[Ti]
+                with file.open() as fp:
+                    next(fp)
+                    for line in fp:
+                        xi, yi, zi = map(float, line.split(','))
+                        paiDatas[index][3].append(yi)
+
+    # Calculating costs
+    trotterLens = [trotterLen*i for i in range(len(trotterData[0]))]
+    tepaiLens = []
+    tepaiCosts = []
+    for i,dataset in enumerate(paiDatas):
+        startTime = dataset[0][0]
+        closest_index = min(range(len(trotterData[0])), key=lambda i: abs(trotterData[0][i] - startTime))
+        lengths = np.array([trotterLens[closest_index] + i*tepaiLen for i in range(len(dataset[0]))])
+        lengths = np.append(trotterLens[:closest_index], lengths)
+        bonds = np.array(dataset[3])
+        #bonds = np.append(trotterData[2][:closest_index], bonds)
+        #bonds = np.insert(bonds, 0, trotterData[2][closest_index])
+        tepaiLens.append(lengths)
+        tepaiCosts.append(lengths*bonds**3)
+
+    # Unpack trotter
+    t_times, t_vals, t_bonds, t_costs = trotterData
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    # 1. Values ± std
+    ax = axes[0, 0]
+    ax.plot(t_times, t_vals, label='Trotter', lw=2)
+    for i, ds in enumerate(paiDatas):
+        p_times, p_vals, p_stds, _ = ds
+        ax.errorbar(p_times, p_vals, yerr=p_stds, fmt='o', capsize=3, label=f'PAI {i}')
+    ax.set(title='Values vs Time', xlabel='Time', ylabel='Value')
+    ax.legend()
+    ax.grid(True)
+
+    # 2. Bonds
+    ax = axes[0, 1]
+    ax.plot(t_times, t_bonds, label='Trotter', lw=2)
+    for i, ds in enumerate(paiDatas):
+        p_times, _, _, p_bonds = ds
+        ax.plot(p_times, p_bonds[len(p_bonds)-len(p_times):], marker='s', linestyle='--', label=f'PAI {i}')
+    ax.set(title='Bonds vs Time', xlabel='Time', ylabel='Bonds')
+    ax.legend()
+    ax.grid(True)
+
+    # 3. Lengths
+    ax = axes[1, 0]
+    ax.plot(t_times, trotterLens, label='Trotter', lw=2)
+    for i, ds in enumerate(paiDatas):
+        p_times = ds[0]
+        ax.plot(p_times, tepaiLens[i][len(tepaiLens[i])-len(p_times):], marker='^', linestyle='--', label=f'PAI {i}')
+    ax.set(title='Chain Length vs Time', xlabel='Time', ylabel='Length')
+    ax.legend()
+    ax.grid(True)
+
+    # 4. Costs
+    ax = axes[1, 1]
+    ax.plot(t_times, t_costs, label='Trotter', lw=2)
+    for i, ds in enumerate(paiDatas):
+        p_times = ds[0]
+        ax.plot(p_times, tepaiCosts[i][len(tepaiCosts[i])-len(p_times):], marker='d', linestyle='--', label=f'PAI {i}')
+    ax.set(title='Cost vs Time', xlabel='Time', ylabel='Cost')
+    ax.legend()
+    ax.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+    
+
+
 
 def plotMainCalc(folder, both=True):
     trotsim1  = [[], []]; trotsim2  = [[], []]; paisim  = [[], [], []]

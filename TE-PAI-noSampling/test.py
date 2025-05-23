@@ -1,10 +1,10 @@
 #from old import plot_data_from_folder,plotComplexityFromFolder,trotter, parse# plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai,draw_circuits# ,  trotterComparison,show_otimization,calc_optimization,compareComplexity,plotTrotterPAI,mainCalc,plotMainCalc,longerCalc
-from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,trotter, parse, plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai,draw_circuits , trotterComparison,show_otimization,calc_optimization,compareComplexity,plotTrotterPAI,mainCalc,plotMainCalc,plot_data_two_folders
+from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,trotter, parse, plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai,draw_circuits , trotterComparison,show_otimization,calc_optimization,compareComplexity,plotTrotterPAI,mainCalc,plotMainCalc,plot_data_two_folders,manyCalc,plotManyCalc
 
 import time
 
-path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_8192-q-100-dT-0.1-T-1"
 #parse(path, True, False, True, False, True)
+
 #calc_optimization(path)
 #show_otimization(path,1)
 #draw_circuits(path, variants=False)
@@ -12,8 +12,13 @@ path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_8192-q-100-d
 #organize_trotter_tepai()
 #plot_gate_counts(path, n=10, bins=8)
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting/Nplot")
-plot_data_two_folders("TE-PAI-noSampling/data/plotting/n = 100","TE-PAI-noSampling/data/plotting/n = 4")
+#plot_data_two_folders("TE-PAI-noSampling/data/plotting/n = 100","TE-PAI-noSampling/data/plotting/n = 4")
 #plot_bond_data()
+
+#plot_data_from_folder("TE-PAI-noSampling/data/plotting")'
+path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-10-dT-0.1-T-1"
+manyCalc(path, 2, [0, 1], 2000, 10, True)
+plotManyCalc("TE-PAI-noSampling/data/manyCalc/N-2000-p-100-Δ-pi_over_4096-T-2-q-10")
 
 if False:
     trotter(N=1000,
