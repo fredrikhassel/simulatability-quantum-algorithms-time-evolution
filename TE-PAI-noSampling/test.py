@@ -1,5 +1,5 @@
 #from old import plot_data_from_folder,plotComplexityFromFolder,trotter, parse# plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai,draw_circuits# ,  trotterComparison,show_otimization,calc_optimization,compareComplexity,plotTrotterPAI,mainCalc,plotMainCalc,longerCalc
-from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,trotter, parse, plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai,draw_circuits , trotterComparison,show_otimization,calc_optimization,compareComplexity,plotTrotterPAI,mainCalc,plotMainCalc
+from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,trotter, parse, plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai,draw_circuits , trotterComparison,show_otimization,calc_optimization,compareComplexity,plotTrotterPAI,mainCalc,plotMainCalc,plot_data_two_folders
 
 import time
 
@@ -11,13 +11,13 @@ path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_8192-q-100-d
 #parse(path, True, False, False, False, True)
 #organize_trotter_tepai()
 #plot_gate_counts(path, n=10, bins=8)
-plot_data_from_folder("TE-PAI-noSampling/data/plotting")
-
+#plot_data_from_folder("TE-PAI-noSampling/data/plotting/Nplot")
+plot_data_two_folders("TE-PAI-noSampling/data/plotting/n = 100","TE-PAI-noSampling/data/plotting/n = 4")
 #plot_bond_data()
 
 if False:
-    trotter(N=10,
-        n_snapshot=10, 
+    trotter(N=1000,
+        n_snapshot=50, 
         T=10, 
         q=4, 
         compare=False, 
