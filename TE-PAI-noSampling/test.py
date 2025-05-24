@@ -1,5 +1,5 @@
 #from old import plot_data_from_folder,plotComplexityFromFolder,trotter, parse# plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai,draw_circuits# ,  trotterComparison,show_otimization,calc_optimization,compareComplexity,plotTrotterPAI,mainCalc,plotMainCalc,longerCalc
-from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,trotter, parse, plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai,draw_circuits , trotterComparison,show_otimization,calc_optimization,compareComplexity,plotTrotterPAI,mainCalc,plotMainCalc,plot_data_two_folders,manyCalc,plotManyCalc
+from circuitSimulatorMPS import plot_data_from_folder,plotComplexityFromFolder,trotter, parse, plot_bond_data, trotterThenTEPAI, plot_trotter_then_tepai, plot_gate_counts,organize_trotter_tepai,draw_circuits , trotterComparison,show_otimization,calc_optimization,compareComplexity,plotTrotterPAI,mainCalc,plotMainCalc,plot_data_two_folders,manyCalc,plotManyCalc,mainCalc2,plotMainCalc2
 
 import time
 
@@ -15,23 +15,24 @@ import time
 #plot_data_two_folders("TE-PAI-noSampling/data/plotting/n = 100","TE-PAI-noSampling/data/plotting/n = 4")
 #plot_bond_data()
 
-#plot_data_from_folder("TE-PAI-noSampling/data/plotting")'
-path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-10-dT-0.1-T-1"
-manyCalc(path, 3, [0, 1, 2], 3000, 12, True)
-plotManyCalc("TE-PAI-noSampling/data/manyCalc/N-300-p-100-Δ-pi_over_4096-T-3-q-10")
+#plot_data_from_folder("TE-PAI-noSampling/data/plotting")
+path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-100-dT-0.1-T-1"
+#manyCalc(path, 3, [0, 1, 2], 3000, 12, True)
+#plotManyCalc("TE-PAI-noSampling/data/manyCalc/N-100-p-100-Δ-pi_over_1024-T-1-q-4")
+#plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
 if False:
-    trotter(N=1000,
-        n_snapshot=50, 
-        T=10, 
-        q=4, 
+    trotter(N=40,
+        n_snapshot=40, 
+        T=4, 
+        q=10, 
         compare=False, 
         save=True, 
         draw=False, 
         flip=True)
     
     
-if False:
+if True:
     """
     trotterThenTEPAI(path, 
                      saveAndPlot=False,
@@ -41,9 +42,11 @@ if False:
                      optimize=False, 
                      flip=True,
                      confirm=True) """
-    #mainCalc(path, 3, 100, 10, 100, 1, True, True)
-    plotpath = "TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-8192-q-100-N1-100-T1-3.0-N2-1000-p-100-T2-4.0-dt-0.1"
-    plotMainCalc(plotpath)
+    
+    mainCalc2(tepaiPath=path, finalT1=3, N1=1200, n1=40, finalT2=4, confirm=True, flip=True)
+    #organize_trotter_tepai()
+    plotpath = f"TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-1024-q-20-N1-1200-T1-4.0-N2-1000-p-100-T2-4.0-dt-0.1"
+    #plotMainCalc2(plotpath)
 
 if False:
     T = 2
