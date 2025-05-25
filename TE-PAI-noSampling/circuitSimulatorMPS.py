@@ -1068,7 +1068,7 @@ def mainCalc2(tepaiPath, finalT1, N1, n1, finalT2, confirm=False, flip=True):
 
     organize_trotter_tepai()
 
-def plotMainCalc2(folder, both=True):
+def plotMainCalc2(folder, both=True, justLengths=False):
     trotsim  = [[], []]; paisim  = [[], [], []]
     trotbond = [[], []]; paibond = [[], []]
     trotcost = [[], []]; paicost = [[], []]
@@ -1151,7 +1151,10 @@ def plotMainCalc2(folder, both=True):
 
 
     trotcost[1] = np.array(trotterLengths) * np.array(trotbond[1])**3
-    paicost[1]   = np.array(tePAILengths) * np.array(paibond[1])**3
+    if not justLengths:
+        paicost[1]   = np.array(tePAILengths) * np.array(paibond[1])**3
+    if justLengths:
+        paicost[1]   = np.array(tePAILengths) * np.array(trotbond[1][index+1:])**3
 
     title = f"q={params[6]} | Δ={params[3]}-{params[4]} | N={params[8]} | p={params[14]}" 
 
@@ -1248,7 +1251,7 @@ def plotMainCalc2(folder, both=True):
     plt.tight_layout()
     plt.show()
 
-def manyCalc(tepaiPath, Tf, Tis, N, n, flip=True):
+def manyCalc(tepaiPath, Tf, Tis, N, n, flip=True,):
     params = parse_path(tepaiPath)
     q = params['q']
     dT = params['dT']
