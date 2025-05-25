@@ -25,6 +25,8 @@ from scipy.linalg import expm
 from collections import Counter
 from scipy.stats import norm
 import ast
+from scipy.interpolate import interp1d
+
 
 plt.rcParams.update({
         'font.size': 12,
@@ -1246,8 +1248,6 @@ def plotMainCalc2(folder, both=True):
     plt.tight_layout()
     plt.show()
 
-
-
 def manyCalc(tepaiPath, Tf, Tis, N, n, flip=True):
     params = parse_path(tepaiPath)
     q = params['q']
@@ -1354,7 +1354,8 @@ def manyCalc(tepaiPath, Tf, Tis, N, n, flip=True):
 
         # Saving circuit lengths
 
-def plotManyCalc(folder):
+def plotManyCalc(folder, justLengths=False):
+    param_parts = folder.split("/")[-1].split("-")
     trotterData = [[], [], [0], [0]]
     paiDatas = []
     order = {}
@@ -1374,8 +1375,10 @@ def plotManyCalc(folder):
                 Ti = float(name.split('-')[-1].replace('.csv', ''))
                 order[Ti] = (len(paiDatas))
                 closest_index = min(range(len(trotterData[0])), key=lambda i: abs(trotterData[0][i] - Ti))
-                paiDatas.append([[], [], [], trotterData[2][:closest_index+1]])
-                print(f"paidatas: {paiDatas}")
+                if closest_index != 0:
+                    paiDatas.append([[], [], [], trotterData[2][closest_index+1:closest_index+2]])
+                else:
+                    paiDatas.append([[], [], [], [0]])
 
                 with file.open() as fp:
                     header = next(fp)
@@ -1403,37 +1406,63 @@ def plotManyCalc(folder):
                         xi, yi, zi = map(float, line.split(','))
                         paiDatas[index][3].append(yi)
 
-
-    print(trotterData[0])
-
     # Calculating costs
-    trotterLens = [trotterLen*i for i in range(len(trotterData[0]))]
+    trotterLens = [trotterLen*i for i in range(len(trotterData[0])+1)]
     tepaiLens = []
     tepaiCosts = []
     for i,dataset in enumerate(paiDatas):
         startTime = dataset[0][0]
         closest_index = min(range(len(trotterData[0])), key=lambda i: abs(trotterData[0][i] - startTime))
-        lengths = np.array([trotterLens[closest_index] + i*tepaiLen for i in range(len(dataset[0]))])
+        if closest_index != 0:
+            lengths = np.array([trotterLens[closest_index+1] + i*tepaiLen for i in range(len(dataset[0]))])
+        else:
+            lengths = np.array([i*tepaiLen for i in range(len(dataset[0]))])
         lengths = np.append(trotterLens[:closest_index], lengths)
         bonds = np.array(dataset[3])
         #bonds = np.append(trotterData[2][:closest_index], bonds)
         #bonds = np.insert(bonds, 0, trotterData[2][closest_index])
         tepaiLens.append(lengths)
-
-        print(lengths)
-        print(bonds)
-        tepaiCosts.append(lengths*bonds**3)
+        #bonds = np.insert(bonds,0,0)
+        tepaiCosts.append(lengths[closest_index:]*bonds**3)
 
     # Unpack trotter
     t_times, t_vals, t_bonds, t_costs = trotterData
 
+    if justLengths:
+        data = paiDatas[0]
+        cost = []
+        for i,time in enumerate(t_times):
+            ind = min(range(len(data[0])), key=lambda i: abs(data[0][i] - time))
+            cost.append(trotterLens[i]*data[3][ind]**3) 
+        cost.insert(0,0)
+        t_costs = cost
+
+    t_times = np.insert(t_times, 0,0)
+    t_vals = np.insert(t_vals, 0,1)
+
+
+ 
+
+    # Convert list to dict
+    param_dict = {param_parts[i]: param_parts[i+1] for i in range(0, len(param_parts)-1, 2)}
+
+    # Extract required parameters
+    q = param_dict.get('q')
+    delta = param_dict.get('Δ')
+    N = param_dict.get('N')
+    p = param_dict.get('p')
+
+    # Format the title
+    title = f"q={q} | Δ={delta} | N={N} | p={p}"
+
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle(title)
     # 1. Values ± std
     ax = axes[0, 0]
-    ax.plot(t_times, t_vals, label='Trotter', lw=2)
+    ax.plot(t_times, t_vals, label='Trotter', color="black")
     for i, ds in enumerate(paiDatas):
         p_times, p_vals, p_stds, _ = ds
-        ax.errorbar(p_times, p_vals, yerr=p_stds, fmt='o', capsize=3, label=f'PAI {i}')
+        ax.errorbar(p_times, p_vals, yerr=p_stds, fmt='x', capsize=3, label=f'TEPAI from T={p_times[0]}')
     ax.set(title='Values vs Time', xlabel='Time', ylabel='Value')
     ax.legend()
     ax.grid(True)
@@ -1442,20 +1471,22 @@ def plotManyCalc(folder):
     ax = axes[0, 1]
     #if t_bonds[0] != 0:
     #    t_bonds = np.insert(t_bonds, 0, 0)
-    ax.plot(t_times, t_bonds, label='Trotter', lw=2)
+    ax.plot(t_times, t_bonds, label='Trotter', color="black")
     for i, ds in enumerate(paiDatas):
         p_times, _, _, p_bonds = ds
-        ax.plot(p_times, p_bonds[len(p_bonds)-len(p_times):], marker='s', linestyle='--', label=f'PAI {i}')
+        p_bonds = p_bonds
+        diff = len(p_bonds)-len(p_times)
+        ax.plot(p_times, p_bonds[len(p_bonds)-len(p_times):], marker='o', linestyle='--', label=f'TEPAI from T={p_times[0]}')
     ax.set(title='Bonds vs Time', xlabel='Time', ylabel='Bonds')
     ax.legend()
     ax.grid(True)
 
     # 3. Lengths
     ax = axes[1, 0]
-    ax.plot(t_times, trotterLens, label='Trotter', lw=2)
+    ax.plot(t_times, trotterLens, label='Trotter', color="black")
     for i, ds in enumerate(paiDatas):
         p_times = ds[0]
-        ax.plot(p_times, tepaiLens[i][len(tepaiLens[i])-len(p_times):], marker='^', linestyle='--', label=f'PAI {i}')
+        ax.plot(p_times, tepaiLens[i][len(tepaiLens[i])-len(p_times):], label=f'TEPAI from T={p_times[0]}')
     ax.set(title='Chain Length vs Time', xlabel='Time', ylabel='Length')
     ax.legend()
     ax.grid(True)
@@ -1464,11 +1495,14 @@ def plotManyCalc(folder):
     ax = axes[1, 1]
     #if t_costs[0] != 0:
     #    t_costs = np.insert(t_costs, 0, 0)
-    ax.plot(t_times, t_costs, label='Trotter', lw=2)
+    ax.plot(t_times, t_costs, label='Trotter', color="black")
     for i, ds in enumerate(paiDatas):
         p_times = ds[0]
-        ax.plot(p_times, tepaiCosts[i][len(tepaiCosts[i])-len(p_times):], marker='d', linestyle='--', label=f'PAI {i}')
-    ax.set(title='Cost vs Time', xlabel='Time', ylabel='Cost')
+        ax.plot(p_times, tepaiCosts[i][len(tepaiCosts[i])-len(p_times):], label=f'TEPAI from T={p_times[0]}')
+    if not justLengths:
+        ax.set(title='Cost calculated from individual bonds', xlabel='Time', ylabel='Cost')
+    else:
+        ax.set(title='Cost calculated from one shared bond', xlabel='Time', ylabel='Cost')
     ax.legend()
     ax.grid(True)
 
