@@ -44,10 +44,10 @@ if True:
                      confirm=True) """
     
     path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-100-dT-0.1-T-1.0"
-    mainCalc2(tepaiPath=path, finalT1=3, N1=4000, n1=40, finalT2=4, confirm=True, flip=True)
+    #mainCalc2(tepaiPath=path, finalT1=3, N1=4000, n1=40, finalT2=4, confirm=True, flip=True)
     #organize_trotter_tepai()
-    plotpath = f"TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-1024-q-100-N1-1200-T1-4.0-N2-1000-p-100-T2-4.0-dt-0.1"
-    #plotMainCalc2(plotpath, justLengths=False)
+    plotpath = f"TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-1024-q-100-N1-4000-T1-4.0-N2-1000-p-100-T2-4.0-dt-0.1"
+    plotMainCalc2(plotpath, justLengths=True)
 
 if False:
     T = 2

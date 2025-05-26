@@ -1245,7 +1245,10 @@ def plotMainCalc2(folder, both=True, justLengths=False):
     ax5.plot(trotcost[0], trotcost[1], color='black', label='Init Trotter')
     ax5.plot(paicost[0],  paicost[1],    color='tab:green', label='TE-PAI')
     ax5.set_xlabel('Time'); ax5.set_ylabel('Cost')
-    ax5.set_title('6) Compute Cost')
+    if not justLengths:
+        ax5.set_title('6) Compute cost for individual bond sizes')
+    else:
+        ax5.set_title('6) Compute cost for shared bond size')
     ax5.legend(); ax5.grid(True)
 
     plt.tight_layout()
