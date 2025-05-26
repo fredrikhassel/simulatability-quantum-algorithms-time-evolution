@@ -1,10 +1,8 @@
 nohup: ignoring input
 /home/hasselgren/myenv/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
   warnings.warn(
-/home/hasselgren/myenv/lib/python3.12/site-packages/quimb/tensor/decomp.py:347: UserWarning: Got: Internal algorithm failed to converge., falling back to scipy gesvd driver.
-  warnings.warn(f"Got: {e}, falling back to scipy gesvd driver.")
-pi_over_8192
-Running Trotter for N=1200, n_snapshot=40, T=4, q=100
+pi_over_1024
+Running Trotter for N=4000, n_snapshot=40, T=4, q=100
 The number of qubit:100
 Number of terms in the Hamiltonian:400
 Snapshot 1 / 40
@@ -47,9 +45,9 @@ Snapshot 37 / 40
 Snapshot 38 / 40
 Snapshot 39 / 40
 Snapshot 40 / 40
-Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-1200-T-4-q-100.csv
-Lie bonds saved to TE-PAI-noSampling/data/plotting/lie-bond-N-1200-T-4-q-100.csv
-Pool with: T:1, dT:0.1
+Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-4000-T-4-q-100.csv
+Lie bonds saved to TE-PAI-noSampling/data/plotting/lie-bond-N-4000-T-4-q-100.csv
+Pool with: T:1.0, dT:0.1
 Running pool for 10 runs
 Run: 1
 Run: 2
@@ -61,7 +59,7 @@ Run: 7
 Run: 8
 Run: 9
 Run: 10
-Plotting data saved to: TE-PAI-noSampling/data/plotting/N-1000-n-1-p-100-Δ-pi_over_8192-T-4.0-q-100-dT-0.1.csv
+Plotting data saved to: TE-PAI-noSampling/data/plotting/N-1000-n-1-p-100-Δ-pi_over_1024-T-4.0-q-100-dT-0.1.csv
 The number of qubit:100
 Number of terms in the Hamiltonian:400
-Moved 1 lie-file(s), 2 trotter-bonds file(s), + 1 TE-PAI file, + lengths.csv into TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-8192-q-100-N1-1200-T1-4.0-N2-1000-p-100-T2-4.0-dt-0.1
+Moved 1 lie-file(s), 2 trotter-bonds file(s), + 1 TE-PAI file, + lengths.csv into TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-1024-q-100-N1-4000-T1-4.0-N2-1000-p-100-T2-4.0-dt-0.1
