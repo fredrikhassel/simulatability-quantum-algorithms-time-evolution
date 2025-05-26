@@ -26,7 +26,11 @@ from collections import Counter
 from scipy.stats import norm
 import ast
 from scipy.interpolate import interp1d
-
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.patches import Rectangle
+from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import ScalarFormatter
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 plt.rcParams.update({
         'font.size': 12,
@@ -1254,6 +1258,183 @@ def plotMainCalc2(folder, both=True, justLengths=False):
     plt.tight_layout()
     plt.show()
 
+def plotMainCalc3(folder, both=True, justLengths=False):
+    # Load simulation and bond data
+    trotsim, paisim = [[], []], [[], [], []]
+    trotbond, paibond = [[], []], [[], []]
+    trotcost, paicost = [[], []], [[], []]
+    params = folder.split("-")
+    folder = Path(folder)
+    for file in folder.iterdir():
+        name = file.name
+        if name == "lengths.csv":
+            with file.open() as fp:
+                next(fp)
+                lengths_line = next(fp).strip()
+                row = next(csv.reader([lengths_line]))
+                trotterLengths = ast.literal_eval(row[0])
+                tePAILengths = ast.literal_eval(row[2])
+        elif name.startswith("lie"):
+            with file.open() as fp:
+                next(fp)
+                for line in fp:
+                    x,y = map(float, line.split(',') )
+                    trotsim[0].append(x); trotsim[1].append(y)
+        elif name.startswith("N"):
+            with file.open() as fp:
+                next(fp)
+                for line in fp:
+                    x,y,z = map(float, line.split(','))
+                    paisim[0].append(x); paisim[1].append(y); paisim[2].append(z)
+        elif name.startswith("trotter-bonds"):
+            with file.open() as fp:
+                next(fp)
+                for line in fp:
+                    x,y,z = map(float, line.split(','))
+                    trotbond[0].append(x); trotbond[1].append(y)
+                    trotcost[0].append(x); trotcost[1].append(z)
+        elif name.startswith("TEPAI-bonds"):
+            with file.open() as fp:
+                next(fp)
+                for line in fp:
+                    x,y,z = map(float, line.split(','))
+                    paibond[0].append(x); paibond[1].append(y)
+                    paicost[0].append(x); paicost[1].append(z)
+
+    # Align start of TE-PAI simulation
+    idx = next((i for i,t in enumerate(trotsim[0]) if t == paisim[0][0]), -1)
+    if idx < 0:
+        raise ValueError("Cannot align TE-PAI start time.")
+    tePAILengths = [t + trotterLengths[idx] for t in tePAILengths]
+
+    # Insert initial points for alignment
+    if paibond[1] and paibond[1][0] != 0:
+        shift = paibond[0][1] - paibond[0][0]
+        paibond[0] = [p + shift for p in paibond[0]]
+        paibond[0].insert(0, trotbond[0][idx]); paibond[1].insert(0, trotbond[1][idx])
+    if trotbond[1] and trotbond[1][0] != 0:
+        trotbond[0].insert(0, 0); trotbond[1].insert(0, 0)
+    if tePAILengths and tePAILengths[0] != 0:
+        tePAILengths.insert(0, trotterLengths[idx])
+    if trotterLengths and trotterLengths[0] != 0:
+        trotterLengths.insert(0, 0)
+    # Align cost time arrays
+    shift_cost = paicost[0][1] - paicost[0][0]
+    paicost[0] = [p + shift_cost for p in paicost[0]]
+    paicost[0].insert(0, trotcost[0][idx])
+    trotcost[0].insert(0, 0)
+
+    # Compute costs
+    trotcost[1] = np.array(trotterLengths) * (np.array(trotbond[1])**3)
+    if not justLengths:
+        paicost[1] = np.array(tePAILengths) * (np.array(paibond[1])**3)
+    else:
+        paicost[1] = np.array(tePAILengths) * (np.array(trotbond[1][idx+1:])**3)
+
+    # Compute cutoff time
+    threshold = max(paicost[1])
+    cutoff_idx = int(np.argmax(np.array(trotcost[1]) > threshold))
+    cutoff_time = trotcost[0][cutoff_idx]
+    te_start, te_end = paisim[0][0], paisim[0][-1]
+
+    # Convert simulation arrays to numpy
+    t_arr = np.array(trotsim[0]); y_arr = np.array(trotsim[1])
+    mask_zoom = (t_arr >= te_start) & (t_arr <= te_end)
+
+    # --- Figure 1: Cutoff & Improvement with TE-PAI zoom inset ---
+    fig1, ax = plt.subplots(figsize=(8,6))
+    fig1.suptitle(f"q={params[6]} | Δ={params[3]}-{params[4]} | N={params[8]} | p={params[14]}")
+    mask_cut = t_arr <= cutoff_time
+    ax.plot(t_arr[mask_cut], y_arr[mask_cut], color='black', label='Trotterization (cutoff)')
+    ax.axvline(cutoff_time, linestyle='--', color='black')
+    ax.errorbar(paisim[0], paisim[1], yerr=paisim[2], color='tab:green', label='TE-PAI')
+    ax.axvline(te_end, linestyle='--', color='tab:green')
+    ax.axvspan(te_start, cutoff_time, color='gray', alpha=0.2)
+    ax.axvspan(cutoff_time, te_end, color='tab:green', alpha=0.2, label='TE-PAI advantage')
+    y_min_zoom = min(np.min(y_arr[mask_zoom]), np.min(paisim[1]))
+    y_max_zoom = max(np.max(y_arr[mask_zoom]), np.max(paisim[1]))
+    rect = Rectangle((te_start, y_min_zoom), te_end-te_start, y_max_zoom-y_min_zoom,
+                     linestyle='--', edgecolor='black', fill=False)
+    ax.add_patch(rect)
+    ax.set_xlabel('Time'); ax.set_ylabel(r'$\langle X_0 \rangle$')
+    ax.set_title('Cutoff & Improvement with Zoom')
+    legend = ax.legend(loc='upper right', framealpha=1)
+    legend.get_frame().set_facecolor('white')
+    ax.grid(True)
+    inset = inset_axes(ax, width='50%', height='40%', loc='lower left')
+    inset.plot(t_arr[mask_zoom], y_arr[mask_zoom], color='gray', linestyle='--', label='Trotterization (continued)')
+    inset.errorbar(paisim[0], paisim[1], yerr=paisim[2], fmt='o', color='tab:green', label='_nolegend_')
+    inset.set_xlim(te_start, te_end)
+    inset.set_xticks([]); inset.set_yticks([])
+    #inset.text(0.7, 0.4, 'Zoomed in', transform=inset.transAxes,
+    #           ha='center', va='bottom', fontsize='small', weight='bold')
+    inset_legend = inset.legend(loc='upper right', framealpha=1)
+    inset_legend.get_frame().set_facecolor('white')
+    inset.grid(True)
+    plt.savefig("cutoffImprovement")
+    #plt.tight_layout()
+
+    # --- Figure 2: Bond, Gate Count, Compute Cost ---
+    fig2, axes = plt.subplots(1, 3, figsize=(15, 4))
+    ax3, ax4, ax5 = axes
+
+    # 1) Bond Dimension
+    ax3.plot(trotbond[0], trotbond[1], color='black', label='Trotterization')
+    ax3.plot(paibond[0], paibond[1], color='tab:green', label='TE-PAI')
+    max_te_pa = max(paibond[1])
+    top_y = ax3.get_ylim()[1]
+    mask = np.array(trotbond[1]) > max_te_pa
+    if mask.any():
+        x_min = np.array(trotbond[0])[mask].min()
+        x_max = np.array(trotbond[0])[mask].max()
+        ax3.add_patch(Rectangle((x_min, max_te_pa), x_max - x_min, top_y - max_te_pa,
+                                 color='gray', alpha=0.3, label='Additional cost'))
+    ax3.set_ylabel('Dimension')
+    ax3.set_title(r"$\mathbf{A}$: Largest bond dimension")
+    ax3.grid(True)
+    ax3.legend(loc='upper left', framealpha=1)
+
+    # 2) Gate Count
+    ax4.plot(trotbond[0], trotterLengths, color='black')
+    ax4.plot(paisim[0], tePAILengths, color='tab:green')
+    max_te_len = max(tePAILengths)
+    top_y = ax4.get_ylim()[1]
+    mask = np.array(trotterLengths) > max_te_len
+    if mask.any():
+        x_min = np.array(trotbond[0])[mask].min()
+        x_max = np.array(trotbond[0])[mask].max()
+        ax4.add_patch(Rectangle((x_min, max_te_len), x_max - x_min, top_y - max_te_len,
+                                 color='gray', alpha=0.3, label='_nolegend_'))
+    ax4.set_ylabel('Gates')
+    ax4.set_title(r"$\mathbf{B}$: Circuit gate count")
+    ax4.grid(True)
+
+    # 3) Compute Cost
+    ax5.plot(trotcost[0], trotcost[1], color='black')
+    ax5.plot(paicost[0], paicost[1], color='tab:green')
+    max_te_cost = max(paicost[1])
+    top_y = ax5.get_ylim()[1]
+    mask = np.array(trotcost[1]) > max_te_cost
+    if mask.any():
+        x_min = np.array(trotcost[0])[mask].min()
+        x_max = np.array(trotcost[0])[mask].max()
+        ax5.add_patch(Rectangle((x_min, max_te_cost), x_max - x_min, top_y - max_te_cost,
+                                 color='gray', alpha=0.3, label='_nolegend_'))
+    ax5.set_ylabel('Cost ')
+    ax5.set_title(r"$\mathbf{C}$: Total computational cost")
+    ax5.set_xlabel('Time')
+    ax5.grid(True)
+
+    for ax in (ax3, ax4, ax5):
+        formatter = ScalarFormatter(useMathText=True)
+        formatter.set_powerlimits((-3, 4))
+        ax.yaxis.set_major_formatter(formatter)
+        ax.set_xlabel('Time')
+
+    plt.tight_layout()
+    plt.savefig("Costs")
+    #plt.show()
+
 def manyCalc(tepaiPath, Tf, Tis, N, n, flip=True,):
     params = parse_path(tepaiPath)
     q = params['q']
@@ -1514,7 +1695,193 @@ def plotManyCalc(folder, justLengths=False):
 
     plt.tight_layout()
     plt.show()
-    
+
+def plotManyCalc2(folder, justLengths=False):
+    param_parts = folder.split("/")[-1].split("-")
+    trotterData = [[], [], [0], [0]]
+    paiDatas = []
+    order = {}
+
+    params = folder.split("-")
+    folder = Path(folder)
+    for file in folder.iterdir():
+        match file.name:
+            case name if name.startswith("lie-N"):
+                with file.open() as fp:
+                    next(fp)
+                    for line in fp:
+                        xi, yi = map(float, line.split(','))
+                        trotterData[0].append(xi); trotterData[1].append(yi)
+
+            case name if name.startswith("N"):
+                Ti = float(name.split('-')[-1].replace('.csv', ''))
+                order[Ti] = (len(paiDatas))
+                closest_index = min(range(len(trotterData[0])), key=lambda i: abs(trotterData[0][i] - Ti))
+                if closest_index != 0:
+                    paiDatas.append([[], [], [], trotterData[2][closest_index+1:closest_index+2]])
+                else:
+                    paiDatas.append([[], [], [], [0]])
+
+                with file.open() as fp:
+                    header = next(fp)
+                    numbers = header.split(',')[1:]  # Skip the first element, get the numbers
+                    numbers = [float(num) for num in numbers]
+                    trotterLen = numbers[0]; tepaiLen = numbers[1]
+                    for line in fp:
+                        xi, yi, zi = map(float, line.split(','))
+                        paiDatas[-1][0].append(xi); paiDatas[-1][1].append(yi); paiDatas[-1][2].append(zi)
+
+            case name if name.startswith("lie-bond"):
+                with file.open() as fp:
+                    next(fp)
+                    for line in fp:
+                        xi, yi, zi, li = map(float, line.split(','))
+                        trotterData[2].append(yi)
+                        trotterData[3].append(li)
+                        
+            case name if name.startswith("TEPAI-bonds"):
+                Ti = float(name.split('-')[-1].replace('.csv', ''))
+                index = order[Ti]
+                with file.open() as fp:
+                    next(fp)
+                    for line in fp:
+                        xi, yi, zi = map(float, line.split(','))
+                        paiDatas[index][3].append(yi)
+
+    # Calculating costs
+    trotterLens = [trotterLen*i for i in range(len(trotterData[0])+1)]
+    tepaiLens = []
+    tepaiCosts = []
+    for i,dataset in enumerate(paiDatas):
+        startTime = dataset[0][0]
+        closest_index = min(range(len(trotterData[0])), key=lambda i: abs(trotterData[0][i] - startTime))
+        if closest_index != 0:
+            lengths = np.array([trotterLens[closest_index+1] + i*tepaiLen for i in range(len(dataset[0]))])
+        else:
+            lengths = np.array([i*tepaiLen for i in range(len(dataset[0]))])
+        lengths = np.append(trotterLens[:closest_index], lengths)
+        bonds = np.array(dataset[3])
+        #bonds = np.append(trotterData[2][:closest_index], bonds)
+        #bonds = np.insert(bonds, 0, trotterData[2][closest_index])
+        tepaiLens.append(lengths)
+        #bonds = np.insert(bonds,0,0)
+        tepaiCosts.append(lengths[closest_index:]*bonds**3)
+
+    # Unpack trotter
+    t_times, t_vals, t_bonds, t_costs = trotterData
+
+    if justLengths:
+        data = paiDatas[0]
+        cost = []
+        for i,time in enumerate(t_times):
+            ind = min(range(len(data[0])), key=lambda i: abs(data[0][i] - time))
+            cost.append(trotterLens[i]*data[3][ind]**3) 
+        cost.insert(0,0)
+        t_costs = cost
+
+    t_times = np.insert(t_times, 0,0)
+    t_vals = np.insert(t_vals, 0,1)
+
+    # Unpack trotter
+    t_times, t_vals, t_bonds, t_costs = trotterData
+    t_times = np.insert(t_times, 0, 0)
+    t_vals = np.insert(t_vals, 0, 1)
+
+
+    # Convert list to dict
+    param_dict = {param_parts[i]: param_parts[i+1] for i in range(0, len(param_parts)-1, 2)}
+
+    # Extract required parameters
+    q = param_dict.get('q')
+    delta = param_dict.get('Δ')
+    N = param_dict.get('N')
+    p = param_dict.get('p')
+
+    # Format the title
+    title = f"q={q} | Δ={delta} | N={N} | p={p}"
+
+    # --- Begin modified plotting ---
+    # Two subplots: Values and Chain Length
+    fig, axes = plt.subplots(2, 1, figsize=(10, 12), sharex=True)
+    fig.suptitle(title)
+
+    # 1. Values ± std with inset zoom
+    ax = axes[0]
+    ax.plot(t_times, t_vals, label='Trotter', color='black')
+    for ds in paiDatas:
+        p_times, p_vals, p_stds, _ = ds
+        ax.errorbar(p_times, p_vals, yerr=p_stds,
+                    fmt='x', markersize=8, markeredgewidth=2,
+                    capsize=3, label=f'TEPAI from T={p_times[0]}')
+    #ax.set(title='Values vs Time', ylabel='Value')
+    ax.set_ylabel(r'$\langle X_0 \rangle$')
+    ax.legend(loc='upper right')
+    ax.grid(True)
+
+    # Determine zoom region: last 0.5 units in t, with padding
+    tmax = t_times.max()
+    region = 0.5
+    pad = 0.05  # padding on x-axis before and after
+    x0 = max(0, tmax - region - pad)
+    x1 = tmax + pad
+
+    # Gather all y-data in region
+    mask_main = (t_times >= x0) & (t_times <= x1)
+    y_vals = t_vals[mask_main]
+    for ds in paiDatas:
+        pts = np.array(ds[0])
+        vals = np.array(ds[1])
+        mask = (pts >= x0) & (pts <= x1)
+        if np.any(mask):
+            y_vals = np.concatenate([y_vals, vals[mask]])
+    y0, y1 = y_vals.min(), y_vals.max()
+
+    # Add padding on y-axis
+    y_pad_frac = 0.1  # 10% padding
+    ypad = (y1 - y0) * y_pad_frac
+    y0_p = y0 - ypad
+    y1_p = y1 + ypad
+
+    # Add dashed rectangle on main axes
+    rect = Rectangle((x0, y0_p), x1 - x0, y1_p - y0_p,
+                     edgecolor='black', linestyle='--', fill=False)
+    ax.add_patch(rect)
+
+    # Create inset axes (lower left corner)
+    axins = inset_axes(ax, width='50%', height='40%', loc='lower left', borderpad=2)
+    axins.plot(t_times, t_vals, color='black')
+    for ds in paiDatas:
+        p_times, p_vals, p_stds, _ = ds
+        axins.errorbar(p_times, p_vals, yerr=p_stds,
+                       fmt='x', markersize=8, markeredgewidth=2, capsize=3)
+    axins.set_xlim(x0, x1)
+    axins.set_ylim(y0_p, y1_p)
+    axins.set_xticks([])
+    axins.set_yticks([])
+    # 2. Chain Length vs Time (gate count)
+    ax2 = axes[1]
+    ax2.plot(t_times, trotterLens, label='Trotter', color='black')
+    for i, ds in enumerate(paiDatas):
+        p_times = ds[0]
+        ax2.plot(p_times, tepaiLens[i][-len(p_times):], label=f'TEPAI from T={p_times[0]}')
+    #ax2.set(title='Chain Length vs Time', xlabel='Time', ylabel='Length')
+    ax2.set_ylabel('Circuit gate count')
+    ax2.set_xlabel('Time')
+    ax2.grid(True)
+
+    for ax in (ax, ax2):
+        formatter = ScalarFormatter(useMathText=True)
+        formatter.set_powerlimits((-3, 4))
+        ax.yaxis.set_major_formatter(formatter)
+
+
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.savefig("manyCalcPlot")
+    #plt.show()
+
+
+
+
 def plotMainCalc(folder, both=True):
     trotsim1  = [[], []]; trotsim2  = [[], []]; paisim  = [[], [], []]
     trotbond1 = [[], []]; trotbond2 = [[], []]; paibond = [[], []]
