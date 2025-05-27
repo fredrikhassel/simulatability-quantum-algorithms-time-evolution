@@ -1,35 +1,7 @@
 {
-   "generate": { 
-    "1": {
-        "numQs": 10,
-        "Δ": 10,
-        "T": 10,
-        "dT": 0.2,
-        "N": 1000,
-        "circuit_pool_size": 500
-      },
-    "2": {
-        "numQs": 20,
-        "Δ": 10,
-        "T": 10,
-        "dT": 0.2,
-        "N": 1000,
-        "circuit_pool_size": 500
-      },
-
-    "3": {
-        "numQs": 50,
-        "Δ": 10,
-        "T": 10,
-        "dT": 0.2,
-        "N": 1000,
-        "circuit_pool_size": 500
-      }
-    },
+   "generate": {},
     "simulate": {
-    "1": "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-500-Δ-pi_over_1024-q-10-dT-0.2-T-10",
-    "2": "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-500-Δ-pi_over_1024-q-20-dT-0.2-T-10",
-    "3": "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-500-Δ-pi_over_1024-q-50-dT-0.2-T-10"
+    "1": "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-500-Δ-pi_over_1024-q-10-dT-0.2-T-10"
     },
     "lie": {
     "1": {
@@ -39,26 +11,6 @@
       },
     "2": {
         "q" : 10,
-        "T" : 10,
-        "N" : 1000
-      },
-    "3": {
-        "q" : 20,
-        "T" : 10,
-        "N" : 100
-      },     
-    "4": {
-        "q" : 20,
-        "T" : 10,
-        "N" : 1000
-      },
-    "5": {
-        "q" : 50,
-        "T" : 10,
-        "N" : 100
-      },
-    "6": {
-        "q" : 50,
         "T" : 10,
         "N" : 1000
       }
