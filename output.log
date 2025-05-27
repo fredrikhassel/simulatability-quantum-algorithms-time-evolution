@@ -1,65 +1,180 @@
 nohup: ignoring input
-/home/hasselgren/myenv/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
-  warnings.warn(
-pi_over_1024
-Running Trotter for N=4000, n_snapshot=40, T=4, q=100
-The number of qubit:100
-Number of terms in the Hamiltonian:400
-Snapshot 1 / 40
-Snapshot 2 / 40
-Snapshot 3 / 40
-Snapshot 4 / 40
-Snapshot 5 / 40
-Snapshot 6 / 40
-Snapshot 7 / 40
-Snapshot 8 / 40
-Snapshot 9 / 40
-Snapshot 10 / 40
-Snapshot 11 / 40
-Snapshot 12 / 40
-Snapshot 13 / 40
-Snapshot 14 / 40
-Snapshot 15 / 40
-Snapshot 16 / 40
-Snapshot 17 / 40
-Snapshot 18 / 40
-Snapshot 19 / 40
-Snapshot 20 / 40
-Snapshot 21 / 40
-Snapshot 22 / 40
-Snapshot 23 / 40
-Snapshot 24 / 40
-Snapshot 25 / 40
-Snapshot 26 / 40
-Snapshot 27 / 40
-Snapshot 28 / 40
-Snapshot 29 / 40
-Snapshot 30 / 40
-Snapshot 31 / 40
-Snapshot 32 / 40
-Snapshot 33 / 40
-Snapshot 34 / 40
-Snapshot 35 / 40
-Snapshot 36 / 40
-Snapshot 37 / 40
-Snapshot 38 / 40
-Snapshot 39 / 40
-Snapshot 40 / 40
-Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-4000-T-4-q-100.csv
-Lie bonds saved to TE-PAI-noSampling/data/plotting/lie-bond-N-4000-T-4-q-100.csv
-Pool with: T:1.0, dT:0.1
-Running pool for 10 runs
-Run: 1
-Run: 2
-Run: 3
-Run: 4
-Run: 5
-Run: 6
-Run: 7
-Run: 8
-Run: 9
-Run: 10
-Plotting data saved to: TE-PAI-noSampling/data/plotting/N-1000-n-1-p-100-Δ-pi_over_1024-T-4.0-q-100-dT-0.1.csv
-The number of qubit:100
-Number of terms in the Hamiltonian:400
-Moved 1 lie-file(s), 2 trotter-bonds file(s), + 1 TE-PAI file, + lengths.csv into TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-1024-q-100-N1-4000-T1-4.0-N2-1000-p-100-T2-4.0-dt-0.1
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+Starting main process...
+Starting TE-PAI simulation...
+
+Starting generation phase...
+
+[GENERATION 1] Starting with parameters:
+{
+    "numQs": 10,
+    "\u0394": 10,
+    "T": 10,
+    "dT": 0.2,
+    "N": 1000,
+    "circuit_pool_size": 500
+}
+[10, 10, 10, 0.2, 1000, 500]
+The number of qubit:10
+Number of terms in the Hamiltonian:40
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+Wrote 10/500 circuits in chunk 1/1
+Wrote 20/500 circuits in chunk 1/1
+Wrote 30/500 circuits in chunk 1/1
+Wrote 40/500 circuits in chunk 1/1
+Wrote 50/500 circuits in chunk 1/1
+Wrote 60/500 circuits in chunk 1/1
+Wrote 70/500 circuits in chunk 1/1
+Wrote 80/500 circuits in chunk 1/1
+Wrote 90/500 circuits in chunk 1/1
+Wrote 100/500 circuits in chunk 1/1
+Wrote 110/500 circuits in chunk 1/1
+Wrote 120/500 circuits in chunk 1/1
+Wrote 130/500 circuits in chunk 1/1
+Wrote 140/500 circuits in chunk 1/1
+Wrote 150/500 circuits in chunk 1/1
+Wrote 160/500 circuits in chunk 1/1
+Wrote 170/500 circuits in chunk 1/1
+Wrote 180/500 circuits in chunk 1/1
+Wrote 190/500 circuits in chunk 1/1
+Wrote 200/500 circuits in chunk 1/1
+Wrote 210/500 circuits in chunk 1/1
+Wrote 220/500 circuits in chunk 1/1
+Wrote 230/500 circuits in chunk 1/1
+Wrote 240/500 circuits in chunk 1/1
+Wrote 250/500 circuits in chunk 1/1
+Wrote 260/500 circuits in chunk 1/1
+Wrote 270/500 circuits in chunk 1/1
+Wrote 280/500 circuits in chunk 1/1
+Wrote 290/500 circuits in chunk 1/1
+Wrote 300/500 circuits in chunk 1/1
+Wrote 310/500 circuits in chunk 1/1
+Wrote 320/500 circuits in chunk 1/1
+Wrote 330/500 circuits in chunk 1/1
+Wrote 340/500 circuits in chunk 1/1
+Wrote 350/500 circuits in chunk 1/1
+Wrote 360/500 circuits in chunk 1/1
+Wrote 370/500 circuits in chunk 1/1
+Wrote 380/500 circuits in chunk 1/1
+Wrote 390/500 circuits in chunk 1/1
+Wrote 400/500 circuits in chunk 1/1
+Wrote 410/500 circuits in chunk 1/1
+Wrote 420/500 circuits in chunk 1/1
+Wrote 430/500 circuits in chunk 1/1
+Wrote 440/500 circuits in chunk 1/1
+Wrote 450/500 circuits in chunk 1/1
+Wrote 460/500 circuits in chunk 1/1
+Wrote 470/500 circuits in chunk 1/1
+Wrote 480/500 circuits in chunk 1/1
+Wrote 490/500 circuits in chunk 1/1
+Wrote 500/500 circuits in chunk 1/1
+Sign list successfully saved to /home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/data/circuits/N-1000-n-1-p-500-Δ-pi_over_1024-q-10-dT-0.2-T-10/sign_list1-N-1000-n-1-p-500-Δ-pi_over_1024-T-10-q-10.json
+Cleanup complete.
+[GENERATION 1] Finished.
+
+[GENERATION 2] Starting with parameters:
+{
+    "numQs": 20,
+    "\u0394": 10,
+    "T": 10,
+    "dT": 0.2,
+    "N": 1000,
+    "circuit_pool_size": 500
+}
+[20, 10, 10, 0.2, 1000, 500]
+The number of qubit:20
+Number of terms in the Hamiltonian:80
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+Wrote 10/500 circuits in chunk 1/1
+Wrote 20/500 circuits in chunk 1/1
+Wrote 30/500 circuits in chunk 1/1
+Wrote 40/500 circuits in chunk 1/1
+Wrote 50/500 circuits in chunk 1/1
+Wrote 60/500 circuits in chunk 1/1
+Wrote 70/500 circuits in chunk 1/1
+Wrote 80/500 circuits in chunk 1/1
+Wrote 90/500 circuits in chunk 1/1
+Wrote 100/500 circuits in chunk 1/1
+Wrote 110/500 circuits in chunk 1/1
+Wrote 120/500 circuits in chunk 1/1
+Wrote 130/500 circuits in chunk 1/1
+Wrote 140/500 circuits in chunk 1/1
+Wrote 150/500 circuits in chunk 1/1
+Wrote 160/500 circuits in chunk 1/1
+Wrote 170/500 circuits in chunk 1/1
+Wrote 180/500 circuits in chunk 1/1
+Wrote 190/500 circuits in chunk 1/1
+Wrote 200/500 circuits in chunk 1/1
+Wrote 210/500 circuits in chunk 1/1
+Wrote 220/500 circuits in chunk 1/1
+Wrote 230/500 circuits in chunk 1/1
+Wrote 240/500 circuits in chunk 1/1
+Wrote 250/500 circuits in chunk 1/1
+Wrote 260/500 circuits in chunk 1/1
+Wrote 270/500 circuits in chunk 1/1
+Wrote 280/500 circuits in chunk 1/1
+Wrote 290/500 circuits in chunk 1/1
+Wrote 300/500 circuits in chunk 1/1
+Wrote 310/500 circuits in chunk 1/1
+Wrote 320/500 circuits in chunk 1/1
+Wrote 330/500 circuits in chunk 1/1
+Wrote 340/500 circuits in chunk 1/1
+Wrote 350/500 circuits in chunk 1/1
+Wrote 360/500 circuits in chunk 1/1
+Wrote 370/500 circuits in chunk 1/1
+Wrote 380/500 circuits in chunk 1/1
+Wrote 390/500 circuits in chunk 1/1
+Wrote 400/500 circuits in chunk 1/1
+Wrote 410/500 circuits in chunk 1/1
+Wrote 420/500 circuits in chunk 1/1
+Wrote 430/500 circuits in chunk 1/1
+Wrote 440/500 circuits in chunk 1/1
+Wrote 450/500 circuits in chunk 1/1
+Wrote 460/500 circuits in chunk 1/1
+Wrote 470/500 circuits in chunk 1/1
+Wrote 480/500 circuits in chunk 1/1
+Wrote 490/500 circuits in chunk 1/1
+Wrote 500/500 circuits in chunk 1/1
+Sign list successfully saved to /home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/data/circuits/N-1000-n-1-p-500-Δ-pi_over_1024-q-20-dT-0.2-T-10/sign_list1-N-1000-n-1-p-500-Δ-pi_over_1024-T-10-q-20.json
+Cleanup complete.
+[GENERATION 2] Finished.
+
+[GENERATION 3] Starting with parameters:
+{
+    "numQs": 50,
+    "\u0394": 10,
+    "T": 10,
+    "dT": 0.2,
+    "N": 1000,
+    "circuit_pool_size": 500
+}
+[50, 10, 10, 0.2, 1000, 500]
+The number of qubit:50
+Number of terms in the Hamiltonian:200
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
