@@ -19,7 +19,7 @@ import time
 path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-50-dT-0.01-T-1"
 #manyCalc(path, 3, [0, 1, 2], 3000, 12, True)
 #plotManyCalc2("TE-PAI-noSampling/data/manyCalc/N-3000-p-100-Δ-pi_over_1024-T-3-q-10", justLengths=False)
-#plot_data_from_folder("TE-PAI-noSampling/data/plotting")
+plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
 if False:
     trotter(N=40,
@@ -32,7 +32,7 @@ if False:
         flip=True)
     
     
-if True:
+if False:
     """
     trotterThenTEPAI(path, 
                      saveAndPlot=False,
