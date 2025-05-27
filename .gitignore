@@ -16,3 +16,4 @@ TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_4096-q-100-dT-0.1-T-
 TE-PAI-noSampling/data/circuits/N-1000-n-1-p-500-Δ-pi_over_4096-q-20-dT-0.1-T-1/gates_arr1-N-1000-n-1-p-500-Δ-pi_over_4096-T-1-q-20.json
 __pycache__/
 *.pyc
+TE-PAI-noSampling/data/circuits/*gates_arr1*.json
