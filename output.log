@@ -1,47 +1,58 @@
 nohup: ignoring input
-calculate.py loaded
-Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
-Starting main process...
-Starting TE-PAI simulation...
-
-Starting generation phase...
-
-Starting simulation phase...
-
-Starting Lie phase...
-
-[LIE 1] generating for path: {'q': 20, 'T': 10, 'N': 10}
-Running Trotter for N=10, n_snapshot=10, T=10, q=20
+/home/hasselgren/myenv/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+Running Trotter for N=1000, n_snapshot=50, T=10, q=20
 The number of qubit:20
 Number of terms in the Hamiltonian:80
-Snapshot 1 / 10
-Snapshot 2 / 10
-Snapshot 3 / 10
-Snapshot 4 / 10
-Snapshot 5 / 10
-Snapshot 6 / 10
-Snapshot 7 / 10
-Snapshot 8 / 10
-Snapshot 9 / 10
-Snapshot 10 / 10
-Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-10-T-10-q-20.csv
-Lie bonds saved to TE-PAI-noSampling/data/plotting/lie-bond-N-10-T-10-q-20.csv
-[LIE 2] generating for path: {'q': 20, 'T': 10, 'N': 1000}
-Running Trotter for N=1000, n_snapshot=10, T=10, q=20
-The number of qubit:20
-Number of terms in the Hamiltonian:80
-Snapshot 1 / 10
-Snapshot 2 / 10
-Snapshot 3 / 10
-Snapshot 4 / 10
-Snapshot 5 / 10
-Snapshot 6 / 10
-Snapshot 7 / 10
-Snapshot 8 / 10
-Snapshot 9 / 10
-Snapshot 10 / 10
+Snapshot 1 / 50
+Snapshot 2 / 50
+Snapshot 3 / 50
+Snapshot 4 / 50
+Snapshot 5 / 50
+Snapshot 6 / 50
+Snapshot 7 / 50
+Snapshot 8 / 50
+Snapshot 9 / 50
+Snapshot 10 / 50
+Snapshot 11 / 50
+Snapshot 12 / 50
+Snapshot 13 / 50
+Snapshot 14 / 50
+Snapshot 15 / 50
+Snapshot 16 / 50
+Snapshot 17 / 50
+Snapshot 18 / 50
+Snapshot 19 / 50
+Snapshot 20 / 50
+Snapshot 21 / 50
+Snapshot 22 / 50
+Snapshot 23 / 50
+Snapshot 24 / 50
+Snapshot 25 / 50
+Snapshot 26 / 50
+Snapshot 27 / 50
+Snapshot 28 / 50
+Snapshot 29 / 50
+Snapshot 30 / 50
+Snapshot 31 / 50
+Snapshot 32 / 50
+Snapshot 33 / 50
+Snapshot 34 / 50
+Snapshot 35 / 50
+Snapshot 36 / 50
+Snapshot 37 / 50
+Snapshot 38 / 50
+Snapshot 39 / 50
+Snapshot 40 / 50
+Snapshot 41 / 50
+Snapshot 42 / 50
+Snapshot 43 / 50
+Snapshot 44 / 50
+Snapshot 45 / 50
+Snapshot 46 / 50
+Snapshot 47 / 50
+Snapshot 48 / 50
+Snapshot 49 / 50
+Snapshot 50 / 50
 Lie data saved to TE-PAI-noSampling/data/plotting/lie-N-1000-T-10-q-20.csv
 Lie bonds saved to TE-PAI-noSampling/data/plotting/lie-bond-N-1000-T-10-q-20.csv
-Starting trotterThenTEPAI phase...
-
-All tasks completed.
