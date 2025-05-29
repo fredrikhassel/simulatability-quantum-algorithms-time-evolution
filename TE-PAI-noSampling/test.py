@@ -13,13 +13,14 @@ import time
 #plot_gate_counts(path, n=10, bins=8)
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting/Nplot")
 #plot_data_two_folders("TE-PAI-noSampling/data/plotting/n = 100","TE-PAI-noSampling/data/plotting/n = 4")
-plot_bond_data()
+#plot_bond_data()
 
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-50-dT-0.01-T-1"
 #manyCalc(path, 3, [0, 1, 2], 3000, 12, True)
-#plotManyCalc2("TE-PAI-noSampling/data/manyCalc/N-3000-p-100-Δ-pi_over_1024-T-3-q-10", justLengths=False)
-#lot_data_from_folder("TE-PAI-noSampling/data/plotting")
+plotManyCalc2("TE-PAI-noSampling/data/manyCalc/N-3000-p-100-Δ-pi_over_1024-T-3-q-10", justLengths=False)
+#plot_data_from_folder("TE-PAI-noSampling/data/plotting")
+#plot_data_two_folders("TE-PAI-noSampling/data/plotting/n = 100", "TE-PAI-noSampling/data/plotting/n = 20", 20, 100)
 
 if False:
     trotter(N=1000,
