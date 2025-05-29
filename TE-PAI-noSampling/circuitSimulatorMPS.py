@@ -386,7 +386,37 @@ def extract_dT_value(string):
     match = re.search(r'dT-([\d\.]+)', string)
     return float(match.group(1)) if match else None
 
-def plot_data_from_folder(folderpath, ax=None):
+
+from itertools import combinations
+
+def paulis_anticommute(p1, p2, overlap_count):
+    # p1,p2 strings like "XX","Z"; 
+    # they anticommute on each overlapping index if the chars differ
+    # return True if an odd number of overlaps anticommute
+    odd = 0
+    for c1, c2 in zip(p1, p2):
+        if c1 in 'XYZ' and c2 in 'XYZ' and c1 != c2:
+            odd ^= 1
+    return bool(odd)
+
+def trotter_error_bound(hamil: Hamiltonian, r: int, T: float):
+    # get the time-independent list of (Pauli, support, coeff)
+    terms = hamil.get_term(0)
+    S = 0.0
+    for (p1, supp1, c1), (p2, supp2, c2) in combinations(terms, 2):
+        if set(supp1) & set(supp2):
+            # restrict to the overlapping positions
+            # build local strings for only those positions:
+            # here we assume terms are max‐length 2, so you can simplify
+            if paulis_anticommute(p1, p2, len(set(supp1)&set(supp2))):
+                S += 2 * abs(c1 * c2)
+
+    print(S)
+    return
+    return T**2 / (2 * r) * S
+
+
+def plot_data_from_folder(folderpath, ax=None, trotBounds=None):
     quimb_pattern = re.compile(r'N-(\d+)-n-(\d+)-([cp])-(\d+)-Δ-(\w+)-T-([\d\.]+)-q-(\d+)-dT-([\d\.]+)\.csv')
     lie_pattern = re.compile(r'lie-N-(\d+)-T-((?:\d+\.\d+)|(?:\d+))-q-(\d+)\.csv')
     
@@ -486,31 +516,64 @@ def plot_data_from_folder(folderpath, ax=None):
     
     return ax
 
-def plot_data_two_folders(folder1, folder2):
+def plot_data_two_folders(folder1, folder2, q, N):
     """
-    Plot the contents of two folders side-by-side for direct comparison.
+    Plot the contents of two folders side-by-side for direct comparison,
+    and add rising Trotter‐error bars to the “Trotterization” curve in the second plot.
     """
     fig, axes = plt.subplots(2, 1, figsize=(10, 12))
-    
+
+    # first plot unchanged
     plot_data_from_folder(folder1, ax=axes[0])
     axes[0].text(
         0.05, 0.65, os.path.basename(folder1),
-        transform=axes[0].transAxes,
-        fontsize=12, fontweight='bold',
+        transform=axes[0].transAxes, fontsize=12, fontweight='bold',
         verticalalignment='top', horizontalalignment='left',
         bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8)
-    )    
+    )
+
+    # build your spin-chain Hamiltonian
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    # call l1_norm with T=1 to get ||H||_1, then square for C
+    C_bound = hamil.l1_norm(1)**2
+
+    # second plot – draw the curves
     plot_data_from_folder(folder2, ax=axes[1])
     axes[1].text(
         0.05, 0.65, os.path.basename(folder2),
-        transform=axes[1].transAxes,
-        fontsize=12, fontweight='bold',
+        transform=axes[1].transAxes, fontsize=12, fontweight='bold',
         verticalalignment='top', horizontalalignment='left',
         bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8)
-    )    
+    )
+
+    ylims = axes[1].get_ylim()
+    # find and decorate the Trotter line
+    for line in axes[1].get_lines():
+        if line.get_label().startswith("Trotterization"):
+            x = line.get_xdata()
+            y = line.get_ydata()
+            
+
+            trotter_err = (x**2) / (2 * N)#trotter_error_bound(hamil, N, x) #(x**2) / (2 * N) #* C_bound
+            axes[1].errorbar(
+                x, y,
+                yerr=trotter_err,
+                fmt='none',
+                ecolor='gray',
+                alpha=0.7,
+                label="Trotter error bound",
+                zorder=0
+            )
+            break
+    # Restore y-limits so errorbars don't expand the axis
+    
+    #axes[1].set_ylim(ylims)
+    axes[1].legend(loc='lower left')
     plt.tight_layout()
     plt.savefig("firstTEPAI")
-    #plt.show()
+    plt.show()
 
 def plot_data(Ts, averages, stds):
     plt.figure(figsize=(8, 6))
@@ -2190,8 +2253,68 @@ def plotManyCalc2(folder, justLengths=False):
 
 
     plt.tight_layout(rect=[0, 0, 1, 0.96])
-    plt.savefig("manyCalcPlot")
+    #plt.savefig("manyCalcPlot")
     #plt.show()
+
+
+    t_vals_quadratic = np.array(t_times)
+    # --- Compute constant for Hamiltonian subplot ---
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=int(q))
+    hamil = Hamiltonian.spin_chain_hamil(int(q), freqs)
+    val = hamil.l1_norm(0.1)  # Evaluate 1-norm at T = 0.1
+    print("H(T=0.1) L1 norm =", val)
+
+    # --- Setup the quadratic dependence in time based on val ---
+    quad_norm = []
+    for t in t_times:
+        quad_norm.append(hamil.l1_norm(t)**2)
+
+
+    #quad_norm = (val * t_vals_quadratic) ** 2
+
+    # --- Create figure with two subplots ---
+    fig2, (ax_quad, ax_norm) = plt.subplots(1, 2, figsize=(10, 4))
+
+    # --- Subplot 1: Gate count comparison ---
+    # Compute constant c for quadratic gate count: G(T) = c T^2
+    T1 = t_times[1]
+    G1 = trotterLens[1]
+    c = G1 / (T1 ** 2)
+    quad_gate_count = c * t_vals_quadratic ** 2
+
+    # First TE-PAI data
+    tepai_times = paiDatas[0][0]
+    tepai_gates = tepaiLens[0][-len(tepai_times):]
+
+    # Plotting
+    ax_quad.plot(t_times, trotterLens, label='Trotter', color='black')
+    ax_quad.plot(t_vals_quadratic, quad_gate_count, '--', color='tab:red', label='Gate count with constant error')
+    ax_quad.plot(tepai_times, tepai_gates, label=f'TE-PAI from T={tepai_times[0]}', color='tab:blue')
+
+    ax_quad.set_title("Circuit gate count")
+    ax_quad.set_ylabel("Gates")
+    ax_quad.set_xlabel("Time")
+    ax_quad.legend()
+    ax_quad.grid(True)
+
+    # --- Subplot 2: Quadratic growth from H-norm ---
+    ax_norm.plot(t_vals_quadratic, quad_norm, color='tab:green', linestyle='--', label=fr'TE-PAI at constant error')
+    ax_norm.set_title("Circuit shot count")
+    ax_norm.set_xlabel("Time")
+    ax_norm.set_ylabel("Shots")
+    ax_norm.legend()
+    ax_norm.grid(True)
+
+    # Format y axes with scientific notation if needed
+    formatter = ScalarFormatter(useMathText=True)
+    formatter.set_powerlimits((-3, 4))
+    ax_quad.yaxis.set_major_formatter(formatter)
+    ax_norm.yaxis.set_major_formatter(formatter)
+
+    plt.tight_layout()
+    plt.savefig("constantErr")
+    plt.show()
 
 def calcOverhead(q, T, Δ):
     rng = np.random.default_rng(0)
