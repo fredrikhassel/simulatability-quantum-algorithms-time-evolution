@@ -1479,7 +1479,7 @@ def plotMainCalcOld(folder, both=True, justLengths=False):
         ax5.add_patch(Rectangle((x_min, max_te_cost), x_max - x_min, top_y - max_te_cost,
                                  color='gray', alpha=0.3, label='_nolegend_'))
     ax5.set_ylabel('Cost ')
-    ax5.set_title(r"$\mathbf{C}$: Total computational cost")
+    ax5.set_title(r"$\mathbf{C}$: Computational depth")
     ax5.set_xlabel('Time')
     ax5.grid(True)
 
@@ -1601,10 +1601,21 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
     t_arr = np.array(trotsim[0]); y_arr = np.array(trotsim[1])
     mask_zoom = (t_arr >= te_start) & (t_arr <= te_end)
 
+    # ——— Increase all font sizes globally ———
+    plt.rcParams.update({
+        'font.size': 14,            # base font size
+        'figure.titlesize': 18,     # suptitle
+        'axes.titlesize': 16,       # axes titles
+        'axes.labelsize': 14,       # x/y labels
+        'xtick.labelsize': 12,      # tick labels
+        'ytick.labelsize': 12,
+        'legend.fontsize': 12,      # legend text
+    })
+
     # --- Combined Figure: Cutoff & Improvement (top) + 3-panel metrics (bottom) ---
-    fig = plt.figure(figsize=(15, 12))
+    fig = plt.figure(figsize=(13, 11))
     # 2 rows, 3 columns; top row spans all 3 columns, reduced vertical gap
-    gs = fig.add_gridspec(2, 3, height_ratios=[2, 1], hspace=0.2, wspace=0.3)
+    gs = fig.add_gridspec(2, 3, height_ratios=[2, 1], hspace=0.3, wspace=0.3)
 
     # Row 1: main plot
     ax_main = fig.add_subplot(gs[0, :])
@@ -1624,12 +1635,12 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
     y_max_zoom = max(np.max(y_arr[mask_zoom]), np.max(paisim[1]))
     if not aligned:
         rect = Rectangle((te_start, y_min_zoom), te_end - te_start, y_max_zoom - y_min_zoom,
-                         linestyle='--', edgecolor='black', fill=False)
+                        linestyle='--', edgecolor='black', fill=False)
         ax_main.add_patch(rect)
 
     ax_main.set_xlabel('Time')
     ax_main.set_ylabel(r'$\langle X_0 \rangle$')
-    ax_main.set_title('Cutoff & Improvement with Zoom')
+    ax_main.set_title(r"$\mathbf{A}$: TE-PAI simulation advantage")
     legend = ax_main.legend(loc='upper right', framealpha=1)
     legend.get_frame().set_facecolor('white')
     ax_main.grid(True)
@@ -1655,9 +1666,9 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
         x_min = np.array(trotbond[0])[mask_excess].min()
         x_max = np.array(trotbond[0])[mask_excess].max()
         ax3.add_patch(Rectangle((x_min, max_te_pa), x_max - x_min, top_y - max_te_pa,
-                                 color='gray', alpha=0.3, label='Additional cost'))
+                                color='gray', alpha=0.3))
     ax3.set_ylabel('Dimension')
-    ax3.set_title(r"$\mathbf{A}$: Largest bond dimension", pad=10)
+    ax3.set_title(r"$\mathbf{B}$: Largest bond dimension", pad=10)
     ax3.legend(loc='upper left', framealpha=1)
     ax3.grid(True)
     ax3.set_xlabel('Time')
@@ -1671,9 +1682,9 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
     if mask_len.any():
         x_min = np.array(trotbond[0])[mask_len].min(); x_max = np.array(trotbond[0])[mask_len].max()
         ax4.add_patch(Rectangle((x_min, max_te_len), x_max - x_min, top_y - max_te_len,
-                                 color='gray', alpha=0.3))
+                                color='gray', alpha=0.3))
     ax4.set_ylabel('Gates')
-    ax4.set_title(r"$\mathbf{B}$: Circuit gate count", pad=10)
+    ax4.set_title(r"$\mathbf{C}$: Circuit gate count", pad=10)
     ax4.grid(True)
     ax4.set_xlabel('Time')
 
@@ -1686,23 +1697,48 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
     if mask_cost.any():
         x_min = np.array(trotcost[0])[mask_cost].min(); x_max = np.array(trotcost[0])[mask_cost].max()
         ax5.add_patch(Rectangle((x_min, max_te_cost), x_max - x_min, top_y - max_te_cost,
-                                 color='gray', alpha=0.3))
-    ax5.set_ylabel('Cost')
-    ax5.set_title(r"$\mathbf{C}$: Total cost", pad=10)
+                                color='gray', alpha=0.3))
+    ax5.set_ylabel('Flops')
+    ax5.set_title(r"$\mathbf{D}$: Computational depth", pad=10)
     ax5.set_xlabel('Time')
     ax5.grid(True)
 
-    # Scientific notation on y-axes, move offset labels to right side
-    for ax in (ax3, ax4, ax5):
-        fmt = ScalarFormatter(useMathText=True)
-        fmt.set_powerlimits((-3, 4))
-        ax.yaxis.set_major_formatter(fmt)
-        ax.yaxis.set_offset_position('right')
 
     # Final layout and save
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig("fullCalc_combined")
 
+    # force a draw so that any prior formatting is realized
+    fig.canvas.draw()
+
+    # always use our fallback style
+    for ax, data, base_label in (
+            (ax3, trotbond[1], 'Dimension'),
+            (ax4, trotterLengths, 'Gates'),
+            (ax5, paicost[1], 'Flops'),
+        ):
+
+        # 1) compute the exponent
+        maxval = np.nanmax(np.abs(data))
+        exp = int(np.floor(np.log10(maxval))) if maxval > 0 else 0
+
+        if exp > 1:
+            # 2) rescale tick values
+            ticks = ax.get_yticks()
+            scaled = ticks / 10**exp
+           #ax.set_yticks(scaled)
+            ax.set_yticklabels([f"{t:g}" for t in scaled])
+
+            # 3) set ylabel with LaTeX superscript
+            ax.set_ylabel(rf"{base_label} ($\times10^{{{exp}}}$)")
+        else:
+            # no scaling needed
+            ax.set_ylabel(base_label)
+    
+    #plt.show()
+    if aligned:
+        plt.savefig("fullCalc_combined")
+    else:
+        plt.savefig("cutoffImprovement")
 
 def manyCalc(tepaiPath, Tf, Tis, N, n, flip=True,):
     params = parse_path(tepaiPath)
@@ -2079,9 +2115,17 @@ def plotManyCalc2(folder, justLengths=False):
     ax.plot(t_times, t_vals, label='Trotter', color='black')
     for ds in paiDatas:
         p_times, p_vals, p_stds, _ = ds
+        p_stds = []
+        denominator = int(delta.split("pi_over_")[1])
+        d =  np.pi / denominator
+        for time in p_times:
+            p_stds.append(calcOverhead(int(q), time-p_times[0], d))
         ax.errorbar(p_times, p_vals, yerr=p_stds,
-                    fmt='x', markersize=8, markeredgewidth=2,
-                    capsize=3, label=f'TEPAI from T={p_times[0]}')
+                    fmt=' ',               # no marker, no line
+                    capsize=5,
+                    #ecolor='black',        # optional: sets error bar color
+                    elinewidth=3,        # optional: sets error bar thickness
+                    label=f'TEPAI from T={p_times[0]}')
     #ax.set(title='Values vs Time', ylabel='Value')
     ax.set_ylabel(r'$\langle X_0 \rangle$')
     ax.legend(loc='upper right')
@@ -2121,12 +2165,13 @@ def plotManyCalc2(folder, justLengths=False):
     axins.plot(t_times, t_vals, color='black')
     for ds in paiDatas:
         p_times, p_vals, p_stds, _ = ds
-        axins.errorbar(p_times, p_vals, yerr=p_stds,
-                       fmt='x', markersize=8, markeredgewidth=2, capsize=3)
+        axins.scatter(p_times, p_vals,
+                    marker='x', s=100)
     axins.set_xlim(x0, x1)
     axins.set_ylim(y0_p, y1_p)
     axins.set_xticks([])
     axins.set_yticks([])
+    axins.legend(title="Mean values")
     # 2. Chain Length vs Time (gate count)
     ax2 = axes[1]
     ax2.plot(t_times, trotterLens, label='Trotter', color='black')
@@ -2148,7 +2193,11 @@ def plotManyCalc2(folder, justLengths=False):
     plt.savefig("manyCalcPlot")
     #plt.show()
 
-
+def calcOverhead(q, T, Δ):
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    return np.exp(2 * hamil.l1_norm(T) * np.tan(Δ / 2))-1
 
 
 def plotMainCalc(folder, both=True):
@@ -3114,69 +3163,97 @@ def strip_trailing_dot_zero(folder_name):
         return f"{head}-T-{tail}"
     return folder_name
 
-def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds"):
+def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds/plot", out_file="bond_growth.png"):
     """
-    Scans the given folder for CSV files matching either pattern:
-      • lie-bond-N-{N}-T-{T}-q-{q}.csv
-      • trotter-bonds-N-{N}-n-{n}-{T}-q-{q}.csv
-
-    Reads each file (ignoring the first row as a header),
-    and plots time vs. max_bond curves on a single plot.
-    If no matching files are found, simply returns without error.
+    Plot maximum bond dimension over time for various snapshots and Trotter parameters.
+    - Sort curves by their 'n' value
+    - Color gradient from green (low n) to red (high n)
+    - Single solid line style
+    - Legend inside the plot with title "Number of qubits" (full opacity)
+    - Annotate horizontal lines at powers of two (from 2^3=8 upwards) on the right
     """
-    pat_lie = re.compile(
-        r"^lie-bond-N-(?P<N>[^-]+)-T-(?P<T>[^-]+)-q-(?P<q>[^.]+)\.csv$"
-    )
-    pat_trot = re.compile(
-        r"^trotter-bonds-N-(?P<N>[^-]+)-n-(?P<n>[^-]+)-(?P<T>[^-]+)-q-(?P<q>[^.]+)\.csv$"
-    )
+    # Compile filename patterns
+    pat_lie = re.compile(r"^lie-bond-N-(?P<N>[^-]+)-T-(?P<T>[^-]+)-q-(?P<q>[^.]+)\.csv$")
+    pat_trot = re.compile(r"^trotter-bonds-N-(?P<N>[^-]+)-n-(?P<n>[^-]+)-(?P<T>[^-]+)-q-(?P<q>[^.]+)\.csv$")
 
-    plt.figure()
-    found_any = False
-
-    for filename in os.listdir(folder_path):
+    # Collect data entries
+    entries = []
+    for filename in sorted(os.listdir(folder_path)):
         fp = os.path.join(folder_path, filename)
-
         m1 = pat_lie.match(filename)
-        if m1:
-            gd = m1.groupdict()
-            df = pd.read_csv(fp, header=0)
-            x, y = df.iloc[:, 0], df.iloc[:, 1]
-            label = f"n = {gd['q']}"
-            x = x.to_list(); y = y.to_list()
-
-            if x[0] != 0:
-                x.insert(0, 0); y.insert(0,0)
-
-            plt.plot(x, y, label=label, linewidth=2)
-            found_any = True
-            continue
-
         m2 = pat_trot.match(filename)
-        if m2:
-            gd = m2.groupdict()
-            df = pd.read_csv(fp, header=0)
-            x, y = df.iloc[:, 0], df.iloc[:, 1]
-            label = f"trotter-bonds N={gd['N']}, n={gd['n']}, T={gd['T']}, q={gd['q']}"
-            plt.plot(x, y, label=label)
-            found_any = True
+        if not (m1 or m2):
             continue
+        df = pd.read_csv(fp)
+        x = df.iloc[:, 0].tolist()
+        y = df.iloc[:, 1].tolist()
+        # ensure starts at zero
+        if x and x[0] != 0:
+            x.insert(0, 0)
+            y.insert(0, 0)
+        # Determine n value for sorting and labeling
+        nval = int(m1.group('q') if m1 else m2.group('n'))
+        entries.append({'nval': nval, 'x': x, 'y': y})
 
-    if not found_any:
+    if not entries:
+        print(f"No matching CSV files found in {folder_path}")
         return
 
-    #plt.title("Bond size over time")
+    # Sort entries by n value
+    entries.sort(key=lambda e: e['nval'])
+
+    # Setup plot
+    plt.figure(figsize=(8, 6), dpi=225)
+    cmap = plt.get_cmap('RdYlGn_r')  # green to red
+    num = len(entries)
+
+    # Track global min/max for annotations
+    all_x = []
+    max_y = 0
+
+    # Plot each curve
+    for idx, entry in enumerate(entries):
+        color = cmap(idx / max(1, num - 1))
+        plt.plot(entry['x'], entry['y'], linestyle='-', linewidth=2,
+                 color=color, label=f"n = {entry['nval']}")
+        all_x.extend(entry['x'])
+        max_y = max(max_y, max(entry['y']))
+
+    # Labels and title
     plt.xlabel("Time", fontsize=14)
     plt.ylabel("Maximum Bond Dimension", fontsize=14)
-    # Tick size and style
+    plt.title("Bond Dimension Growth over Time", fontsize=16)
+
+    # Ticks
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
-    # Add a grid
-    plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
-    # Improve legend
-    plt.legend(title="Snapshots", fontsize=12, title_fontsize=13, loc='upper left', frameon=True, fancybox=True, shadow=True)
+
+    # Grid
+    #plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+
+    # Annotate horizontal powers of two from 2^3=8 upwards on the right
+    x_max = max(all_x) if all_x else 0
+    k = 3
+    while 2**k <= max_y:
+        y_val = 2**k
+        plt.axhline(y=y_val, color='gray', linestyle='--', linewidth=1, alpha=0.7)
+        # Position label on right; n=3 slightly left to avoid overlap
+        if k == 3:
+            x_text = x_max * 1.03
+        else:
+            x_text = x_max
+        plt.text(x_text, y_val * 1.02, rf"$2^{{{k}}}$", color='black', fontsize=10,
+                 va='bottom', ha='right')
+        k += 1
+
+    # Legend inside with full opacity
+    plt.legend(title="Number of qubits", fontsize=10, title_fontsize=12,
+               loc='upper left', frameon=True, framealpha=1)
+
     plt.tight_layout()
-    plt.savefig("bond_growth.png", dpi=300)
+
+    # Save and display
+    plt.savefig(out_file, bbox_inches='tight')
     plt.show()
 
 def plot_gate_counts(path, n, bins=10):

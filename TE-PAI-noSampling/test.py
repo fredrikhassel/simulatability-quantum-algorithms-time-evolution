@@ -13,15 +13,15 @@ import time
 #plot_gate_counts(path, n=10, bins=8)
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting/Nplot")
 #plot_data_two_folders("TE-PAI-noSampling/data/plotting/n = 100","TE-PAI-noSampling/data/plotting/n = 4")
-#plot_bond_data()
+plot_bond_data()
 
 #plot_data_from_folder("TE-PAI-noSampling/data/plotting")
 path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-50-dT-0.01-T-1"
 #manyCalc(path, 3, [0, 1, 2], 3000, 12, True)
 #plotManyCalc2("TE-PAI-noSampling/data/manyCalc/N-3000-p-100-Δ-pi_over_1024-T-3-q-10", justLengths=False)
-#plot_data_from_folder("TE-PAI-noSampling/data/plotting")
+#lot_data_from_folder("TE-PAI-noSampling/data/plotting")
 
-if True:
+if False:
     trotter(N=1000,
         n_snapshot=50, 
         T=10, 
@@ -47,8 +47,8 @@ if False:
     #fullCalc(tepaiPath=path, T=5, N=5000, n=10, flip=True)
     #organize_trotter_tepai()
     #plotpath = f"TE-PAI-noSampling/data/trotterThenTEPAI/Δ-pi_over-8192-q-100-N1-1200-T1-4.0-N2-1000-p-100-T2-4.0-dt-0.1"
+    #plotMainCalc3(plotpath, justLengths=False, aligned=False)
     plotpath = f"TE-PAI-noSampling/data/fullCalc/Δ-pi_over-4096-q-10-N1-5000-T1-5.0-N2-1000-p-100-T2-5.0-dt-0.1"
-
     plotMainCalc3(plotpath, justLengths=False, aligned=True)
 
 if False:
