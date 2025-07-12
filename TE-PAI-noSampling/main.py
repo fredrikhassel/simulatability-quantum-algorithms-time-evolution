@@ -142,8 +142,6 @@ class TE_PAI:
             except Exception as e:
                 print(f"Error saving sign list file: {e}")
 
- 
-
     def gen_rand_cir_with_details(self, index, err=None):
         (gates_arr, sign, n) = ([], 1, int(self.N / self.n_snap))
         for i, inde in enumerate(index):
