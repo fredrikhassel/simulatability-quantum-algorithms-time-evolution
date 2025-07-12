@@ -31,6 +31,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib.ticker import ScalarFormatter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from itertools import combinations
 
 plt.rcParams.update({
         'font.size': 12,
@@ -386,9 +387,6 @@ def extract_dT_value(string):
     match = re.search(r'dT-([\d\.]+)', string)
     return float(match.group(1)) if match else None
 
-
-from itertools import combinations
-
 def paulis_anticommute(p1, p2, overlap_count):
     # p1,p2 strings like "XX","Z"; 
     # they anticommute on each overlapping index if the chars differ
@@ -412,9 +410,7 @@ def trotter_error_bound(hamil: Hamiltonian, r: int, T: float):
                 S += 2 * abs(c1 * c2)
 
     print(S)
-    return
     return T**2 / (2 * r) * S
-
 
 def plot_data_from_folder(folderpath, ax=None, trotBounds=None):
     quimb_pattern = re.compile(r'N-(\d+)-n-(\d+)-([cp])-(\d+)-Δ-(\w+)-T-([\d\.]+)-q-(\d+)-dT-([\d\.]+)\.csv')
@@ -1766,9 +1762,13 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
     ax5.set_xlabel('Time')
     ax5.grid(True)
 
+    print(f"Trotter final cost: {trotcost[1][-1]}")
+    print(f"TE-PAI final cost: {paicost[1][-1]}")
+    print(f"Ratio: {paicost[1][-1] / trotcost[1][-1]}")
+
 
     # Final layout and save
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    #plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     # force a draw so that any prior formatting is realized
     fig.canvas.draw()
@@ -1797,7 +1797,7 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
             # no scaling needed
             ax.set_ylabel(base_label)
     
-    #plt.show()
+    plt.show()
     if aligned:
         plt.savefig("fullCalc_combined")
     else:
@@ -2321,7 +2321,6 @@ def calcOverhead(q, T, Δ):
     freqs = rng.uniform(-1, 1, size=q)
     hamil = Hamiltonian.spin_chain_hamil(q, freqs)
     return np.exp(2 * hamil.l1_norm(T) * np.tan(Δ / 2))-1
-
 
 def plotMainCalc(folder, both=True):
     trotsim1  = [[], []]; trotsim2  = [[], []]; paisim  = [[], [], []]

@@ -22,10 +22,7 @@ from circuitSimulatorMPS import parse, trotter, showComplexity, trotterThenTEPAI
 import multiprocessing
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
-
 print("Current working directory:", os.getcwd())
-
-
 
 def getqT(path):
     pattern = re.compile(r"-q-(?P<q>[^-]+).*?-T-(?P<T>[^-]+)$")
