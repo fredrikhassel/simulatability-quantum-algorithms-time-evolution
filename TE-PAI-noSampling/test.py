@@ -1,6 +1,9 @@
 from plotting import plot_data_from_folder, plot_bond_data, plot_trotter_then_tepai, plot_gate_counts, plotTrotterPAI, plot_data_two_folders, plotMainCalc2, plotMainCalc3,plotManyCalc2, plotTrotterVsTEPAI
 from calculations import trotter, parse, trotterThenTEPAI, organize_trotter_tepai, trotterComparison, mainCalc, manyCalc, fullCalc
 import time
+import circuitSimulatorMPS
+
+
 
 path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-50-dT-0.01-T-1"
 #manyCalc(path, 3, [0, 1, 2], 3000, 12, True)
@@ -8,7 +11,9 @@ path = "TE-PAI-noSampling/data/circuits/N-1000-n-1-p-100-Δ-pi_over_1024-q-50-dT
 # TEPAI CIRCUIT DEPTH DECREASE PLOT
 #plotManyCalc2("TE-PAI-noSampling/data/manyCalc/N-3000-p-100-Δ-pi_over_1024-T-3-q-10", justLengths=False)
 #plotTrotterVsTEPAI("TE-PAI-noSampling/data/manyCalc/N-3000-p-100-Δ-pi_over_1024-T-3-q-10", 0)
-#plot_data_from_folder("TE-PAI-noSampling/data/plotting")
+#plot_data_from_folder("TE-PAI-noSampling/NNN_data/plotting")
+plotTrotterPAI("TE-PAI-noSampling/NNN_data/trotterThenTEPAI/Δ-pi_over-1024-q-6-N1-100-T1-0.1-N2-100-p-100-T2-0.2-dt-0.01")
+quit()
 
 # UGLY PLOT FROM DISS NOT IN USE
 #plot_data_two_folders("TE-PAI-noSampling/data/plotting/n = 100", "TE-PAI-noSampling/data/plotting/n = 20", 20, 100)
