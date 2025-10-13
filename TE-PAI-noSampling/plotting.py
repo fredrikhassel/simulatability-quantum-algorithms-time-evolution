@@ -1445,6 +1445,77 @@ def plotTrotterVsTEPAI(folder: str, dataset_index: int = 0, color: str = None):
     plt.tight_layout()
     return fig, ax
 
+def getTrotterPai(folder):
+    pat_lie = re.compile(r"^lie-N-(?P<N>\d+)-T-(?P<T>[0-9.]+)-q-(?P<q>\d+)(?:-fixedCircuit)?\.csv$")
+    pat_tep = re.compile(
+        r"^N-(?P<N2>\d+)-n-(?P<n>\d+)-p-(?P<p>\d+)-Δ-pi_over_[^–]+"
+        r"-T-(?P<T2>[0-9.]+)-q-(?P<q>\d+)-dT-(?P<dt>[0-9.]+)\.csv$"
+    )
+    # Match both trotter-bonds and TEPAI-bonds (type captured)
+    pat_bonds = re.compile(
+        r"^(?P<type>trotter|TE-?PAI)-bonds-N-(?P<N>\d+)-n-(?P<n>\d+)-T-(?P<T>\d+(?:\.\d+)?)-q-(?P<q>\d+)(?:-fixedCircuit)?\.csv$",
+        re.IGNORECASE
+    )
+    
+    # Containers for runs
+    lie_runs = []
+    tep_file = None
+    bond_runs = []
+    trotterLengths = []
+    tepLengths = []
+
+    # Scan directory for matching files
+    folder_name = folder
+    folder = Path(folder)
+    for f in folder.iterdir():
+        if not f.is_file():
+            continue
+        if (m := pat_lie.match(f.name)):
+            gd = m.groupdict()
+            lie_runs.append((f, float(gd["T"]), int(gd["N"])))
+        elif pat_tep.match(f.name):
+            tep_file = f
+        elif (m := pat_bonds.match(f.name)):
+            gd = m.groupdict()
+            bond_runs.append((f, gd))
+
+    if tep_file is None:
+        raise FileNotFoundError("No TE-PAI file found in folder")
+    #if len(bond_runs) != 3:
+    #    raise FileNotFoundError(f"Expected 3 bond CSV files (2 trotter + 1 TEPAI) in folder FOUND ONLY {len(bond_runs)}")
+
+    # Load TE-PAI data
+    x_t, y_t, e_t = [], [], []
+    n_tep = 0
+    q = int(tep_file.name.split("-")[11])
+    Δ = int(tep_file.name.split("-")[7].split("_")[2])
+    p = int(tep_file.name.split("-")[5])
+    Δ = np.pi / Δ
+    T1= float(folder_name.split("-")[10])
+    N1= float(folder_name.split("-")[8])
+    T2= float(folder_name.split("-")[16])
+    N2= float(folder_name.split("-")[12])
+    with tep_file.open() as fp:
+        next(fp)
+        for line in fp:
+            n_tep += 1
+            xi, yi, erri = line.strip().split(',')
+            x_t.append(float(xi)); y_t.append(float(yi)); e_t.append(float(erri))
+
+    dt2 = (T2 - T1) / n_tep
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+
+    NNN = "NNN_" in folder_name
+    if not NNN:
+        hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if NNN:
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
+    te_pai = TE_PAI(hamil, q, Δ, dt2, 1000, n_tep)
+    tep_len = te_pai.expected_num_gates
+
+    return lie_runs, bond_runs, x_t, y_t, e_t, q, N1, N2, p, T1, dt2, tep_len
+
 def plotTrotterPAI(folder):
     lie_runs, bond_runs, x_t, y_t, e_t, q, N1, N2, p, T1, dt2, tep_len = (getTrotterPai(folder))
     # --- Subplot 1: Trotterization + TE-PAI continuation ---
@@ -1475,10 +1546,15 @@ def plotTrotterPAI(folder):
                  label=f"TE-PAI continuation-N-{N2}-p-{p}")
     ax1.set_xlabel("time"); ax1.set_ylabel("x expectation value"); ax1.legend()
     
-    _, _, _, circuit1 = trotter(int(N1), 1, T1/n1, q, compare=False, save=False, flip=True)
-    _, _, _, circuit2 = trotter(int(N2), 1, dt2, q, compare=False, save=False, flip=True)
-    trotter1_len = len(circuit1.gates)
-    trotter2_len = len(circuit2.gates)
+    def TrotterLen(N,q,NNN):
+        if not NNN:
+            return q*(1+4*N)
+        else:
+            return q*(1+7*N)
+
+    NNN = "NNN_" in str(folder)
+    trotter1_len = TrotterLen(int(N1), q, NNN)
+    trotter2_len = TrotterLen(int(N1), q, NNN)
 
     # Separate trotter vs TEPAI
     trotter_runs = [br for br in bond_runs if br[1]['type'].lower().startswith('trotter')]
