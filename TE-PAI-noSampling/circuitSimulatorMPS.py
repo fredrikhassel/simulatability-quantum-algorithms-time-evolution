@@ -3655,3 +3655,17 @@ def calc_optimization(path, flip=True):
         optimize=False)
 
     compareCosts(poolCosts, successCosts, 0.1, 10)
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
