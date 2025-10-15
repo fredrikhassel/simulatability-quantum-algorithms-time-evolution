@@ -18,7 +18,8 @@ warnings.filterwarnings(
 import json
 import re
 from circuitGeneratorPool import generate
-from circuitSimulatorMPS import parse, trotter, showComplexity, trotterThenTEPAI
+#from circuitSimulatorMPS import parse, trotter, showComplexity, trotterThenTEPAI
+from calculations import trotter, parse, trotterThenTEPAI, organize_trotter_tepai, trotterComparison, mainCalc, manyCalc, fullCalc, showComplexity
 import multiprocessing
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)

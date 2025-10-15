@@ -605,7 +605,34 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
     trotsim, paisim = [[], []], [[], [], []]
     trotbond, paibond = [[], []], [[], []]
     trotcost, paicost = [[], []], [[], []]
-    params = folder.split("-")
+
+    import csv, ast, re
+    import numpy as np
+    from pathlib import Path
+    from matplotlib.ticker import MaxNLocator
+    from matplotlib.patches import Rectangle
+    from mpl_toolkits.axes_grid1.inset_locator import inset_axes  # <-- inset back
+    import matplotlib.pyplot as plt
+
+    def _sort_unique_xy(*cols):
+        if not cols or not cols[0]:
+            return [list(c) for c in cols]
+        xs = np.asarray(cols[0], float)
+        order = np.argsort(xs, kind="mergesort")
+        arrs = [np.asarray(c)[order] for c in cols]
+        _, first_idx = np.unique(arrs[0], return_index=True)
+        last_idx = np.r_[first_idx[1:] - 1, arrs[0].size - 1]  # keep last per x
+        return [arr[last_idx].astype(float).tolist() for arr in arrs]
+
+    def _nearest_idx(xs, x0):
+        xs = np.asarray(xs, float)
+        if xs.size == 0:
+            return 0
+        j = np.searchsorted(xs, x0, side="left")
+        if j == 0: return 0
+        if j == xs.size: return xs.size - 1
+        return j if abs(xs[j]-x0) < abs(xs[j-1]-x0) else j-1
+
     folder = Path(folder)
     for file in folder.iterdir():
         name = file.name
@@ -614,20 +641,26 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
                 next(fp)
                 lengths_line = next(fp).strip()
                 row = next(csv.reader([lengths_line]))
-                trotterLengths = ast.literal_eval(row[0])
-                tePAILengths   = ast.literal_eval(row[2])
+                t1 = ast.literal_eval(row[0])
+                t2 = ast.literal_eval(row[1])
+                trotterLengths = t2 if len(t2) >= len(t1) else t1
+                row[2] = re.sub(r"np\.float64\(([^)]+)\)", r"\1", row[2])
+                tePAILengths = ast.literal_eval(row[2])
+
         elif name.startswith("lie"):
             with file.open() as fp:
                 next(fp)
                 for line in fp:
                     x, y = map(float, line.split(','))
                     trotsim[0].append(x); trotsim[1].append(y)
-        elif name.startswith("N"):
+
+        elif name.startswith("N-") and "-dT-" in name and name.endswith(".csv"):
             with file.open() as fp:
                 next(fp)
                 for line in fp:
-                    x, y, z = map(float, line.split(','))
-                    paisim[0].append(x); paisim[1].append(y); paisim[2].append(z)
+                    x, y, e = map(float, line.split(','))
+                    paisim[0].append(x); paisim[1].append(y); paisim[2].append(e)
+
         elif name.startswith("trotter-bonds"):
             with file.open() as fp:
                 next(fp)
@@ -635,6 +668,7 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
                     x, y, z = map(float, line.split(','))
                     trotbond[0].append(x); trotbond[1].append(y)
                     trotcost[0].append(x); trotcost[1].append(z)
+
         elif name.startswith("TEPAI-bonds"):
             with file.open() as fp:
                 next(fp)
@@ -643,231 +677,232 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
                     paibond[0].append(x); paibond[1].append(y)
                     paicost[0].append(x); paicost[1].append(z)
 
-    # Alignment block: only apply when aligned=False
-    if not aligned:
-        idx = next((i for i, t in enumerate(trotsim[0]) if t == paisim[0][0]), -1)
-        if idx < 0:
-            raise ValueError("Cannot align TE-PAI start time.")
-        tePAILengths = [t + trotterLengths[idx] for t in tePAILengths]
+    # Sort & de-dup
+    trotsim  = _sort_unique_xy(*trotsim)
+    paisim   = _sort_unique_xy(*paisim)
+    trotbond = _sort_unique_xy(*trotbond)
+    paibond  = _sort_unique_xy(*paibond)
+    trotcost = _sort_unique_xy(*trotcost)
+    paicost  = _sort_unique_xy(*paicost)
 
-        if paibond[1] and paibond[1][0] != 0:
-            shift = paibond[0][1] - paibond[0][0]
-            paibond[0] = [p + shift for p in paibond[0]]
-            paibond[0].insert(0, trotbond[0][idx]); paibond[1].insert(0, trotbond[1][idx])
-        if trotbond[1] and trotbond[1][0] != 0:
-            trotbond[0].insert(0, 0); trotbond[1].insert(0, 0)
-        if tePAILengths and tePAILengths[0] != 0:
-            tePAILengths.insert(0, trotterLengths[idx])
-        if trotterLengths and trotterLengths[0] != 0:
-            trotterLengths.insert(0, 0)
+    # Anchors / timesteps
+    te_start = paisim[0][0]
+    te_end   = paisim[0][-1]
+    t_arr = np.asarray(trotsim[0]); y_arr = np.asarray(trotsim[1])
+    idx_bond = _nearest_idx(trotbond[0], te_start) if trotbond[0] else 0
 
-        shift_cost = paicost[0][1] - paicost[0][0]
-        paicost[0] = [p + shift_cost for p in paicost[0]]
-        paicost[0].insert(0, trotcost[0][idx])
-        trotcost[0].insert(0, 0)
+    # cadence for inset alignment shift
+    tepa_dt = (np.median(np.diff(paisim[0])) if len(paisim[0]) > 1
+               else (np.median(np.diff(t_arr)) if len(t_arr) > 1 else 0.0))
 
+    # Matchable slices
+    k_trot = min(len(trotterLengths), len(trotbond[1]))
+    trotterLengths_use = np.asarray(trotterLengths[:k_trot], float)
+    trotbond_x_use = np.asarray(trotbond[0][:k_trot], float)
+    trotbond_y_use = np.asarray(trotbond[1][:k_trot], float)
+
+    k_pai = min(len(tePAILengths), len(paibond[1]))
+    tePAILengths_use = np.asarray(tePAILengths[:k_pai], float)
+    paibond_x_use = np.asarray(paibond[0][:k_pai], float)
+    paibond_y_use = np.asarray(paibond[1][:k_pai], float)
+
+    # --- Trotter continuations for B/C/D ---
+    # Bond continuation: hold last value
+    if len(trotbond_x_use) >= 2:
+        dt_trot = np.median(np.diff(trotbond_x_use))
     else:
-        shift = paibond[0][1] - paibond[0][0]
-        paibond[0] = [p + shift for p in paibond[0]]
-        shift_cost = paicost[0][1] - paicost[0][0]
-        paicost[0] = [p + shift_cost for p in paicost[0]]
-        tePAILengths.insert(0,0)
-        paibond[1].insert(0,0)
-        paibond[0].insert(0,0)
-        paicost[0].insert(0,0)
-        trotterLengths.insert(0,0)
-        trotcost[0].insert(0,0)
-        trotcost[1].insert(0,0)
-        trotbond[0].insert(0,0)
-        trotbond[1].insert(0,0)
+        dt_trot = (np.median(np.diff(paibond_x_use)) if len(paibond_x_use) > 1 else 1.0)
 
-    # Compute costs
-    trotcost[1] = np.array(trotterLengths) * (np.array(trotbond[1])**3)
-    if not justLengths:
-        paicost[1] = np.array(tePAILengths) * (np.array(paibond[1])**3)
+    t_trot_ext = np.arange((trotbond_x_use[0] if trotbond_x_use.size else te_start),
+                           max(te_end, trotbond_x_use[-1] if trotbond_x_use.size else te_end) + 0.5*dt_trot,
+                           dt_trot)
+    trot_bond_ext = np.empty_like(t_trot_ext)
+    if trotbond_y_use.size:
+        nb = min(len(trotbond_y_use), len(t_trot_ext))
+        trot_bond_ext[:nb] = trotbond_y_use[:nb]
+        if nb < len(t_trot_ext):
+            trot_bond_ext[nb:] = trotbond_y_use[nb-1]
     else:
-        paicost[1] = np.array(tePAILengths) * (np.array(trotbond[1][idx+1:])**3)
+        trot_bond_ext[:] = 0.0
 
-    # Compute cutoff time
-    threshold   = np.max(paicost[1])
-    cutoff_idx  = int(np.argmax(np.array(trotcost[1]) > threshold))
-    cutoff_time = trotcost[0][cutoff_idx]
-    te_start, te_end = paisim[0][0], paisim[0][-1]
+    # Gate continuation: constant Δ
+    if trotterLengths_use.size >= 2:
+        d_len = float(trotterLengths_use[1] - trotterLengths_use[0])
+    else:
+        d_len = 0.0
+    trot_len_ext = np.empty_like(t_trot_ext)
+    n0 = min(len(trotterLengths_use), len(t_trot_ext))
+    if n0:
+        trot_len_ext[:n0] = trotterLengths_use[:n0]
+        if n0 < len(t_trot_ext):
+            last_val = trot_len_ext[n0-1]
+            steps = len(t_trot_ext) - n0
+            trot_len_ext[n0:] = last_val + d_len * np.arange(1, steps+1)
+    else:
+        trot_len_ext[:] = 0.0
 
-    # Convert simulation arrays to numpy
-    t_arr = np.array(trotsim[0]); y_arr = np.array(trotsim[1])
-    mask_zoom = (t_arr >= te_start) & (t_arr <= te_end)
+    # --- PREPEND join point to TE-PAI (time, bond, gates) ---
+    bond_at_te = float(trotbond[1][idx_bond]) if trotbond[1] else (paibond_y_use[0] if len(paibond_y_use) else 0.0)
+    idx_len = min(idx_bond, len(trotterLengths_use)-1) if len(trotterLengths_use) else 0
+    gate_at_te = float(trotterLengths_use[idx_len]) if len(trotterLengths_use) else 0.0
 
-    # ——— Compact, single-column friendly fonts ———
+    # B: bonds joined
+    paibond_x_join = np.r_[te_start, paibond_x_use[:k_pai]]
+    paibond_y_join = np.r_[bond_at_te, paibond_y_use[:k_pai]]
+
+    # C: gates joined (trotter_final + TE-PAI increments)
+    te_len_times = np.asarray(paisim[0][-len(tePAILengths_use):], float)
+    te_len_vals_offset = gate_at_te + np.asarray(tePAILengths_use, float)
+    te_len_times_join  = np.r_[te_start, te_len_times[:len(tePAILengths_use)]]
+    te_len_vals_join   = np.r_[gate_at_te, te_len_vals_offset[:len(tePAILengths_use)]]
+
+    # --- Canonical costs & old-style advantage threshold for D (and time marker for A) ---
+    trotcost_ext_x = t_trot_ext
+    trotcost_ext_y = trot_len_ext * (trot_bond_ext ** 3)
+
+    k_cost = min(len(paibond_x_join), len(te_len_vals_join))
+    paicost_x_join = paibond_x_join[:k_cost]
+    paicost_y_join = te_len_vals_join[:k_cost] * (paibond_y_join[:k_cost] ** 3)
+
+    te_final_cost = float(paicost_y_join[-1]) if len(paicost_y_join) else 0.0
+    mask_cost_adv = trotcost_ext_y > te_final_cost
+    adv_time = trotcost_ext_x[np.argmax(mask_cost_adv)] if mask_cost_adv.any() else te_end
+
+    # === Plotting ===
     plt.rcParams.update({
-        'figure.dpi': 300,
-        'savefig.dpi': 300,
-        'font.size': 8,
-        'axes.titlesize': 9,
-        'axes.labelsize': 8,
-        'xtick.labelsize': 7,
-        'ytick.labelsize': 7,
-        'legend.fontsize': 7,
+        'figure.dpi': 200, 'savefig.dpi': 300,
+        'font.size': 8, 'axes.titlesize': 9, 'axes.labelsize': 8,
+        'xtick.labelsize': 7, 'ytick.labelsize': 7, 'legend.fontsize': 7,
         'axes.linewidth': 0.8,
     })
 
-    # --- Combined Figure (taller aspect for single column) ---
-    fig = plt.figure(figsize=(3.6, 6.2), constrained_layout=True)
-    gs  = fig.add_gridspec(2, 3, height_ratios=[1.5, 1.0])  # a little more room for A
+    fig = plt.figure(figsize=(6,4), constrained_layout=True)
+    gs  = fig.add_gridspec(2, 3, height_ratios=[1.5, 1.0])
     fig.set_constrained_layout_pads(h_pad=0.02, w_pad=0.02, hspace=0.03, wspace=0.04)
 
-    # Row 1: main plot
+    # ===== A: main — ONLY original trotter up to TE-PAI start + TE-PAI points =====
     ax_main = fig.add_subplot(gs[0, :])
+    view_start, view_end = 0.0, te_end
 
-    # Clamp plotting to TE-PAI window on the main axis
-    view_start = 0.0
-    view_end   = te_end
-    view_cut   = min(cutoff_time, view_end)
+    # Plot trotter ONLY up to te_start
+    mask_main = (t_arr <= te_start)
+    if mask_main.any():
+        ax_main.plot(t_arr[mask_main], y_arr[mask_main], color='black', lw=1.0, label='Trotterization')
 
-    # Plot Trotterization up to the (clamped) cutoff time
-    mask_cut = (t_arr <= view_cut)
-    ax_main.plot(t_arr[mask_cut], y_arr[mask_cut], color='black', lw=1.0, label='Trotterization (cutoff)')
-    ax_main.axvline(view_cut, linestyle='--', color='black', lw=0.9)
-
-    # TE-PAI
+    # TE-PAI points
     ax_main.errorbar(paisim[0], paisim[1], yerr=paisim[2], fmt='o', ms=2.2, lw=0.9,
                      color='tab:green', label='TE-PAI')
     ax_main.axvline(view_end, linestyle='--', color='tab:green', lw=0.9)
 
-    # Advantage shading (clip to [0, te_end])
-    if view_cut > view_start:
-        ax_main.axvspan(max(te_start, view_start), min(view_cut, view_end), color='gray', alpha=0.18)
-    if view_end > view_cut:
-        ax_main.axvspan(view_cut, view_end, color='tab:green', alpha=0.18, label='TE-PAI advantage')
+    # Old-style advantage shading: from adv_time (threshold crossing) to end
+    if mask_cost_adv.any():
+        ax_main.axvline(adv_time, linestyle='--', color='black', lw=0.9)
+        ax_main.axvspan(adv_time, view_end, color='tab:green', alpha=0.18, label='TE-PAI advantage')
 
-    # Zoom rectangle (still shown, but respects TE-PAI window)
-    y_min_zoom = min(np.min(y_arr[mask_zoom]), np.min(paisim[1]))
-    y_max_zoom = max(np.max(y_arr[mask_zoom]), np.max(paisim[1]))
-    if not aligned:
+    # --- Inset (BACK): show continued trotterization only here, shifted left one TE-PAI step ---
+    mask_zoom = (t_arr >= te_start) & (t_arr <= te_end)
+    if not aligned and mask_zoom.any():
+        y_min_zoom = min(np.min(y_arr[mask_zoom]), np.min(paisim[1]))
+        y_max_zoom = max(np.max(y_arr[mask_zoom]), np.max(paisim[1]))
         rect = Rectangle((max(te_start, view_start), y_min_zoom),
                          min(te_end, view_end) - max(te_start, view_start),
                          y_max_zoom - y_min_zoom,
                          linestyle='--', linewidth=0.8, edgecolor='black', fill=False)
         ax_main.add_patch(rect)
 
-    ax_main.set_xlabel('Time')
-    ax_main.set_ylabel(r'$\langle X_0 \rangle$')
-    ax_main.set_title(r"$\mathbf{A}$: TE-PAI simulation advantage")
-    legend = ax_main.legend(loc='upper right', framealpha=1)
-    legend.get_frame().set_facecolor('white')
-    ax_main.grid(True, alpha=0.25)
-    ax_main.set_xlim(view_start, view_end)
-
-    # Tidy ticks on small width
-    ax_main.xaxis.set_major_locator(MaxNLocator(nbins=5))
-    ax_main.yaxis.set_major_locator(MaxNLocator(nbins=5))
-
-    ax_main.set_xlim(0.0, te_end)                # clamp A to [0, TEPAI end]
-    ax_main.set_title(r"$\mathbf{A}$: TE-PAI simulation advantage", fontsize=9, pad=3)
-    ax_main.set_xlabel('Time', fontsize=8, labelpad=1)
-    ax_main.set_ylabel(r'$\langle X_0 \rangle$', fontsize=8, labelpad=1)
-    ax_main.tick_params(labelsize=7, pad=1)
-
-    # Inset zoom
-    if not aligned:
         inset = inset_axes(ax_main, width='52%', height='36%', loc='lower left')
-        inset.plot(t_arr[mask_zoom], y_arr[mask_zoom], color='gray', linestyle='--', lw=0.9,
-                   label='Trotterization (continued)')
+        cont_x = t_arr[mask_zoom] - tepa_dt   # align start with TE-PAI
+        inset.plot(cont_x, y_arr[mask_zoom], color='gray', linestyle='--', lw=0.9,
+                   label='Trotterization (continued, shifted)')
         inset.errorbar(paisim[0], paisim[1], yerr=paisim[2], fmt='o', ms=1.9, lw=0.8,
                        color='tab:green', label='_nolegend_')
         inset.set_xlim(max(te_start, view_start), min(te_end, view_end))
         inset.set_xticks([]); inset.set_yticks([])
-        il = inset.legend(
-            loc='lower left',
-            bbox_to_anchor=(0.0, 1.02),          # x,y in inset axes fraction; y>1 == above
-            bbox_transform=inset.transAxes,      # anchor relative to the inset itself
-            borderaxespad=0.0,
-            frameon=True, framealpha=1.0,
-            fontsize=6, handlelength=1.1, handletextpad=0.4
-        )
+        il = inset.legend(loc='lower left', bbox_to_anchor=(0.0, 1.02), bbox_transform=inset.transAxes,
+                          borderaxespad=0.0, frameon=True, framealpha=1.0, fontsize=6,
+                          handlelength=1.1, handletextpad=0.4)
         il.get_frame().set_facecolor('white')
-    # Row 2, panel B (bond dimension)
+
+    ax_main.set_xlim(view_start, view_end)
+    ax_main.set_title(r"$\mathbf{A}$: TE-PAI simulation advantage", fontsize=9, pad=3)
+    ax_main.set_xlabel('Time', fontsize=8, labelpad=1)
+    ax_main.set_ylabel(r'$\langle X_0 \rangle$', fontsize=8, labelpad=1)
+    ax_main.tick_params(labelsize=7, pad=1)
+    legend = ax_main.legend(loc='upper right', framealpha=1); legend.get_frame().set_facecolor('white')
+    ax_main.grid(True, alpha=0.25)
+    ax_main.xaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax_main.yaxis.set_major_locator(MaxNLocator(nbins=5))
+
+    # ===== B: Max bond dimension (joined) =====
     ax3 = fig.add_subplot(gs[1, 0])
     ax3.plot(trotbond[0], trotbond[1], color='black', lw=1.0, label='Trotterization')
-    ax3.plot(paibond[0], paibond[1], color='tab:green', lw=1.0, label='TE-PAI')
-    max_te_pa = max(paibond[1]); top_y = ax3.get_ylim()[1]
-    mask_excess = np.array(trotbond[1]) > max_te_pa
-    if mask_excess.any():
-        x_min = np.array(trotbond[0])[mask_excess].min()
-        x_max = np.array(trotbond[0])[mask_excess].max()
-        ax3.add_patch(Rectangle((x_min, max_te_pa), x_max - x_min, top_y - max_te_pa,
-                                color='gray', alpha=0.25))
+    ax3.plot(paibond_x_join, paibond_y_join, color='tab:green', lw=1.0, label='TE-PAI')
     ax3.set_ylabel('Dimension')
-    #ax3.set_title(r"$\mathbf{B}$: Largest bond dimension", pad=6)
-    #ax3.legend(loc='upper left', framealpha=1)
     ax3.grid(True, alpha=0.25)
     ax3.set_xlabel('Time')
     ax3.xaxis.set_major_locator(MaxNLocator(nbins=4))
     ax3.yaxis.set_major_locator(MaxNLocator(nbins=4))
 
-    # Row 2, panel C (gate count)
+    # ===== C: Circuit gate count (joined) =====
     ax4 = fig.add_subplot(gs[1, 1])
-    ax4.plot(trotbond[0], trotterLengths, color='black', lw=1.0)
-    ax4.plot(paisim[0], tePAILengths, color='tab:green', lw=1.0)
-    max_te_len = max(tePAILengths); top_y = ax4.get_ylim()[1]
-    mask_len = np.array(trotterLengths) > max_te_len
-    if mask_len.any():
-        x_min = np.array(trotbond[0])[mask_len].min(); x_max = np.array(trotbond[0])[mask_len].max()
-        ax4.add_patch(Rectangle((x_min, max_te_len), x_max - x_min, top_y - max_te_len,
-                                color='gray', alpha=0.25))
+    ax4.plot(t_trot_ext, trot_len_ext, color='black', lw=1.0, label='Trotterization')
+    ax4.plot(te_len_times_join, te_len_vals_join, color='tab:green', lw=1.0, label='TE-PAI')
     ax4.set_ylabel('Gates')
-    #ax4.set_title(r"$\mathbf{C}$: Circuit gate count", pad=6)
     ax4.grid(True, alpha=0.25)
     ax4.set_xlabel('Time')
     ax4.xaxis.set_major_locator(MaxNLocator(nbins=4))
     ax4.yaxis.set_major_locator(MaxNLocator(nbins=4))
 
-    # Row 2, panel D (compute cost)
+    # ===== D: Computational depth (old-style gray region using TE-PAI final cost) =====
     ax5 = fig.add_subplot(gs[1, 2])
-    ax5.plot(trotcost[0], trotcost[1], color='black', lw=1.0)
-    ax5.plot(paicost[0], paicost[1], color='tab:green', lw=1.0)
-    max_te_cost = max(paicost[1]); top_y = ax5.get_ylim()[1]
-    mask_cost = np.array(trotcost[1]) > max_te_cost
-    if mask_cost.any():
-        x_min = np.array(trotcost[0])[mask_cost].min(); x_max = np.array(trotcost[0])[mask_cost].max()
-        ax5.add_patch(Rectangle((x_min, max_te_cost), x_max - x_min, top_y - max_te_cost,
+    ax5.plot(trotcost_ext_x, trotcost_ext_y, color='black', lw=1.0, label='Trotterization')
+    ax5.plot(paicost_x_join, paicost_y_join, color='tab:green', lw=1.0, label='TE-PAI')
+
+    # Gray region where trotter continuation is above TE-PAI final cost
+    top_y = ax5.get_ylim()[1]
+    if mask_cost_adv.any():
+        x_min = trotcost_ext_x[mask_cost_adv].min()
+        x_max = trotcost_ext_x[mask_cost_adv].max()
+        ax5.add_patch(Rectangle((x_min, te_final_cost),
+                                x_max - x_min, top_y - te_final_cost,
                                 color='gray', alpha=0.25))
+
     ax5.set_ylabel('Flops')
-    #ax5.set_title(r"$\mathbf{D}$: Computational depth", pad=6)
     ax5.set_xlabel('Time')
     ax5.grid(True, alpha=0.25)
     ax5.xaxis.set_major_locator(MaxNLocator(nbins=4))
     ax5.yaxis.set_major_locator(MaxNLocator(nbins=4))
 
-    print(f"Trotter final cost: {trotcost[1][-1]}")
-    print(f"TE-PAI final cost: {paicost[1][-1]}")
-    print(f"Ratio: {paicost[1][-1] / trotcost[1][-1]}")
+    # Diagnostics (optional)
+    if len(paicost_x_join):
+        trotter_at_te_end = np.interp(paicost_x_join[-1], trotcost_ext_x, trotcost_ext_y) if trotcost_ext_x.size else np.nan
+        print(f"TE-PAI final cost: {te_final_cost}")
+        print(f"Trotter-continued @ TE end: {trotter_at_te_end}")
+        if trotter_at_te_end:
+            print(f"TE-PAI / Trotter-continued @ TE end: {te_final_cost / trotter_at_te_end}")
 
     for a in (ax3, ax4, ax5):
         a.title.set_fontsize(8)
-        #a.title.set_pad(2)
         a.set_xlabel('Time', fontsize=8, labelpad=1)
         a.set_ylabel(a.get_ylabel(), fontsize=8, labelpad=1)
         a.tick_params(labelsize=7, pad=1)
-    fig.set_constrained_layout_pads(w_pad=0.025)  # a hair more left gutter
-    title_kwargs = dict(fontsize=7, pad=1, loc='left', y=1.1)  # small, left, tight to axes
+    fig.set_constrained_layout_pads(w_pad=0.025)
+    title_kwargs = dict(fontsize=7, pad=1, loc='left', y=1.1)
     ax3.set_title(r"$\mathbf{B}$: Max bond dimension", **title_kwargs)
     ax4.set_title(r"$\mathbf{C}$: Circuit gate count", **title_kwargs)
     ax5.set_title(r"$\mathbf{D}$: Computational depth", **title_kwargs)
 
-    # Let Matplotlib wrap long titles if they still run wide
-    for a in (ax3, ax4, ax5):
-        a.title.set_wrap(True)
-    # Draw & tidy
     fig.canvas.draw()
 
-    # Axis-scale suffixing for compact y labels (unchanged behavior)
+    # Axis-scale suffixing (unchanged behavior)
     for ax, data, base_label in (
-        (ax3, trotbond[1], 'Dimension'),
-        (ax4, trotterLengths, 'Gates'),
-        (ax5, paicost[1], 'Flops'),
+        (ax3, paibond_y_join, 'Dimension'),
+        (ax4, te_len_vals_join, 'Gates'),
+        (ax5, np.r_[trotcost_ext_y, paicost_y_join], 'Flops'),
     ):
-        maxval = np.nanmax(np.abs(data))
+        arr = np.asarray(data)
+        if arr.size == 0: continue
+        maxval = np.nanmax(np.abs(arr))
         exp = int(np.floor(np.log10(maxval))) if maxval > 0 else 0
         if exp > 1:
             ticks = ax.get_yticks()
@@ -877,14 +912,13 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
         else:
             ax.set_ylabel(base_label)
 
-    # Slightly tighter overall layout for small width
-    #fig.tight_layout()
-
     plt.show()
     if aligned:
         plt.savefig("fullCalc_combined")
     else:
         plt.savefig("cutoffImprovement")
+
+
 
 def plotManyCalc(folder, justLengths=False):
     param_parts = folder.split("/")[-1].split("-")
@@ -1635,18 +1669,18 @@ def plot_trotter_then_tepai(
         r"^N-(?P<N2>\d+)-n-(?P<n>\d+)-p-(?P<p>\d+)-Δ-pi_over_[^–]+"
         r"-T-(?P<T2>[0-9.]+)-q-(?P<q>\d+)-dT-(?P<dt>[0-9.]+)\.csv$"
     )
-    # Match both trotter-bonds and TEPAI-bonds (type captured)
+    # Accept trotter/TE-PAI bonds, optional -fixedCircuit suffix
     pat_bonds = re.compile(
-        r"^(?P<type>trotter|TE-?PAI)-bonds-N-(?P<N>\d+)-n-(?P<n>\d+)-T-(?P<T>\d+(?:\.\d+)?)-q-(?P<q>\d+)\.csv$",
+        r"^(?P<type>trotter|TE-?PAI)-bonds-N-(?P<N>\d+)-n-(?P<n>\d+)-T-(?P<T>\d+(?:\.\d+)?)-q-(?P<q>\d+)(?:-fixedCircuit)?\.csv$",
         re.IGNORECASE
     )
 
-    # Containers for runs
+    # Containers
     lie_runs = []
     tep_file = None
     bond_runs = []
 
-    # Scan directory for matching files
+    # Scan directory
     for f in folder.iterdir():
         if not f.is_file():
             continue
@@ -1661,10 +1695,8 @@ def plot_trotter_then_tepai(
 
     if tep_file is None:
         raise FileNotFoundError("No TE-PAI file found in folder")
-    if len(bond_runs) != 3:
-        raise FileNotFoundError("Expected 3 bond CSV files (2 trotter + 1 TEPAI) in folder")
 
-    # Load TE-PAI data
+    # Load TE-PAI time series (main)
     x_t, y_t, e_t = [], [], []
     with tep_file.open() as fp:
         next(fp)
@@ -1683,9 +1715,9 @@ def plot_trotter_then_tepai(
                 xi, yi = line.strip().split(',')
                 x_s.append(float(xi)); y_s.append(float(yi))
         ax1.plot(x_s, y_s, linestyle='-', color='darkblue', label=f"Trotterization-N-{N_s}")
-    else:
+    elif len(lie_runs) >= 2:
         lie_runs.sort(key=lambda t: t[1])
-        (f_small, _, N_small), (f_large, _, N_large) = lie_runs
+        (f_small, _, N_small), (f_large, _, N_large) = lie_runs[:2]
         # smaller-T trotter
         xs, ys = [], []
         with f_small.open() as fp:
@@ -1706,39 +1738,57 @@ def plot_trotter_then_tepai(
                  label=f"TE-PAI continuation-N-{N2}-p-{p}")
     ax1.set_xlabel("time"); ax1.set_ylabel("x expectation value"); ax1.legend()
 
-    # Separate trotter vs TEPAI
+    # --- Bonds/costs subplots: plot whatever exists, preferring the MAIN TEPAI bonds (not -fixedCircuit) ---
     trotter_runs = [br for br in bond_runs if br[1]['type'].lower().startswith('trotter')]
-    tepai_runs = [br for br in bond_runs if br[1]['type'].lower().replace('-', '') == 'tepai']
-    # Sort trotter by T
-    trotter_runs.sort(key=lambda t: float(t[1]['T']))
-    # First trotter (small)
-    f_s, gd_s = trotter_runs[0];  xs2, ys2, zs2 = [], [], []
-    with f_s.open() as fp:
-        for line in fp:
-            xi, yi, zi = line.strip().split(',')
-            xs2.append(float(xi)); ys2.append(float(yi)); zs2.append(float(zi))
+    tepai_runs_all = [br for br in bond_runs if br[1]['type'].lower().replace('-', '') == 'tepai']
 
-    ax3.plot(xs2, zs2, linestyle='-', marker='o', label=f"trotter-costs-N-{gd_s['N']}-n-{gd_s['n']}-T-{gd_s['T']}")
-    ax2.plot(xs2, ys2, linestyle='-', marker='o', label=f"trotter-bonds-N-{gd_s['N']}-n-{gd_s['n']}-T-{gd_s['T']}")
-    # Second trotter (large)
-    f_l, gd_l = trotter_runs[1]; xl2, yl2, zl2 = [], [], []
-    with f_l.open() as fp:
-        next(fp)
-        for line in fp:
-            xi, yi, zi = line.strip().split(',')
-            xl2.append(float(xi)); yl2.append(float(yi)); zl2.append(float(zi))
-    ax3.plot(xl2, zl2, linestyle='--', marker='o', label=f"trotter-costs-N-{gd_l['N']}-n-{gd_l['n']}-T-{gd_l['T']}")
-    ax2.plot(xl2, yl2, linestyle='--', marker='o', label=f"trotter-bonds-N-{gd_l['N']}-n-{gd_l['n']}-T-{gd_l['T']}")
-    # TEPAI-bonds
-    if tepai_runs:
-        f_t, gd_t = tepai_runs[0]; xt, yt, zt = [], [], []
+    # Prefer a TEPAI bonds file WITHOUT '-fixedCircuit' in its name; fallback to any if that's all we have
+    tepai_main = None
+    for fpath, gd in tepai_runs_all:
+        if 'fixedCircuit' not in fpath.name:
+            tepai_main = (fpath, gd); break
+    if tepai_main is None and tepai_runs_all:
+        tepai_main = tepai_runs_all[0]
+
+    # Sort trotter by T and take up to two (if present)
+    trotter_runs.sort(key=lambda t: float(t[1]['T']))
+    trotter_first = trotter_runs[0] if len(trotter_runs) >= 1 else None
+    trotter_second = trotter_runs[1] if len(trotter_runs) >= 2 else None
+
+    # First trotter (if present)
+    if trotter_first is not None:
+        f_s, gd_s = trotter_first; xs2, ys2, zs2 = [], [], []
+        with f_s.open() as fp:
+            next(fp)
+            for line in fp:
+                xi, yi, zi = line.strip().split(',')
+                xs2.append(float(xi)); ys2.append(float(yi)); zs2.append(float(zi))
+        ax3.plot(xs2, zs2, linestyle='-', marker='o', label=f"trotter-costs-N-{gd_s['N']}-n-{gd_s['n']}-T-{gd_s['T']}")
+        ax2.plot(xs2, ys2, linestyle='-', marker='o', label=f"trotter-bonds-N-{gd_s['N']}-n-{gd_s['n']}-T-{gd_s['T']}")
+
+    # Second trotter (if present)
+    if trotter_second is not None:
+        f_l, gd_l = trotter_second; xl2, yl2, zl2 = [], [], []
+        with f_l.open() as fp:
+            next(fp)
+            for line in fp:
+                xi, yi, zi = line.strip().split(',')
+                xl2.append(float(xi)); yl2.append(float(yi)); zl2.append(float(zi))
+        ax3.plot(xl2, zl2, linestyle='--', marker='o', label=f"trotter-costs-N-{gd_l['N']}-n-{gd_l['n']}-T-{gd_l['T']}")
+        ax2.plot(xl2, yl2, linestyle='--', marker='o', label=f"trotter-bonds-N-{gd_l['N']}-n-{gd_l['n']}-T-{gd_l['T']}")
+
+    # TEPAI-bonds (MAIN, if present)
+    if tepai_main is not None:
+        f_t, gd_t = tepai_main; xt, yt, zt = [], [], []
         with f_t.open() as fp:
             next(fp)
             for line in fp:
                 xi, yi, zi = line.strip().split(',')
                 xt.append(float(xi)); yt.append(float(yi)); zt.append(float(zi))
-        ax3.plot(xt, zt, linestyle='-', marker='x', color='tab:orange', label=f"TEPAI-costs-N-{gd_t['N']}-n-{gd_t['n']}-T-{gd_t['T']}")
-        ax2.plot(xt, yt, linestyle='-', marker='x', color='tab:orange', label=f"TEPAI-bonds-N-{gd_t['N']}-n-{gd_t['n']}-T-{gd_t['T']}")
+        ax3.plot(xt, zt, linestyle='-', marker='x', color='tab:orange',
+                 label=f"TEPAI-costs-N-{gd_t['N']}-n-{gd_t['n']}-T-{gd_t['T']}")
+        ax2.plot(xt, yt, linestyle='-', marker='x', color='tab:orange',
+                 label=f"TEPAI-bonds-N-{gd_t['N']}-n-{gd_t['n']}-T-{gd_t['T']}")
 
     ax2.set_xlabel("time"); ax2.set_ylabel("x expectation value");
     ax2.set_title(f"Bond data for {q} qubits")
@@ -1747,6 +1797,8 @@ def plot_trotter_then_tepai(
     fig.suptitle(f"Trotterization followed by TE-PAI for {q} qubits for total time {T1+T2}")
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
+
+
 
 def plot_bond_data(folder_path="TE-PAI-noSampling/data/bonds/plot", out_file="bond_growth.png"):
     """
