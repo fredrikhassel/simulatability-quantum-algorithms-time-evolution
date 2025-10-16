@@ -84,10 +84,11 @@ def main():
         q = params["q"]
         T = params["T"]
         N = params["N"]
+        n = params["n"]
         H_name = params["Hamiltonian"]
         NNN = (H_name == "NNN")
         trotter(N=N,
-        n_snapshot=10, 
+        n_snapshot=n, 
         T=T, 
         q=q, 
         compare=False, 
