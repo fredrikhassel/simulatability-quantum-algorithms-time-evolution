@@ -28,7 +28,11 @@ def Trotter_then_TEPAI(mode, n=10, q=10, tepai_dT=0.1, n1=30, n2=10, N1=300, N2=
         mainCalc2(tepaiPath=tepaipath, finalT1=3, N1=300, n1=40, finalT2=4, confirm=True, flip=True)
         save_lengths(n,q,tepai_dT,n1,n2,N1,N2,Δ,NNN,base_dir=plotpath)
         plotMainCalc3(plotpath, justLengths=False, aligned=False)
-        
+
+def TEPAI_simulation(folder_path="TE-PAI-noSampling/data/plotting"):
+    plot_data_from_folder(folder_path)
+
+
 if __name__ == "__main__":
-    Trotter_then_TEPAI()
+    TEPAI_simulation()
 
