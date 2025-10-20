@@ -289,7 +289,7 @@ def DictToArr(dict, isJSON):
     return arr, Ts,  params, pool
 
 def generate_random_indices(pool_size, output_length, entry_length):
-    rng = np.random.default_rng(0)  # Create RNG instance with optional seed
+    rng = np.random.default_rng()  # Create RNG instance with optional seed
     return [list(rng.integers(0, pool_size, size=entry_length)) for _ in range(output_length)]
 
 def getCircuit(q, flip=False, mps=True):
@@ -337,7 +337,6 @@ def save_lengths(n,q,tepai_dT,n1,n2,N1,N2,Δ,NNN,base_dir):
         writer = csv.writer(csvfile)
         writer.writerow(['trotter1', 'trotter2', 'TEPAI'])
         writer.writerow([lengths1, lengths2, lengthstep])
-
 
 # --- Gate application and measurement ---
 def applyGates(circuit, gates):
@@ -903,7 +902,6 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
         return (Ts, res, [bonds, costs], circuit) 
     if not compare and circuitList:
         return (Ts, res, [bonds, costs], circuits)
-
 
 def trotterComparison(N, n_snapshot, T, q):
     _, res10, _, _ = trotter(10, 10, T, q, False, flip=True)
