@@ -9,6 +9,10 @@ import calculations as calc
 import PAI as pai
 from HAMILTONIAN import Hamiltonian
 from scipy.stats import binom
+from plotting import calcOverhead
+import math
+from fractions import Fraction
+from typing import Tuple, Optional
 
 def resample(res):
         return [c * (2*p-1) for (c, p) in res]
@@ -17,7 +21,7 @@ def resample(res):
         return np.mean(choices, axis=1)
 
 # --------------------------- Plotting (agnostic) --------------------------- #
-def plot_results(Ts, results, tuples=None, lie_csv_path=None, save_path='results_vs_time.png', title='Measurement vs Time'):
+def plot_results(Ts, results, q=None, delta=None, tuples=None, lie_csv_path=None, save_path='results_vs_time.png', title='Measurement vs Time'):
     """
     Plot per-run trajectories + mean (left) and standard error over time (right).
     Ts: 1D array-like of time points (length must match each run's length).
@@ -47,8 +51,8 @@ def plot_results(Ts, results, tuples=None, lie_csv_path=None, save_path='results
     ax = axes[0]
     for r in arr:
         valid = ~np.isnan(r)
-        ax.plot(Ts[valid], r[valid], marker='o', linewidth=0.5, linestyle='--', markersize=2, alpha=0.6)
-    ax.plot(Ts[:len(mean_values)], mean_values, '-', linewidth=2, label='Mean of runs')
+        ax.plot(Ts[valid], r[valid], marker='o', linewidth=0.5, linestyle='--', markersize=2, alpha=0.6, color="gray")
+    ax.plot(Ts[:len(mean_values)], mean_values, '-', linewidth=2, label='Mean of runs', color="tab:green")
 
     # Optional LIE reference
     if lie_csv_path and os.path.exists(lie_csv_path):
@@ -59,8 +63,8 @@ def plot_results(Ts, results, tuples=None, lie_csv_path=None, save_path='results
     if tuples is not None:
             res = [resample(data) for data in tuples]
             mean, std = zip(*[(np.mean(y), np.std(y)) for y in res], strict=False)
-            #ax.errorbar(Ts[:len(mean)], mean, yerr=std, fmt='gs--', linewidth=2, label='Resampled PAI', capsize=5)
-            ax.plot(Ts[:len(mean)], mean, 'gs--', linewidth=2, label='Resampled PAI')
+            ax.errorbar(Ts[:len(mean)], mean, yerr=std, fmt='gs--', linewidth=2, label='Resampled PAI', capsize=5)
+            #ax.plot(Ts[:len(mean)], mean, 'gs--', linewidth=2, label='Resampled PAI')
 
     
     ax.set_xlabel('Time')
@@ -71,16 +75,26 @@ def plot_results(Ts, results, tuples=None, lie_csv_path=None, save_path='results
 
     # --- Right subplot: standard error over time ---
     ax2 = axes[1]
-    ax2.plot(Ts[:len(se_values)], se_values, '-', linewidth=2)
+    times = Ts[:len(se_values)]
+    if q is not None and delta is not None:
+        overhead = [calcOverhead(q, T, delta) / np.sqrt(1000) for T in times]
+        ax2.plot(times, overhead, 'r--', linewidth=2, label='Theoretical Overhead / √shots')
+
+    ax2.plot(times, se_values, '-', linewidth=2, label='Standard Error', color="tab:green")
+    
+    t1 = np.array(Ts[:len(mean_values)])
+    t2 = np.array(ref['x'].values)
+    interp_mean = np.interp(t2, t1, np.array(mean_values))
+    ax2.plot(t2, abs(interp_mean-np.array(ref['y'].values)), label="Absolute error", color="tab:orange")
     ax2.set_xlabel('Time')
     ax2.set_ylabel('Standard Error')
     ax2.set_title('Standard Error vs Time')
     ax2.grid(True, alpha=0.3)
+    ax2.legend()
 
     plt.tight_layout()
     plt.savefig(save_path, dpi=200)
     plt.show()
-
 
 # -------------------- Compute flow (original logic wrapped) ----------------- #
 def compute_and_save(
@@ -183,7 +197,7 @@ def compute_and_save(
     print(f"Saved runs to: {csv_path}")
 
     # Plot (agnostic)
-    plot_results(Ts, results, tuples, lie_csv_path=lie_csv_path, save_path=save_plot_path,
+    plot_results(Ts, results, tuples=tuples, lie_csv_path=lie_csv_path, save_path=save_plot_path,
                  title='Measurement vs Time (computed)')
 
     return Ts, results, csv_path
@@ -212,16 +226,42 @@ def get_gam_list(folder):
         ]
     return gam_list
 
-
 # ----------------------- Plot directly from a saved CSV --------------------- #
-def _parse_T_and_dT_from_name(path):
-    """Attempt to parse T and dT from filename (e.g., ...dT-0.2-T-2...). Returns (dT, T) or (None, None)."""
+def _parse_T_and_dT_from_name(path: str, all=False) -> Tuple[Optional[float], Optional[float], Optional[int], Optional[float]]:
+    """
+    Parse dT and T as before, optionally parse q (int) and Δ which is expected as 'pi over N'
+    (e.g. 'Δ-pi_over_64' or 'Δ-pi/64'). Returns (dT, T, q, delta).
+    """
     name = os.path.basename(path)
+
     m_dT = re.search(r"dT-([0-9]*\.?[0-9]+)", name)
-    m_T = re.search(r"T-([0-9]*\.?[0-9]+)", name)
+    m_T  = re.search(r"T-([0-9]*\.?[0-9]+)", name)
+    m_q  = re.search(r"\bq-([0-9]+)\b", name)
+
+    # match Δ-<pi_over_N> or Δ-pi/N (accepts Δ or 'delta', case-insensitive)
+    m_delta_den = re.search(
+        r"(?:Δ|delta)-(?:pi(?:_over_|/|_)?)(\d+)",
+        name,
+        flags=re.IGNORECASE,
+    )
+
     dT = float(m_dT.group(1)) if m_dT else None
-    T = float(m_T.group(1)) if m_T else None
-    return dT, T
+    T  = float(m_T.group(1))  if m_T  else None
+    q  = int(m_q.group(1))    if m_q else None
+
+    delta = None
+    if m_delta_den:
+        try:
+            den = int(m_delta_den.group(1))
+            if den != 0:
+                delta = float(np.pi) / den
+        except (ValueError, ZeroDivisionError):
+            delta = None
+
+    if not all:
+        return dT, T
+
+    return dT, T, q, delta
 
 
 def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.png'):
@@ -240,10 +280,8 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
         arr = json.loads(s)
         results.append([float(x) for x in arr])
 
-    
-
     # Time vector from filename if possible
-    dT, T = _parse_T_and_dT_from_name(csv_path)
+    dT, T, q, delta = _parse_T_and_dT_from_name(csv_path, all=True)
     max_len = max(len(r) for r in results)
     if dT is not None and T is not None:
         # Keep consistent with length from data (T might imply n_timesteps+1)
@@ -251,13 +289,13 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
     else:
         Ts = np.arange(max_len, dtype=float)  # fallback to time steps
 
-    plot_results(Ts, results, lie_csv_path=lie_csv_path, save_path=save_plot_path,
+    plot_results(Ts, results, q=q, delta=delta, lie_csv_path=lie_csv_path, save_path=save_plot_path,
                  title='Measurement vs Time (from CSV)')
 
 
 if __name__ == "__main__":
     
-    MODE = "from_csv"   # set to "compute" or "from_csv"
+    MODE = "compute"   # set to "compute" or "from_csv"
     FOLDER = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2"
     GAM_LIST = get_gam_list(FOLDER)
     N_RUNS = 100
