@@ -1,0 +1,15 @@
+{
+   "generate": {"1": {
+        "numQs": 20,
+        "Δ": 8,
+        "T": 2,
+        "dT": 0.2,
+        "N": 4000,
+        "circuit_pool_size": 1000,
+        "Hamiltonian": "SCH"
+        }
+   },
+    "simulate": {},
+    "lie": {},
+    "trotterThenTEPAI": {}
+} 
