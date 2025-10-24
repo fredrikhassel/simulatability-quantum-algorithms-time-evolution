@@ -15,9 +15,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # I/O & data‐saving routines
-def saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, stds, char):
+def saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, stds, char, NNN):
     # Define the output directory
-    output_dir = os.path.join('TE-PAI-noSampling', 'data', 'plotting')
+    if not NNN:
+        output_dir = os.path.join('TE-PAI-noSampling', 'data', 'plotting')
+    else:
+        output_dir = os.path.join('TE-PAI-noSampling', 'NNN_data', 'plotting')
     os.makedirs(output_dir, exist_ok=True)  # Ensure the directory exists
     # Save plotting data to a CSV file
     filename = f"N-{N}-n-{n_snapshot}-{char}-{circuits_count}-Δ-{delta_name}-T-{np.max(Ts)}-q-{q}-dT-{dT}.csv"

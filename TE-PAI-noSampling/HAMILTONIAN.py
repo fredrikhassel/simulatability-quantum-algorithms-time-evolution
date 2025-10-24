@@ -20,9 +20,25 @@ class Hamiltonian:
     def spin_chain_hamil(n, freqs):
         def J(t):
             return 0.1#np.cos(20 * t * np.pi)#0.1#
-
         terms = [
             (gate, [k, (k + 1) % n], J)
+            for k, gate in product(range(n), ["XX", "YY", "ZZ"])
+        ]
+        terms += [("Z", [k], lambda t, k=k: freqs[k]) for k in range(n)]
+        return Hamiltonian(n, terms)
+    
+    @staticmethod
+    def next_nearest_neighbor_hamil(n, freqs):
+        def J1(t):
+            return 0.1  #np.cos(20 * t * np.pi)
+        def J2(t):
+            return 0.05 #np.cos(10 * t * np.pi)
+        terms = [
+            (gate, [k, (k + 1) % n], J1)
+            for k, gate in product(range(n), ["XX", "YY", "ZZ"])
+        ]
+        terms += [
+            (gate, [k, (k + 2) % n], J2)
             for k, gate in product(range(n), ["XX", "YY", "ZZ"])
         ]
         terms += [("Z", [k], lambda t, k=k: freqs[k]) for k in range(n)]

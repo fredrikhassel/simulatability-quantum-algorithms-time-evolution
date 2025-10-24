@@ -18,7 +18,8 @@ warnings.filterwarnings(
 import json
 import re
 from circuitGeneratorPool import generate
-from circuitSimulatorMPS import parse, trotter, showComplexity, trotterThenTEPAI
+#from circuitSimulatorMPS import parse, trotter, showComplexity, trotterThenTEPAI
+from calculations import trotter, parse, trotterThenTEPAI, organize_trotter_tepai, trotterComparison, mainCalc, manyCalc, fullCalc, showComplexity
 import multiprocessing
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -50,25 +51,28 @@ def main():
         param_array = list(params.values())
 
         generate(param_array)
-
+ 
         print(f"[GENERATION {key}] Finished.\n")
 
     # Process "simulate" configurations
     print("Starting simulation phase...\n")
     for key, path in config["simulate"].items():
         print(f"[SIMULATION {key}] Simulating for path: {path}")
+        NNN=("NNN_" in str(path))
         costs = parse(
             path,
             isJSON=True,
             draw=False,
             saveAndPlot=False,
             optimize=False,
-            flip=True
+            flip=True,
+            NNN=NNN
         )
         showComplexity(costs, 1, len(costs), path)
 
         q_val, T_val = getqT(path)
-        trotter(100, 10, float(T_val), int(q_val), compare=False,save=True)
+
+        #trotter(100, 10, float(T_val), int(q_val), compare=False,save=True, NNN=NNN)
 
         print(f"[SIMULATION {key}] Finished.\n")
 
@@ -80,14 +84,18 @@ def main():
         q = params["q"]
         T = params["T"]
         N = params["N"]
+        n = params["n"]
+        H_name = params["Hamiltonian"]
+        NNN = (H_name == "NNN")
         trotter(N=N,
-        n_snapshot=10, 
+        n_snapshot=n, 
         T=T, 
         q=q, 
         compare=False, 
         save=True, 
         draw=False, 
-        flip=True)
+        flip=True,
+        NNN=NNN)
 
     print("Starting trotterThenTEPAI phase...\n")
     for key, params in config["trotterThenTEPAI"].items():
@@ -99,6 +107,7 @@ def main():
         trotterT = params["trotterT"]
         flip = params["flip"]
         confirm = params["confirm"]
+        NNN = ("NNN_" in str(path))
 
         # Convert dict values to array (ensure the order matches generate() expectations)
         param_array = list(params.values())
@@ -108,7 +117,8 @@ def main():
             trotterT=trotterT,
             folder=path,
             flip=flip,
-            confirm=confirm
+            confirm=confirm,
+            NNN=NNN
         )
 
         print(f"[TROTTER THEN TEPAI {key}] Finished.\n")
