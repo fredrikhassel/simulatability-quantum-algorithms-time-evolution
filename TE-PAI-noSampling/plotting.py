@@ -234,7 +234,8 @@ def calcOverhead(q, T, Δ):
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
     hamil = Hamiltonian.spin_chain_hamil(q, freqs)
-    return np.exp(2 * hamil.l1_norm(T) * np.tan(Δ / 2))-1
+    return np.exp(2 * hamil.l1_norm(T) * np.tan(Δ / 2))
+
 
 # --- High-level dashboards ---
 def plotMainCalc2(folder, both=True, justLengths=False):

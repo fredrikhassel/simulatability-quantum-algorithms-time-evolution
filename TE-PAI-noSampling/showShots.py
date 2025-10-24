@@ -168,7 +168,7 @@ def compute_and_save(
             weight = current_sign * gamma_factor
 
             # save weighted measurement
-            results[run_idx].append(measured)
+            results[run_idx].append(measured*weight)
             weights.append(weight)
 
             tuples[time_idx].append((weight, measured))
@@ -197,7 +197,7 @@ def compute_and_save(
     print(f"Saved runs to: {csv_path}")
 
     # Plot (agnostic)
-    plot_results(Ts, results, tuples=tuples, lie_csv_path=lie_csv_path, save_path=save_plot_path,
+    plot_results(Ts, results, tuples=None, lie_csv_path=lie_csv_path, save_path=save_plot_path,
                  title='Measurement vs Time (computed)')
 
     return Ts, results, csv_path
@@ -298,7 +298,7 @@ if __name__ == "__main__":
     MODE = "compute"   # set to "compute" or "from_csv"
     FOLDER = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2"
     GAM_LIST = get_gam_list(FOLDER)
-    N_RUNS = 100
+    N_RUNS = 10
     OUT_DIR = "TE-PAI-noSampling/data/many-circuits"
     CSV_BASENAME = None  # or e.g., "runs-N-100-...csv"
     LIE_CSV = "TE-PAI-noSampling/data/plotting/y2_data.csv"
