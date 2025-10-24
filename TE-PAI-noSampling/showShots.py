@@ -8,10 +8,16 @@ import pandas as pd
 import calculations as calc
 import PAI as pai
 from HAMILTONIAN import Hamiltonian
+from scipy.stats import binom
 
+def resample(res):
+        return [c * (2*p-1) for (c, p) in res]
+        s = np.concatenate([c * (2*binom.rvs(1, p, size=100)-1) for (c, p) in res])
+        choices = np.reshape(s[np.random.choice(len(s), 1000 * 10000)], (10000, 1000))
+        return np.mean(choices, axis=1)
 
 # --------------------------- Plotting (agnostic) --------------------------- #
-def plot_results(Ts, results, lie_csv_path=None, save_path='results_vs_time.png', title='Measurement vs Time'):
+def plot_results(Ts, results, tuples=None, lie_csv_path=None, save_path='results_vs_time.png', title='Measurement vs Time'):
     """
     Plot per-run trajectories + mean (left) and standard error over time (right).
     Ts: 1D array-like of time points (length must match each run's length).
@@ -50,6 +56,13 @@ def plot_results(Ts, results, lie_csv_path=None, save_path='results_vs_time.png'
         if {'x', 'y'}.issubset(ref.columns):
             ax.plot(ref['x'].values, ref['y'].values, 'k-', linewidth=2, label='LIE reference')
 
+    if tuples is not None:
+            res = [resample(data) for data in tuples]
+            mean, std = zip(*[(np.mean(y), np.std(y)) for y in res], strict=False)
+            #ax.errorbar(Ts[:len(mean)], mean, yerr=std, fmt='gs--', linewidth=2, label='Resampled PAI', capsize=5)
+            ax.plot(Ts[:len(mean)], mean, 'gs--', linewidth=2, label='Resampled PAI')
+
+    
     ax.set_xlabel('Time')
     ax.set_ylabel('Measurement')
     ax.set_title(title)
@@ -105,6 +118,7 @@ def compute_and_save(
 
     # Initialize containers
     results = [[] for _ in range(n_runs_to_plot)]
+    tuples  = [[] for _ in range(n_timesteps)]
     kept_indices = []
     kept_signs = []
     kept_weights = []
@@ -126,6 +140,7 @@ def compute_and_save(
 
         current_sign = +1
         for time_idx, (circuit, sign) in enumerate(zip(circuits, signs)):
+
             # update sign (stochastic sign flips)
             current_sign = current_sign * sign
 
@@ -135,12 +150,14 @@ def compute_and_save(
             measured = calc.measure(quimb, q, None)
 
             # determine gamma for this measurement: measurement after j-th circuit corresponds to index j+1
-            gamma_factor = 1.0 if gam_list is None else gam_list[time_idx + 1]
+            gamma_factor = gam_list[time_idx+1]
             weight = current_sign * gamma_factor
 
             # save weighted measurement
-            results[run_idx].append(measured * weight)
+            results[run_idx].append(measured)
             weights.append(weight)
+
+            tuples[time_idx].append((weight, measured))
 
         kept_indices.append(run_indices)
         kept_signs.append(signs)
@@ -166,15 +183,14 @@ def compute_and_save(
     print(f"Saved runs to: {csv_path}")
 
     # Plot (agnostic)
-    plot_results(Ts, results, lie_csv_path=lie_csv_path, save_path=save_plot_path,
+    plot_results(Ts, results, tuples, lie_csv_path=lie_csv_path, save_path=save_plot_path,
                  title='Measurement vs Time (computed)')
 
     return Ts, results, csv_path
 
 def get_gam_list(folder):
     """Compute the gam_list for given parameters."""
-    FOLDER = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2"
-    params = dict(re.findall(r'([A-Za-zΔ]+)-([A-Za-z0-9_.]+)', FOLDER))
+    params = dict(re.findall(r'([A-Za-zΔ]+)-([A-Za-z0-9_.]+)', folder))
 
     N = int(params["N"])
     dT = float(params["dT"])
@@ -224,6 +240,8 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
         arr = json.loads(s)
         results.append([float(x) for x in arr])
 
+    
+
     # Time vector from filename if possible
     dT, T = _parse_T_and_dT_from_name(csv_path)
     max_len = max(len(r) for r in results)
@@ -237,19 +255,18 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
                  title='Measurement vs Time (from CSV)')
 
 
-
 if __name__ == "__main__":
     
-    MODE = "compute"   # set to "compute" or "from_csv"
+    MODE = "from_csv"   # set to "compute" or "from_csv"
     FOLDER = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2"
     GAM_LIST = get_gam_list(FOLDER)
-    N_RUNS = 30
+    N_RUNS = 100
     OUT_DIR = "TE-PAI-noSampling/data/many-circuits"
     CSV_BASENAME = None  # or e.g., "runs-N-100-...csv"
-    LIE_CSV = "TE-PAI-noSampling/data/plotting/lie-N-100-T-2-q-20.csv"
+    LIE_CSV = "TE-PAI-noSampling/data/plotting/y2_data.csv"
     OUT_PNG = "results_vs_time.png"
 
-    CSV_PATH = "TE-PAI-noSampling/data/many-circuits/runs-old-N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
+    CSV_PATH = "TE-PAI-noSampling/data/many-circuits/runs-all-N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
 
     if MODE == "compute":
         compute_and_save(
