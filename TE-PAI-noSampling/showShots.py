@@ -13,6 +13,8 @@ from plotting import calcOverhead
 import math
 from fractions import Fraction
 from typing import Tuple, Optional
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 def resample(res):
         return [c * (2*p-1) for (c, p) in res]
@@ -202,6 +204,171 @@ def compute_and_save(
 
     return Ts, results, csv_path
 
+def compute_and_save_parallel(
+    folder="TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2",
+    n_runs_to_plot=100,
+    out_dir="TE-PAI-noSampling/data/many-circuits",
+    csv_basename=None,
+    lie_csv_path=None,
+    save_plot_path='results_vs_time.png',
+    gam_list=None,
+    max_workers=None,  # optional, None -> default to os.cpu_count()-1
+):
+    """
+    Parallel version of compute_and_save with progress prints.
+    Same outputs/CSV/plotting as the serialized version.
+    Returns (Ts, results, csv_path).
+    """
+
+    # Load & unpack
+    data_dict = calc.JSONtoDict(folder)
+    data_arrs, Ts_input, params, pool = calc.DictToArr(data_dict, True)
+    N, n, c, Δ, T, q = params
+    q = int(q)
+    T = float(T)
+    dT = calc.extract_dT_value(folder)
+
+    circuit_pool, sign_pool = data_arrs[0]
+    n_timesteps = round(T / dT)
+    n_circuits = int(len(sign_pool) / n_timesteps)
+    indices_all = calc.generate_random_indices(len(circuit_pool), n_circuits, n_timesteps)
+    Ts = np.arange(0, T + dT, dT)
+
+    # Validate gam_list if provided
+    if gam_list is not None:
+        if len(gam_list) != len(Ts):
+            raise ValueError(
+                f"gam_list length ({len(gam_list)}) must equal number of measurement times len(Ts) ({len(Ts)})."
+            )
+
+    # Prepare containers (match serialized structure exactly)
+    results       = [[] for _ in range(n_runs_to_plot)]
+    tuples        = [[] for _ in range(n_timesteps)]
+    kept_indices  = [None] * n_runs_to_plot
+    kept_signs    = [None] * n_runs_to_plot
+    kept_weights  = [None] * n_runs_to_plot
+
+    # Launch workers per run
+    selected = [[int(ii) for ii in run_indices] for run_indices in indices_all[:n_runs_to_plot]]
+
+    # Log the same "Starting run ..." lines deterministically before compute
+    for run_idx, run_indices in enumerate(selected):
+        signs = [sign_pool[idx] for idx in run_indices]
+        print(f"Starting run {run_idx + 1} with signs: {signs}", flush=True)
+
+    total = len(selected)
+    workers = (os.cpu_count()-1 if max_workers is None else max_workers)
+    print(f"[Setup] Launching {total} runs across up to {workers} worker processes "
+          f"(timesteps/run={n_timesteps}, dT={dT}).", flush=True)
+
+    start_time = time.time()
+    step = max(1, total // 10)  # print about every 10% of runs
+
+    with ProcessPoolExecutor(max_workers=max_workers) as ex:
+        # keep run index so we can store results in order even if completion is out-of-order
+        future_to_idx = {
+            ex.submit(_compute_single_run, run_indices, q, [circuit_pool[index] for index in run_indices], [sign_pool[index] for index in run_indices], gam_list): i
+            for i, run_indices in enumerate(selected)
+        }
+
+        completed = 0
+        try:
+            for fut in as_completed(future_to_idx):
+                i = future_to_idx[fut]
+                run_indices, signs, weights, results_run, tuples_contrib = fut.result()
+
+                # Save per-run artifacts (preserve ordering)
+                kept_indices[i] = run_indices
+                kept_signs[i]   = signs
+                kept_weights[i] = weights
+                results[i]      = results_run
+
+                # Aggregate tuples across runs into per-time buckets
+                for t_idx, wm in enumerate(tuples_contrib):
+                    tuples[t_idx].append(wm)
+
+                # Progress print
+                completed += 1
+                if (completed % step == 0) or (completed == total):
+                    elapsed = time.time() - start_time
+                    rate = completed / elapsed if elapsed > 0 else float('inf')
+                    remaining = total - completed
+                    eta = (remaining / rate) if rate > 0 else float('inf')
+                    print(f"[Progress] Completed {completed}/{total} runs "
+                          f"({completed/total:.0%}). Elapsed {elapsed:.1f}s, ETA {eta:.1f}s.",
+                          flush=True)
+        except KeyboardInterrupt:
+            print("\n[Abort] KeyboardInterrupt received. Cancelling remaining tasks...", flush=True)
+            ex.shutdown(cancel_futures=True)
+            raise
+        except Exception as e:
+            print(f"\n[Error] A worker raised an exception: {e}", flush=True)
+            ex.shutdown(cancel_futures=True)
+            raise
+
+    # Save CSV (lists are JSON-encoded strings), identical schema & filename pattern
+    os.makedirs(out_dir, exist_ok=True)
+    if csv_basename is None:
+        tail = os.path.basename(folder.rstrip("/\\"))
+        csv_basename = f"runs-{tail}.csv"
+    csv_path = os.path.join(out_dir, csv_basename)
+
+    rows = []
+    for i in range(n_runs_to_plot):
+        rows.append({
+            "run": i + 1,
+            "indices": json.dumps(kept_indices[i]),
+            "signs": json.dumps(kept_signs[i]),
+            "weights": json.dumps(kept_weights[i]),
+            "results": json.dumps(results[i]),
+        })
+    pd.DataFrame(rows, columns=["run", "indices", "signs", "weights", "results"]).to_csv(csv_path, index=False)
+    print(f"Saved runs to: {csv_path}", flush=True)
+
+    # Plot (agnostic)
+    plot_results(Ts, results, tuples, lie_csv_path=lie_csv_path, save_path=save_plot_path,
+                 title='Measurement vs Time (computed)')
+
+    total_time = time.time() - start_time
+    print(f"[Done] All {total} runs finished in {total_time:.1f}s.", flush=True)
+
+    return Ts, results, csv_path
+
+def _compute_single_run(run_indices, q, circuits, signs, gam_list):
+    """
+    Compute a single run: apply gates across all timesteps, collect measurements,
+    weights, and per-timestep (weight, measured) tuples for aggregation.
+    Returns: (run_indices, signs, weights, results_run, tuples_contrib)
+    """
+    quimb = calc.getCircuit(int(q), True)
+    results_run = []
+    weights     = []
+    tuples_contrib = []  # list of (weight, measured) per time index
+
+    # initial t=0 "measurement"
+    if gam_list is not None:
+        results_run.append(gam_list[0])
+        weights.append(gam_list[0])
+    else:
+        results_run.append(1.0)
+        weights.append(1.0)
+
+    current_sign = +1
+    for time_idx, (circuit, sign) in enumerate(zip(circuits, signs)):
+        current_sign *= sign
+
+        calc.applyGates(quimb, circuit)
+        measured = calc.measure(quimb, int(q), None)
+
+        gamma_factor = gam_list[time_idx + 1] if gam_list is not None else 1.0
+        weight = current_sign * gamma_factor
+
+        results_run.append(measured*weight)
+        weights.append(weight)
+        tuples_contrib.append((weight, measured))
+
+    return run_indices, signs, weights, results_run, tuples_contrib
+
 def get_gam_list(folder):
     """Compute the gam_list for given parameters."""
     params = dict(re.findall(r'([A-Za-zΔ]+)-([A-Za-z0-9_.]+)', folder))
@@ -263,7 +430,6 @@ def _parse_T_and_dT_from_name(path: str, all=False) -> Tuple[Optional[float], Op
 
     return dT, T, q, delta
 
-
 def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.png'):
     """
     Reads a previously saved CSV of (run, indices, signs, results), reconstructs the runs,
@@ -292,19 +458,19 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
     plot_results(Ts, results, q=q, delta=delta, lie_csv_path=lie_csv_path, save_path=save_plot_path,
                  title='Measurement vs Time (from CSV)')
 
-
 if __name__ == "__main__":
     
-    MODE = "compute"   # set to "compute" or "from_csv"
-    FOLDER = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2"
-    GAM_LIST = get_gam_list(FOLDER)
-    N_RUNS = 10
-    OUT_DIR = "TE-PAI-noSampling/data/many-circuits"
-    CSV_BASENAME = None  # or e.g., "runs-N-100-...csv"
-    LIE_CSV = "TE-PAI-noSampling/data/plotting/y2_data.csv"
-    OUT_PNG = "results_vs_time.png"
-
-    CSV_PATH = "TE-PAI-noSampling/data/many-circuits/runs-all-N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
+    # Config
+    MODE            = "compute"   # "compute" or "from_csv"
+    FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2"
+    GAM_LIST        = get_gam_list(FOLDER)
+    OUT_DIR         = "TE-PAI-noSampling/data/many-circuits"
+    CSV_BASENAME    = None
+    LIE_CSV         = "TE-PAI-noSampling/data/plotting/y2_data.csv"
+    OUT_PNG         = "results_vs_time.png"
+    CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-all-N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
+    MAX_WORKERS     = None
+    N_RUNS          = 1000
 
     if MODE == "compute":
         compute_and_save_parallel(
@@ -315,7 +481,7 @@ if __name__ == "__main__":
             lie_csv_path=LIE_CSV,
             save_plot_path=OUT_PNG,
             gam_list=GAM_LIST,
-            max_workers=4
+            max_workers=MAX_WORKERS
         )
     elif MODE == "from_csv":
         plot_from_csv(
