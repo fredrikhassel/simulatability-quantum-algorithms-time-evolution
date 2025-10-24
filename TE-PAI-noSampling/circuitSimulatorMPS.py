@@ -581,9 +581,12 @@ def plot_data(Ts, averages, stds):
     plt.grid(True)
     plt.show()
 
-def saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, stds, char):
+def saveData(N, n_snapshot, circuits_count, delta_name, Ts, q, dT, averages, stds, char, NNN):
     # Define the output directory
-    output_dir = os.path.join('TE-PAI-noSampling', 'data', 'plotting')
+    if not NNN:
+        output_dir = os.path.join('TE-PAI-noSampling', 'data', 'plotting')
+    else:
+        output_dir = os.path.join('TE-PAI-noSampling', 'NNN_data', 'plotting')
     os.makedirs(output_dir, exist_ok=True)  # Ensure the directory exists
     # Save plotting data to a CSV file
     filename = f"N-{N}-n-{n_snapshot}-{char}-{circuits_count}-Δ-{delta_name}-T-{np.max(Ts)}-q-{q}-dT-{dT}.csv"
@@ -624,7 +627,7 @@ def checkEqual(gates, gatesSim):
     print("These arrays have the same structure and gates.")
     return True
 
-def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True, circuitList = False):
+def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True, circuitList = False, NNN=False):
     print(f"Running Trotter for N={N}, n_snapshot={n_snapshot}, T={T}, q={q}")
     circuit = None
     circuits = []
@@ -633,7 +636,10 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
     Ts = np.linspace(startTime+dT, startTime+float(T), int(n_snapshot))
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
-    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if not NNN:
+        hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    else:
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
     terms = [hamil.get_term(t) for t in times]
     gates = []
     n = int(N / n_snapshot)
@@ -709,7 +715,10 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
     lengths = [l*bonds[i]**3 for i,l in enumerate(lengths)]
 
     if save:
-        save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
+        if not NNN:
+            save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
+        else:
+            save_path = os.path.join("TE-PAI-noSampling", "NNN_data", "plotting")
         os.makedirs(save_path, exist_ok=True)
         if fixedCircuit == None:
             file_name = f"lie-N-{N}-T-{T}-q-{q}.csv"
@@ -723,7 +732,10 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
             writer.writerows(zip(Ts, res))
         print(f"Lie data saved to {file_path}")
 
-        save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
+        if not NNN:
+            save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
+        else:
+            save_path = os.path.join("TE-PAI-noSampling", "NNN_data", "plotting")
         os.makedirs(save_path, exist_ok=True)
         file_name = f"lie-bond-N-{N}-T-{T}-q-{q}.csv"
         file_path = os.path.join(save_path, file_name)
@@ -949,7 +961,7 @@ def quimb_to_qiskit(quimb_circ):
     
     return qc
 
-def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False):
+def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False, NNN=False):
     if not os.path.isdir(folder):
         folder = strip_trailing_dot_zero(folder)
 
@@ -980,7 +992,7 @@ def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False):
 
     pattern = r"dT-([0-9]+(?:\.[0-9]+)?)"
     match = re.search(pattern, folder)
-    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char)
+    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char,NNN)
     if saveAndPlot:
         trotter(100,10,float(T),int(q),compare=False,save=True, flip=flip)
         plot_data_from_folder("TE-PAI-noSampling/data/plotting")
@@ -2528,7 +2540,7 @@ def plotMainCalc(folder, both=True):
     plt.tight_layout()
     plt.show()
 
-def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, optimize=False, flip=False, confirm=False,  base_dir='TE-PAI-noSampling/data/plotting'):
+def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, optimize=False, flip=False, confirm=False,  base_dir='TE-PAI-noSampling/data/plotting', NNN=False):
     folder = strip_trailing_dot_zero(folder)
     data_dict = JSONtoDict(folder)
     data_arrs,Ts,params,pool = DictToArr(data_dict, True)
@@ -2537,12 +2549,16 @@ def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, op
 
     # Running the trotter simulation up to a time trotterT
     # NB: T =/= trotterT
-    trotterTs, res, complexity, circuit = trotter(N=trotterN, n_snapshot=trottern, T=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip)
-    save_trotter(trotterTs, complexity[0], complexity[1], trotterN, trottern, trotterT, q)
+    trotterTs, res, complexity, circuit = trotter(N=trotterN, n_snapshot=trottern, T=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, NNN=NNN)
+    
+    base_dir: str = 'TE-PAI-noSampling/data/plotting'
+    if NNN:
+        base_dir = 'TE-PAI-noSampling/NNN_data/plotting'
+    save_trotter(trotterTs, complexity[0], complexity[1], trotterN, trottern, trotterT, q, base_dir=base_dir)
 
     if confirm:
-        confirmTs, _, confirmComp, _ = trotter(N=trotterN, n_snapshot=10, T=T, startTime=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit)
-        save_trotter(confirmTs, confirmComp[0], confirmComp[1], trotterN, 10, T, q)
+        confirmTs, _, confirmComp, _ = trotter(N=trotterN, n_snapshot=10, T=T, startTime=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit, NNN=NNN)
+        save_trotter(confirmTs, confirmComp[0], confirmComp[1], trotterN, 10, T, q, base_dir=base_dir)
 
     char = "c"
     dT = extract_dT_value(folder)
@@ -2552,7 +2568,7 @@ def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, op
 
     pattern = r"dT-([0-9]+(?:\.[0-9]+)?)"
     match = re.search(pattern, folder)
-    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char)
+    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char, NNN=NNN)
 
     filename = f"TEPAI-bonds-N-{N}-n-{n}-T-{T}-q-{q}.csv"
     filepath = os.path.join(base_dir, filename)
@@ -2562,7 +2578,13 @@ def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, op
         for xi, yi, zi in zip(Ts, costs[0], costs[1]):
             writer.writerow([xi, yi, zi])
 
-    organize_trotter_tepai()
+    if not NNN:
+        organize_trotter_tepai()
+    if NNN:
+        organize_trotter_tepai(
+            plotting_dir=Path("TE-PAI-noSampling/NNN_data/plotting"),
+            target_base=Path("TE-PAI-noSampling/NNN_data/trotterThenTEPAI")
+        )        
 
 def organize_trotter_tepai(
     plotting_dir: Path = Path("TE-PAI-noSampling/data/plotting"),
@@ -2758,7 +2780,12 @@ def getTrotterPai(folder):
     dt2 = (T2 - T1) / n_tep
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
-    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+
+    NNN = "NNN_" in folder_name
+    if not NNN:
+        hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if NNN:
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
     te_pai = TE_PAI(hamil, q, Δ, dt2, 1000, n_tep)
     tep_len = te_pai.expected_num_gates
 

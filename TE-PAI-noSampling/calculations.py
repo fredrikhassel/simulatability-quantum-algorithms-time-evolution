@@ -180,7 +180,7 @@ def HDF5toDict(folder_name):
 
     return extracted_data
 
-def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False):
+def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False, NNN=False):
     if not os.path.isdir(folder):
         folder = strip_trailing_dot_zero(folder)
 
@@ -211,7 +211,7 @@ def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False):
 
     pattern = r"dT-([0-9]+(?:\.[0-9]+)?)"
     match = re.search(pattern, folder)
-    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char)
+    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char,NNN)
     if saveAndPlot:
         trotter(100,10,float(T),int(q),compare=False,save=True, flip=flip)
         plot_data_from_folder("TE-PAI-noSampling/data/plotting")
@@ -289,7 +289,7 @@ def DictToArr(dict, isJSON):
     return arr, Ts,  params, pool
 
 def generate_random_indices(pool_size, output_length, entry_length):
-    rng = np.random.default_rng(0)  # Create RNG instance with optional seed
+    rng = np.random.default_rng()  # Create RNG instance with optional seed
     return [list(rng.integers(0, pool_size, size=entry_length)) for _ in range(output_length)]
 
 def getCircuit(q, flip=False, mps=True):
@@ -303,6 +303,40 @@ def getCircuit(q, flip=False, mps=True):
         middle = np.floor(q/2)
         quimb.apply_gate('Z', qubits=[int(middle)])
     return quimb
+
+def showComplexity(costs, T, N, output_folder=None):
+    print(f"Costs: {costs}")
+    times = np.linspace(0, T, N)
+    
+    if output_folder is not None:
+        os.makedirs(output_folder, exist_ok=True)
+        df = pd.DataFrame({'Time': times, 'Cost': costs})
+        csv_path = os.path.join(output_folder, 'contraction_costs.csv')
+        df.to_csv(csv_path, index=False)
+        print(f"Data saved to {csv_path}")
+
+def save_lengths(n,q,tepai_dT,n1,n2,N1,N2,Δ,NNN,base_dir):
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+    if not NNN:
+        hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+        len1 = q*(1+4*N1)
+        len2 = q*(1+4*N2)
+    if NNN:
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
+        len1 = q*(1+7*N1)
+        len2 = q*(1+7*N2)
+    te_pai = TE_PAI(hamil, q, Δ, tepai_dT, 1000, 1)
+    lentep = te_pai.expected_num_gates
+    lengths1 = [(len1/n1)*i for i in range(1, n1+1)]
+    lengths2 = [(len2/n2)*i for i in range(1, n1+1)]
+    lengthstep = [(lentep/n)*i for i in range(1, n+1)]
+    filename = f"lengths.csv"
+    filepath = os.path.join(base_dir, filename)
+    with open(filepath, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['trotter1', 'trotter2', 'TEPAI'])
+        writer.writerow([lengths1, lengths2, lengthstep])
 
 # --- Gate application and measurement ---
 def applyGates(circuit, gates):
@@ -341,16 +375,22 @@ def mainCalc(tepaiPath, finalT1, N1, n1, N2, finalT2, confirm=False, flip=True):
     m = re.match(pattern, params['Δ'])
     divisor = float(m.group(1))
     Δ = np.pi / divisor
+    NNN = "NNN_" in tepaiPath
 
     # Performing main trotterization
-    ts1, res1, comp1, circ1 = trotter(N=N1, n_snapshot=n1, T=finalT1, q=int(q), compare=False, save=True, draw=False, flip=flip)
+    ts1, res1, comp1, circ1 = trotter(N=N1, n_snapshot=n1, T=finalT1, q=int(q), compare=False, save=True, draw=False, flip=flip, NNN=NNN)
     circuit = circ1.copy()
-    save_trotter(ts1, comp1[0], comp1[1], N1, n1, finalT1, q)
+
+    base_dir='TE-PAI-noSampling/data/plotting'
+    if NNN:
+        base_dir='TE-PAI-noSampling/NNN_data/plotting'
+
+    save_trotter(ts1, comp1[0], comp1[1], N1, n1, finalT1, q, base_dir=base_dir)
 
     # Performing continuing trotterization
     if confirm:
-            ts2, res2, comp2, circ2 = trotter(N=N2, n_snapshot=10, T=finalT2, startTime=finalT1, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit)
-            save_trotter(ts2, comp2[0], comp2[1], N2, 10, finalT2, q, fixed=True)
+            ts2, res2, comp2, circ2 = trotter(N=N2, n_snapshot=10, T=finalT2, startTime=finalT1, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit, NNN=NNN)
+            save_trotter(ts2, comp2[0], comp2[1], N2, 10, finalT2, q, fixed=True, base_dir=base_dir)
 
     # Performing TE-PAI
     tepaiPath = strip_trailing_dot_zero(tepaiPath)
@@ -359,10 +399,9 @@ def mainCalc(tepaiPath, finalT1, N1, n1, N2, finalT2, confirm=False, flip=True):
     circuit = circ1.copy()
     averages, stds, circuit, costs = getPool(data_arrs, params2, dT, False, False, flip=flip, fixedCircuit = circuit)
     Ts = np.linspace(finalT1,finalT1 + finalT2,len(averages))
-    saveData(params['N'],params['n'],params['p'],params['Δ'],Ts,q,dT,averages,stds,"p")
+    saveData(params['N'],params['n'],params['p'],params['Δ'],Ts,q,dT,averages,stds,"p", NNN=NNN)
 
     # Saving TEPAI costs
-    base_dir='TE-PAI-noSampling/data/plotting'
     filename = f"TEPAI-bonds-N-{params['N']}-n-{params['n']}-T-{params['T']}-q-{q}.csv"
     filepath = os.path.join(base_dir, filename)
     with open(filepath, 'w', newline='') as csvfile:
@@ -377,7 +416,10 @@ def mainCalc(tepaiPath, finalT1, N1, n1, N2, finalT2, confirm=False, flip=True):
     len2 = len(circ2.gates)
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
-    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if not NNN:
+        hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    else:
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
     te_pai = TE_PAI(hamil, q, Δ, params['dT'], 1000, 1)
     lentep = te_pai.expected_num_gates
     lengths1 = [(len1/n1)*i for i in range(1, n1+1)]
@@ -390,7 +432,10 @@ def mainCalc(tepaiPath, finalT1, N1, n1, N2, finalT2, confirm=False, flip=True):
         writer.writerow(['trotter1', 'trotter2', 'TEPAI'])
         writer.writerow([lengths1, lengths2, lengthstep])
 
-    organize_trotter_tepai()
+    target_base = Path("TE-PAI-noSampling/data/trotterThenTEPAI")
+    if NNN:
+        target_base = Path("TE-PAI-noSampling/NNN_data/trotterThenTEPAI")
+    organize_trotter_tepai(plotting_dir=base_dir, target_base=target_base)
 
 def mainCalc2(tepaiPath, finalT1, N1, n1, finalT2, confirm=False, flip=True):
     params = parse_path(tepaiPath)
@@ -401,9 +446,13 @@ def mainCalc2(tepaiPath, finalT1, N1, n1, finalT2, confirm=False, flip=True):
     m = re.match(pattern, params['Δ'])
     divisor = float(m.group(1))
     Δ = np.pi / divisor
+    NNN = "NNN_" in tepaiPath
+    base_dir = 'TE-PAI-noSampling/data/plotting'
+    if NNN:
+        base_dir = 'TE-PAI-noSampling/NNN_data/plotting'
 
     # Performing main trotterization
-    ts1, res1, comp1, circuits = trotter(N=N1, n_snapshot=n1, T=finalT2, q=int(q), compare=False, save=True, draw=False, flip=flip, circuitList=True)
+    ts1, res1, comp1, circuits = trotter(N=N1, n_snapshot=n1, T=finalT2, q=int(q), compare=False, save=True, draw=False, flip=flip, circuitList=True, NNN=NNN)
     #ts1 = np.linspace(0, finalT2, n1)
     circuit = None
     for index,t in enumerate(ts1):
@@ -414,7 +463,7 @@ def mainCalc2(tepaiPath, finalT1, N1, n1, finalT2, confirm=False, flip=True):
         print(f"Error: No circuit found at {finalT1} when looking in {ts1}")
         return
     circ1 = circuit.copy()
-    save_trotter(ts1, comp1[0], comp1[1], N1, n1, finalT2, q)
+    save_trotter(ts1, comp1[0], comp1[1], N1, n1, finalT2, q, base_dir=base_dir)
 
     # Performing TE-PAI
     tepaiPath = strip_trailing_dot_zero(tepaiPath)
@@ -424,11 +473,10 @@ def mainCalc2(tepaiPath, finalT1, N1, n1, finalT2, confirm=False, flip=True):
     averages, stds, circuit, costs = getPool(data_arrs, params2, dT, False, False, flip=flip, fixedCircuit = circuit)
     Ts = np.linspace(finalT1,finalT2, len(averages))
 
-    saveData(params['N'],params['n'],params['p'],params['Δ'],Ts,q,dT,averages,stds,"p")
+    saveData(params['N'],params['n'],params['p'],params['Δ'],Ts,q,dT,averages,stds,"p",NNN=NNN)
     circ2 = circuits[-1].copy()
 
     # Saving TEPAI costs
-    base_dir='TE-PAI-noSampling/data/plotting'
     filename = f"TEPAI-bonds-N-{params['N']}-n-{params['n']}-T-{params['T']}-q-{q}.csv"
     filepath = os.path.join(base_dir, filename)
     with open(filepath, 'w', newline='') as csvfile:
@@ -443,7 +491,10 @@ def mainCalc2(tepaiPath, finalT1, N1, n1, finalT2, confirm=False, flip=True):
     len2 = len(circ2.gates)
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
-    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if not NNN:
+        hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if NNN:
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
     te_pai = TE_PAI(hamil, q, Δ, params['dT'], 1000, 1)
     lentep = te_pai.expected_num_gates
     lengths1 = [(len1/n1)*i for i in range(1, n1+1)]
@@ -456,9 +507,12 @@ def mainCalc2(tepaiPath, finalT1, N1, n1, finalT2, confirm=False, flip=True):
         writer.writerow(['trotter1', 'trotter2', 'TEPAI'])
         writer.writerow([lengths1, lengths2, lengthstep])
 
-    organize_trotter_tepai()
+    target_base = Path("TE-PAI-noSampling/data/trotterThenTEPAI")
+    if NNN:
+        target_base = Path("TE-PAI-noSampling/NNN_data/trotterThenTEPAI")
+    organize_trotter_tepai(plotting_dir=Path(base_dir), target_base=target_base)
 
-def fullCalc(tepaiPath, T, N, n, flip=True):
+def fullCalc(tepaiPath, T, N, n, flip=True, skip_trotter=False):
     params = parse_path(tepaiPath)
     q = params['q']
     dT = params['dT']
@@ -467,10 +521,15 @@ def fullCalc(tepaiPath, T, N, n, flip=True):
     m = re.match(pattern, params['Δ'])
     divisor = float(m.group(1))
     Δ = np.pi / divisor
+    NNN = "NNN_" in tepaiPath
+    base_dir = 'TE-PAI-noSampling/data/plotting'
+    if NNN:
+        base_dir = 'TE-PAI-noSampling/NNN_data/plotting'
 
     # Performing main trotterization
-    ts1, res1, comp1, circuits = trotter(N=N, n_snapshot=n, T=T, q=int(q), compare=False, save=True, draw=False, flip=flip, circuitList=True)
-    save_trotter(ts1, comp1[0], comp1[1], N, n, T, q)
+    if not skip_trotter:
+        ts1, res1, comp1, circuits = trotter(N=N, n_snapshot=n, T=T, q=int(q), compare=False, save=True, draw=False, flip=flip, circuitList=True, NNN=NNN)
+        save_trotter(ts1, comp1[0], comp1[1], N, n, T, q, base_dir=base_dir)
 
     # Performing TE-PAI
     tepaiPath = strip_trailing_dot_zero(tepaiPath)
@@ -482,11 +541,10 @@ def fullCalc(tepaiPath, T, N, n, flip=True):
     circ1 = circuit.copy()
     Ts = np.linspace(0,T,len(averages))
 
-    saveData(params['N'],params['n'],params['p'],params['Δ'],Ts,q,dT,averages,stds,"p")
+    saveData(params['N'],params['n'],params['p'],params['Δ'],Ts,q,dT,averages,stds,"p", NNN=NNN)
     circ2 = circuits[-1].copy()
 
     # Saving TEPAI costs
-    base_dir='TE-PAI-noSampling/data/plotting'
     filename = f"TEPAI-bonds-N-{params['N']}-n-{params['n']}-T-{params['T']}-q-{q}.csv"
     filepath = os.path.join(base_dir, filename)
     with open(filepath, 'w', newline='') as csvfile:
@@ -496,17 +554,21 @@ def fullCalc(tepaiPath, T, N, n, flip=True):
             writer.writerow([xi, yi, zi])
 
     # Saving circuit lengths
-    n2 = int(T / params['dT'])
+    n = int(params['T'] / params['dT'])
     len1 = len(circ1.gates)
     len2 = len(circ2.gates)
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
-    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if not NNN:
+        hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if NNN:
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
     te_pai = TE_PAI(hamil, q, Δ, params['dT'], 1000, 1)
     lentep = te_pai.expected_num_gates
-    lengths1 = [(len1/n)*i for i in range(1, n+1)]
-    lengths2 = [(len2/n)*i for i in range(1, n+1)]
-    lengthstep = [(lentep/n2)*i for i in range(1, n2+1)]
+    n1 = int(n1)
+    lengths1 = [(len1/n1)*i for i in range(1, n1+1)]
+    lengths2 = [(len2/n1)*i for i in range(1, n1+1)]
+    lengthstep = [(lentep/n)*i for i in range(1, n+1)]
     filename = f"lengths.csv"
     filepath = os.path.join(base_dir, filename)
     with open(filepath, 'w', newline='') as csvfile:
@@ -514,7 +576,10 @@ def fullCalc(tepaiPath, T, N, n, flip=True):
         writer.writerow(['trotter1', 'trotter2', 'TEPAI'])
         writer.writerow([lengths1, lengths2, lengthstep])
 
-    organize_trotter_tepai(target_base = Path("TE-PAI-noSampling/data/fullCalc"))
+    target_base = Path("TE-PAI-noSampling/data/fullCalc")
+    if NNN:
+        target_base = Path("TE-PAI-noSampling/NNN_data/fullCalc")
+    organize_trotter_tepai(plotting_dir=Path(base_dir), target_base=target_base)
 
 def manyCalc(tepaiPath, Tf, Tis, N, n, flip=True,):
     params = parse_path(tepaiPath)
@@ -739,7 +804,7 @@ def trotterSimulation(hamil, N, n_snapshot, c, Δ_name, T, numQs):
     res, gates_arr = trotter.run()
     return res, gates_arr
 
-def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True, circuitList = False):
+def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True, circuitList = False, NNN=False):
     print(f"Running Trotter for N={N}, n_snapshot={n_snapshot}, T={T}, q={q}")
     circuit = None
     circuits = []
@@ -748,7 +813,10 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
     Ts = np.linspace(startTime+dT, startTime+float(T), int(n_snapshot))
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
-    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if not NNN:
+        hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    else:
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
     terms = [hamil.get_term(t) for t in times]
     gates = []
     n = int(N / n_snapshot)
@@ -797,7 +865,10 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
     lengths = [l*bonds[i]**3 for i,l in enumerate(lengths)]
 
     if save:
-        save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
+        if not NNN:
+            save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
+        else:
+            save_path = os.path.join("TE-PAI-noSampling", "NNN_data", "plotting")
         os.makedirs(save_path, exist_ok=True)
         if fixedCircuit == None:
             file_name = f"lie-N-{N}-T-{T}-q-{q}.csv"
@@ -811,7 +882,10 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
             writer.writerows(zip(Ts, res))
         print(f"Lie data saved to {file_path}")
 
-        save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
+        if not NNN:
+            save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
+        else:
+            save_path = os.path.join("TE-PAI-noSampling", "NNN_data", "plotting")
         os.makedirs(save_path, exist_ok=True)
         file_name = f"lie-bond-N-{N}-T-{T}-q-{q}.csv"
         file_path = os.path.join(save_path, file_name)
@@ -823,6 +897,7 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
             writer.writerow(["x", "y", "z", "l"])
             writer.writerows(zip(Ts, bonds, costs, lengths))
         print(f"Lie bonds saved to {file_path}")
+
     if not compare and not circuitList:
         return (Ts, res, [bonds, costs], circuit) 
     if not compare and circuitList:
@@ -931,7 +1006,7 @@ def trotterComparison(N, n_snapshot, T, q):
     #plt.show()
     plt.savefig("TE-PAI-noSampling/data/trotterComparison.png", dpi=300)
 
-def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, optimize=False, flip=False, confirm=False,  base_dir='TE-PAI-noSampling/data/plotting'):
+def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, optimize=False, flip=False, confirm=False,  base_dir='TE-PAI-noSampling/data/plotting', NNN=False):
     folder = strip_trailing_dot_zero(folder)
     data_dict = JSONtoDict(folder)
     data_arrs,Ts,params,pool = DictToArr(data_dict, True)
@@ -940,12 +1015,16 @@ def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, op
 
     # Running the trotter simulation up to a time trotterT
     # NB: T =/= trotterT
-    trotterTs, res, complexity, circuit = trotter(N=trotterN, n_snapshot=trottern, T=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip)
-    save_trotter(trotterTs, complexity[0], complexity[1], trotterN, trottern, trotterT, q)
+    trotterTs, res, complexity, circuit = trotter(N=trotterN, n_snapshot=trottern, T=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, NNN=NNN)
+    
+    base_dir: str = 'TE-PAI-noSampling/data/plotting'
+    if NNN:
+        base_dir = 'TE-PAI-noSampling/NNN_data/plotting'
+    save_trotter(trotterTs, complexity[0], complexity[1], trotterN, trottern, trotterT, q, base_dir=base_dir)
 
     if confirm:
-        confirmTs, _, confirmComp, _ = trotter(N=trotterN, n_snapshot=10, T=T, startTime=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit)
-        save_trotter(confirmTs, confirmComp[0], confirmComp[1], trotterN, 10, T, q)
+        confirmTs, _, confirmComp, _ = trotter(N=trotterN, n_snapshot=10, T=T, startTime=trotterT, q=int(q), compare=False, save=True, draw=False, flip=flip, fixedCircuit=circuit, NNN=NNN)
+        save_trotter(confirmTs, confirmComp[0], confirmComp[1], trotterN, 10, T, q, base_dir=base_dir)
 
     char = "c"
     dT = extract_dT_value(folder)
@@ -955,7 +1034,7 @@ def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, op
 
     pattern = r"dT-([0-9]+(?:\.[0-9]+)?)"
     match = re.search(pattern, folder)
-    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char)
+    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char, NNN=NNN)
 
     filename = f"TEPAI-bonds-N-{N}-n-{n}-T-{T}-q-{q}.csv"
     filepath = os.path.join(base_dir, filename)
@@ -965,7 +1044,13 @@ def trotterThenTEPAI(folder, trotterN, trottern, trotterT, saveAndPlot=False, op
         for xi, yi, zi in zip(Ts, costs[0], costs[1]):
             writer.writerow([xi, yi, zi])
 
-    organize_trotter_tepai()
+    if not NNN:
+        organize_trotter_tepai()
+    if NNN:
+        organize_trotter_tepai(
+            plotting_dir=Path("TE-PAI-noSampling/NNN_data/plotting"),
+            target_base=Path("TE-PAI-noSampling/NNN_data/trotterThenTEPAI")
+        )
 
 def getTrotterPai(folder):
     pat_lie = re.compile(r"^lie-N-(?P<N>\d+)-T-(?P<T>[0-9.]+)-q-(?P<q>\d+)(?:-fixedCircuit)?\.csv$")
@@ -1027,7 +1112,12 @@ def getTrotterPai(folder):
     dt2 = (T2 - T1) / n_tep
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
-    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+
+    NNN = "NNN_" in folder_name
+    if not NNN:
+        hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if NNN:
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
     te_pai = TE_PAI(hamil, q, Δ, dt2, 1000, n_tep)
     tep_len = te_pai.expected_num_gates
 

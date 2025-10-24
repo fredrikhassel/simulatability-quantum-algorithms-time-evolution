@@ -61,20 +61,30 @@ current_dir = os.path.abspath(os.path.dirname(__file__))
 def generate(params):
     # Parameters
     print(params)
-    numQs, Δ, T, dT, N, circuit_pool_size = params
+    numQs, Δ, T, dT, N, circuit_pool_size, H_name = params
     Δ_name = 'pi_over_' + str(2**Δ)
     Δ = np.pi / (2**Δ)
-    finalTimes = np.arange(dT,T+dT,dT)
+    finalTimes = np.arange(dT, T + dT, dT)
     n_snapshot = 1
 
     # Setting up TE-PAI
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=numQs)
-    hamil = Hamiltonian.spin_chain_hamil(numQs, freqs)
-    
+
+    if H_name == "SCH":
+        hamil = Hamiltonian.spin_chain_hamil(numQs, freqs)
+    elif H_name == "NNN":
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(numQs, freqs)
+    else:
+        raise ValueError(f"Hamiltonian '{H_name}' not recognized.")
+
     # Prepping output directory
-    output_dir = os.path.join(current_dir, "data", "circuits")
+    if H_name == "NNN":
+        output_dir = os.path.join(current_dir, "NNN_data", "circuits")
+    else:
+        output_dir = os.path.join(current_dir, "data", "circuits")
     os.makedirs(output_dir, exist_ok=True)
+
     folder_name = f"N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-q-{numQs}-dT-{dT}-T-{T}"
     folder_path = os.path.join(output_dir, folder_name)
     os.makedirs(folder_path, exist_ok=True)
@@ -83,9 +93,16 @@ def generate(params):
     te_pai = TE_PAI(hamil, numQs, Δ, dT, N, n_snapshot)
 
     # Define file paths inside the new folder
-    sign_file_path = os.path.join(folder_path, f"sign_list-N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-T-{T}-q-{numQs}.json")
-    gates_file_path = os.path.join(folder_path, f"gates_arr-N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-T-{T}-q-{numQs}.json")  
+    sign_file_path = os.path.join(
+        folder_path,
+        f"sign_list-N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-T-{T}-q-{numQs}.json"
+    )
+    gates_file_path = os.path.join(
+        folder_path,
+        f"gates_arr-N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-T-{T}-q-{numQs}.json"
+    )
 
+    # Execute TE-PAI and cleanup
     te_pai.run_te_pai(
         num_circuits=circuit_pool_size,
         sign_file_path=sign_file_path,
@@ -94,16 +111,17 @@ def generate(params):
     )
     clearDataFolder('./data')
 
+
 if __name__ == '__main__':
     if True:
         # Example parameters
-        numQs = 10
-        Δ = 14
-        T = 1.0
-        dT = 0.1
-        N = 1000
+        numQs = 20
+        Δ = 6
+        T = 2.0
+        dT = 0.2
+        N = 100
         circuit_pool_size = 100
-
+        H_name = "SCH"
         # Generate circuits with the specified parameters
-        generate((numQs, Δ, T, dT, N, circuit_pool_size))
+        generate((numQs, Δ, T, dT, N, circuit_pool_size, H_name))
     
