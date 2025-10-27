@@ -241,6 +241,10 @@ def compute_and_save_parallel(
                 f"gam_list length ({len(gam_list)}) must equal number of measurement times len(Ts) ({len(Ts)})."
             )
 
+    # ALL RUNS
+    if n_runs_to_plot == None:
+        n_runs_to_plot = len(indices_all)
+
     # Prepare containers (match serialized structure exactly)
     results       = [[] for _ in range(n_runs_to_plot)]
     tuples        = [[] for _ in range(n_timesteps)]
@@ -470,7 +474,7 @@ if __name__ == "__main__":
     OUT_PNG         = "results_vs_time.png"
     CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-all-N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
     MAX_WORKERS     = None
-    N_RUNS          = 1000
+    N_RUNS          = None
 
     if MODE == "compute":
         compute_and_save_parallel(
