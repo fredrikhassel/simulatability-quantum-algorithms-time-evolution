@@ -241,6 +241,10 @@ def compute_and_save_parallel(
                 f"gam_list length ({len(gam_list)}) must equal number of measurement times len(Ts) ({len(Ts)})."
             )
 
+    # ALL RUNS
+    if n_runs_to_plot == None:
+        n_runs_to_plot = len(indices_all)
+
     # Prepare containers (match serialized structure exactly)
     results       = [[] for _ in range(n_runs_to_plot)]
     tuples        = [[] for _ in range(n_timesteps)]
