@@ -34,5 +34,5 @@ def TEPAI_simulation(folder_path="TE-PAI-noSampling/data/plotting"):
 
 
 if __name__ == "__main__":
-    TEPAI_simulation()
+    TEPAI_simulation(folder_path="TE-PAI-noSampling/2D_data/plotting")
 

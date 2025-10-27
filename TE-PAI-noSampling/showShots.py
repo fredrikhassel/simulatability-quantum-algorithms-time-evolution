@@ -470,7 +470,7 @@ if __name__ == "__main__":
     OUT_PNG         = "results_vs_time.png"
     CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-all-N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
     MAX_WORKERS     = None
-    N_RUNS          = 1000
+    N_RUNS          = None
 
     if MODE == "compute":
         compute_and_save_parallel(

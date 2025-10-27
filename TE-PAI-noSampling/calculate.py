@@ -18,7 +18,6 @@ warnings.filterwarnings(
 import json
 import re
 from circuitGeneratorPool import generate
-#from circuitSimulatorMPS import parse, trotter, showComplexity, trotterThenTEPAI
 from calculations import trotter, parse, trotterThenTEPAI, organize_trotter_tepai, trotterComparison, mainCalc, manyCalc, fullCalc, showComplexity
 import multiprocessing
 import warnings
@@ -34,6 +33,14 @@ def getqT(path):
         return q_val, T_val
     else:
         raise ValueError("Couldn't find q and T in path")
+    
+def getName(path):
+    if "NNN_" in path:
+        return "NNN"
+    if "2D_" in path:
+        return "2D"
+    else:
+        return "SCH"
 
 def main():
     print("Starting TE-PAI simulation...\n")
@@ -58,7 +65,8 @@ def main():
     print("Starting simulation phase...\n")
     for key, path in config["simulate"].items():
         print(f"[SIMULATION {key}] Simulating for path: {path}")
-        NNN=("NNN_" in str(path))
+
+        H_name = getName(path)
         costs = parse(
             path,
             isJSON=True,
@@ -66,12 +74,11 @@ def main():
             saveAndPlot=False,
             optimize=False,
             flip=True,
-            NNN=NNN
+            H_name=H_name
         )
         showComplexity(costs, 1, len(costs), path)
 
-        q_val, T_val = getqT(path)
-
+        #q_val, T_val = getqT(path)
         #trotter(100, 10, float(T_val), int(q_val), compare=False,save=True, NNN=NNN)
 
         print(f"[SIMULATION {key}] Finished.\n")
@@ -86,7 +93,7 @@ def main():
         N = params["N"]
         n = params["n"]
         H_name = params["Hamiltonian"]
-        NNN = (H_name == "NNN")
+
         trotter(N=N,
         n_snapshot=n, 
         T=T, 
@@ -95,7 +102,7 @@ def main():
         save=True, 
         draw=False, 
         flip=True,
-        NNN=NNN)
+        H_name=H_name)
 
     print("Starting trotterThenTEPAI phase...\n")
     for key, params in config["trotterThenTEPAI"].items():
