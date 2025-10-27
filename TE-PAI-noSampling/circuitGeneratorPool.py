@@ -3,14 +3,12 @@ import os
 import numpy as np
 import re
 import gc
+import csv
 
 # Import the local TE-PAI classes
 from HAMILTONIAN import Hamiltonian
 from main import TE_PAI
 from TROTTER import Trotter
-
-import os
-import re
 
 def cleanup_temp_files(directory="data", prefix="temp_"):
     """
@@ -75,14 +73,19 @@ def generate(params):
         hamil = Hamiltonian.spin_chain_hamil(numQs, freqs)
     elif H_name == "NNN":
         hamil = Hamiltonian.next_nearest_neighbor_hamil(numQs, freqs)
+    elif H_name == "2D":
+        hamil = Hamiltonian.lattice_2d_hamil(numQs, freqs=freqs)
     else:
         raise ValueError(f"Hamiltonian '{H_name}' not recognized.")
 
     # Prepping output directory
     if H_name == "NNN":
         output_dir = os.path.join(current_dir, "NNN_data", "circuits")
-    else:
+    elif H_name == "SCH":
         output_dir = os.path.join(current_dir, "data", "circuits")
+    elif H_name == "2D":
+        output_dir = os.path.join(current_dir, "2D_data", "circuits")
+
     os.makedirs(output_dir, exist_ok=True)
 
     folder_name = f"N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-q-{numQs}-dT-{dT}-T-{T}"
@@ -102,12 +105,38 @@ def generate(params):
         f"gates_arr-N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-T-{T}-q-{numQs}.json"
     )
 
+    def _to_serializable(obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, (np.integer, np.floating)):
+            return obj.item()
+        # Fallback for custom classes (e.g., term objects)
+        return repr(obj)
+
+    csv_file_path = os.path.join(
+        folder_path,
+        f"hamil_meta-N-{N}-n-{n_snapshot}-p-{circuit_pool_size}-Δ-{Δ_name}-T-{T}-q-{numQs}.csv"
+    )
+
+    # Safely JSON-encode both payloads so they fit cleanly into two CSV rows
+    freqs_json = json.dumps(freqs.tolist())
+    terms_json = json.dumps(getattr(hamil, "terms", None), default=_to_serializable)
+
+    with open(csv_file_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["name", "value_json"])
+        w.writerow(["freqs", freqs_json])
+        w.writerow(["hamil.terms", terms_json])
+
+    print(f"[Info] Wrote {csv_file_path}")
+
     # Execute TE-PAI and cleanup
     te_pai.run_te_pai(
         num_circuits=circuit_pool_size,
         sign_file_path=sign_file_path,
         gates_file_path=gates_file_path,
-        overhead=te_pai.overhead
+        overhead=te_pai.overhead,
+        verbose=True,
     )
     clearDataFolder('./data')
 
@@ -115,13 +144,13 @@ def generate(params):
 if __name__ == '__main__':
     if True:
         # Example parameters
-        numQs = 20
+        numQs = 12
         Δ = 6
-        T = 2.0
-        dT = 0.2
-        N = 100
-        circuit_pool_size = 100
-        H_name = "SCH"
+        T = 1.0
+        dT = 0.1
+        N = 1000
+        circuit_pool_size = 10
+        H_name = "2D"
         # Generate circuits with the specified parameters
         generate((numQs, Δ, T, dT, N, circuit_pool_size, H_name))
     

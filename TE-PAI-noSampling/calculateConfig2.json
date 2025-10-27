@@ -1,6 +1,14 @@
 {
    "generate": {},
-    "simulate": {"1":"TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2/"},
-    "lie": {},
+    "simulate": {},
+    "lie": {
+        "1": {
+            "q": 12,
+            "T": 1.0,
+            "N": 1000,
+            "n": 10,
+            "Hamiltonian": "2D"
+        }
+    },
     "trotterThenTEPAI": {}
 } 
