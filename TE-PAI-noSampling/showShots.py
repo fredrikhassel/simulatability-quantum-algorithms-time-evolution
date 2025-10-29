@@ -16,14 +16,8 @@ from typing import Tuple, Optional
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-def resample(res):
-        return [c * (2*p-1) for (c, p) in res]
-        s = np.concatenate([c * (2*binom.rvs(1, p, size=100)-1) for (c, p) in res])
-        choices = np.reshape(s[np.random.choice(len(s), 1000 * 10000)], (10000, 1000))
-        return np.mean(choices, axis=1)
-
 # --------------------------- Plotting (agnostic) --------------------------- #
-def plot_results(Ts, results, q=None, delta=None, tuples=None, lie_csv_path=None, save_path='results_vs_time.png', title='Measurement vs Time'):
+def plot_results(Ts, results, q=None, delta=None, tuples=None, res=None, resample_stats=None, lie_csv_path=None, save_path='results_vs_time.png', title='Measurement vs Time'):
     """
     Plot per-run trajectories + mean (left) and standard error over time (right).
     Ts: 1D array-like of time points (length must match each run's length).
@@ -51,9 +45,10 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, lie_csv_path=None
 
     # --- Left subplot: runs + mean (+ optional LIE reference) ---
     ax = axes[0]
-    for r in arr:
-        valid = ~np.isnan(r)
-        ax.plot(Ts[valid], r[valid], marker='o', linewidth=0.5, linestyle='--', markersize=2, alpha=0.6, color="gray")
+    if False:
+        for r in arr:
+            valid = ~np.isnan(r)
+            ax.plot(Ts[valid], r[valid], marker='o', linewidth=0.5, linestyle='--', markersize=2, alpha=0.6, color="gray")
     ax.plot(Ts[:len(mean_values)], mean_values, '-', linewidth=2, label='Mean of runs', color="tab:green")
 
     # Optional LIE reference
@@ -62,13 +57,15 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, lie_csv_path=None
         if {'x', 'y'}.issubset(ref.columns):
             ax.plot(ref['x'].values, ref['y'].values, 'k-', linewidth=2, label='LIE reference')
 
-    if tuples is not None:
-            res = [resample(data) for data in tuples]
-            mean, std = zip(*[(np.mean(y), np.std(y)) for y in res], strict=False)
-            ax.errorbar(Ts[:len(mean)], mean, yerr=std, fmt='gs--', linewidth=2, label='Resampled PAI', capsize=5)
-            #ax.plot(Ts[:len(mean)], mean, 'gs--', linewidth=2, label='Resampled PAI')
+    if resample_stats is not None:
+            m_boot = np.asarray(resample_stats.get('mean', []), dtype=float)
+            s_boot = np.asarray(resample_stats.get('std',  []), dtype=float)
+            lbl    = resample_stats.get('label', 'Resample (CSV)')
+            k = min(len(Ts), len(m_boot), len(s_boot))
+            if k > 0:
+                ax.errorbar(Ts[:k], m_boot[:k], yerr=s_boot[:k], fmt='o', markersize=3,
+                            capsize=2, alpha=0.9, label=lbl)
 
-    
     ax.set_xlabel('Time')
     ax.set_ylabel('Measurement')
     ax.set_title(title)
@@ -79,7 +76,7 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, lie_csv_path=None
     ax2 = axes[1]
     times = Ts[:len(se_values)]
     if q is not None and delta is not None:
-        overhead = [calcOverhead(q, T, delta) / np.sqrt(1000) for T in times]
+        overhead = [calcOverhead(q, T, delta) / np.sqrt(10000) for T in times]
         ax2.plot(times, overhead, 'r--', linewidth=2, label='Theoretical Overhead / √shots')
 
     ax2.plot(times, se_values, '-', linewidth=2, label='Standard Error', color="tab:green")
@@ -87,7 +84,7 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, lie_csv_path=None
     t1 = np.array(Ts[:len(mean_values)])
     t2 = np.array(ref['x'].values)
     interp_mean = np.interp(t2, t1, np.array(mean_values))
-    ax2.plot(t2, abs(interp_mean-np.array(ref['y'].values)), label="Absolute error", color="tab:orange")
+    #ax2.plot(t2, abs(interp_mean-np.array(ref['y'].values)), label="Absolute error", color="tab:orange")
     ax2.set_xlabel('Time')
     ax2.set_ylabel('Standard Error')
     ax2.set_title('Standard Error vs Time')
@@ -97,6 +94,66 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, lie_csv_path=None
     plt.tight_layout()
     plt.savefig(save_path, dpi=200)
     plt.show()
+
+def _ragged_to_2d(list_of_lists, fill_value=np.nan):
+    """
+    Convert list-of-lists with variable lengths into a 2D (runs x timesteps) array, padded with NaN.
+    """
+    max_len = max(len(x) for x in list_of_lists)
+    arr = np.full((len(list_of_lists), max_len), fill_value, dtype=float)
+    for i, x in enumerate(list_of_lists):
+        arr[i, :len(x)] = np.asarray(x, dtype=float)
+    return arr
+
+def resample_from_weights_results(weights_2d: np.ndarray,
+                                  results_2d: np.ndarray,
+                                  n_bootstrap: int = 10_000,
+                                  sample_size: int = 1_000,
+                                  per_pair_rep: int = 100,
+                                  random_state: int | None = None):
+    """
+    Cannon-style resampling adapted to (weights, results) arrays.
+
+    For each timestep t:
+      - Build the base vector s_t by taking the observed weighted outcomes at that timestep
+        (i.e., results_2d[:, t]; these already equal weight * measured).
+      - Replicate each entry per_pair_rep times (matching cannon's 'size=100').
+      - Draw (with replacement) `sample_size` values to form one bootstrap sample,
+        repeat `n_bootstrap` times, and take the mean per bootstrap sample.
+      - Return per-timestep (mean_of_bootstrap_means, std_of_bootstrap_means).
+
+    Notes:
+      * This matches the cannon algorithms effect when (c, p) reduces to deterministic
+        ±c per observation (as in our stored weighted outcomes). If your 'results' are
+        *unweighted*, replace `v = r_t` by `v = w_t * r_t` below.
+    """
+    rng = np.random.default_rng(random_state)
+
+    n_runs, n_t = results_2d.shape
+    means = np.full(n_t, np.nan, dtype=float)
+    stds  = np.full(n_t, np.nan, dtype=float)
+
+    for t in range(n_t):
+        r_t = results_2d[:, t]
+        w_t = weights_2d[:, t]
+        mask = (~np.isnan(r_t)) & (~np.isnan(w_t))
+        if not np.any(mask):
+            continue
+
+        # Observed weighted outcomes at this timestep (already weight * measured in your CSV)
+        v = r_t[mask]  # if your 'results' are unweighted, use: v = w_t[mask] * r_t[mask]
+        # Cannon-style replication (size=100 per pair)
+        s = np.repeat(v, per_pair_rep)
+
+        # Bootstrap: (n_bootstrap × sample_size) indices
+        idx = rng.integers(0, s.size, size=(n_bootstrap, sample_size))
+        samples = s[idx]
+        boot_means = samples.mean(axis=1)
+
+        means[t] = boot_means.mean()
+        stds[t]  = boot_means.std(ddof=1)
+
+    return means, stds
 
 # -------------------- Compute flow (original logic wrapped) ----------------- #
 def compute_and_save(
@@ -382,8 +439,11 @@ def get_gam_list(folder):
     T = float(params["T"])
     q = int(params["q"])
     n_snap = int(T / dT)
+    N = N*n_snap
     v = params["Δ"]
     Δ = np.pi / float(v.split('_')[-1]) if v.startswith('pi_over_') else float(v)
+
+    print(f"N:{N}, dT:{dT}, T:{T}, q:{q}, n_snap:{n_snap}, v:{v}, Δ:{Δ}")
 
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
@@ -395,7 +455,41 @@ def get_gam_list(folder):
             np.prod([pai.gamma(angles[j], Δ) for j in range((i + 1) * n)])
             for i in range(n_snap)
         ]
+    
     return gam_list
+
+def get_gam_list_segmented(folder):
+    """Compute gam_list as [1] + cumulative products of per-dT segment factors Γ_s."""
+    params = dict(re.findall(r'([A-Za-zΔ]+)-([A-Za-z0-9_.]+)', folder))
+
+    N_base = int(params["N"])
+    dT = float(params["dT"])
+    T = float(params["T"])
+    q = int(params["q"])
+    n_snap = int(T / dT)                 # number of dT segments
+    N_total = N_base * n_snap            # total microsteps over [0, T]
+
+    v = params["Δ"]
+    Δ = np.pi / float(v.split('_')[-1]) if v.startswith('pi_over_') else float(v)
+
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+
+    # Per-microstep angles and gammas over the full horizon [0, T]
+    steps = np.linspace(0, T, N_total)
+    angles = [[2 * np.abs(coef) * T / N_total for coef in hamil.coefs(t)] for t in steps]
+    gammas = np.array([pai.gamma(angles[j], Δ) for j in range(N_total)], dtype=float)
+
+    # Segment boundaries for the n_snap circuits of length ~dT (ragged-safe via rounding)
+    cuts = np.round(np.linspace(0, N_total, n_snap + 1)).astype(int)
+
+    # Per-segment Γ_s then cumulative products: w_k = Π_{s=1..k} Γ_s
+    Gamma = np.array([np.prod(gammas[cuts[s]:cuts[s + 1]]) for s in range(n_snap)], dtype=float)
+    gam_list = np.concatenate(([1.0], np.cumprod(Gamma))).tolist()
+
+    return gam_list
+
 
 # ----------------------- Plot directly from a saved CSV --------------------- #
 def _parse_T_and_dT_from_name(path: str, all=False) -> Tuple[Optional[float], Optional[float], Optional[int], Optional[float]]:
@@ -436,43 +530,74 @@ def _parse_T_and_dT_from_name(path: str, all=False) -> Tuple[Optional[float], Op
 
 def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.png'):
     """
-    Reads a previously saved CSV of (run, indices, signs, results), reconstructs the runs,
+    Reads a previously saved CSV of (run, indices, signs, results, weights), reconstructs the runs,
     rebuilds a time axis from filename-encoded dT/T if available (fallback: time steps),
-    and calls the common plotting routine.
+    and calls the common plotting routine with an optional resampling overlay.
     """
     df = pd.read_csv(csv_path)
     if not {'run', 'indices', 'signs', 'results'}.issubset(df.columns):
         raise ValueError("CSV must have columns: run, indices, signs, results")
+    if 'weights' not in df.columns:
+        raise ValueError("CSV must have a 'weights' column for resampling with weights.")
 
-    # Reconstruct results as lists of floats
-    results = []
+    # Reconstruct per-run lists
+    results_ll = []
     for s in df['results'].astype(str).tolist():
         arr = json.loads(s)
-        results.append([float(x) for x in arr])
+        results_ll.append([float(x) for x in arr])
+
+    weights_ll = []
+    for s in df['weights'].astype(str).tolist():
+        arr = json.loads(s)
+        weights_ll.append([float(x) for x in arr])
+
+    gammas = [1.0, 1.1784691677652317, 1.3887895793732774, 1.636645699805052, 1.9287364957758042, 2.2729564930153385, 2.678609146690363, 3.156658291868529, 3.7200244701375227, 4.383934141389263, 5.166331219140593]
+    for i,results in enumerate(results_ll):
+        for j,result in enumerate(results):
+            results_ll[i][j] = ((result/np.abs(weights_ll[i][j]))*gammas[j])#*2-1
+
+    # Convert to aligned 2D arrays (runs × timesteps)
+    R = _ragged_to_2d(results_ll)  # weighted outcomes per spec (weight * measured)
+    W = _ragged_to_2d(weights_ll)
 
     # Time vector from filename if possible
     dT, T, q, delta = _parse_T_and_dT_from_name(csv_path, all=True)
-    max_len = max(len(r) for r in results)
+    max_len = R.shape[1]
     if dT is not None and T is not None:
-        # Keep consistent with length from data (T might imply n_timesteps+1)
-        Ts = np.arange(0, (max_len) * dT, dT)[:max_len]
+        Ts = np.arange(0, max_len * dT, dT)[:max_len]
     else:
-        Ts = np.arange(max_len, dtype=float)  # fallback to time steps
+        Ts = np.arange(max_len, dtype=float)
 
-    plot_results(Ts, results, q=q, delta=delta, lie_csv_path=lie_csv_path, save_path=save_plot_path,
-                 title='Measurement vs Time (from CSV)')
+    # Cannon-style resampling on the CSV-backed arrays
+    boot_mean, boot_std = resample_from_weights_results(W, R,
+                                                        n_bootstrap=10_000,
+                                                        sample_size=1_000,
+                                                        per_pair_rep=100,
+                                                        random_state=None)
+
+    # Standard plot + overlay the errorbar from resampling
+    plot_results(
+        Ts, results_ll, q=q, delta=delta, lie_csv_path=lie_csv_path, save_path=save_plot_path,
+        title='Measurement vs Time (from CSV)',
+    )
+
 
 if __name__ == "__main__":
     
     # Config
-    MODE            = "compute"   # "compute" or "from_csv"
+    MODE            = "from_csv"   # "compute" or "from_csv"
     FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2"
     GAM_LIST        = get_gam_list(FOLDER)
+
+
+    print([float(g) for g in GAM_LIST])
+
+
     OUT_DIR         = "TE-PAI-noSampling/data/many-circuits"
     CSV_BASENAME    = None
-    LIE_CSV         = "TE-PAI-noSampling/data/plotting/y2_data.csv"
+    LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-2-q-20.csv"
     OUT_PNG         = "results_vs_time.png"
-    CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-all-N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
+    CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
     MAX_WORKERS     = None
     N_RUNS          = None
 
