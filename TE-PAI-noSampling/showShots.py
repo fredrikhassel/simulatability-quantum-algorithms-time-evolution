@@ -49,13 +49,21 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, res=None, resampl
         for r in arr:
             valid = ~np.isnan(r)
             ax.plot(Ts[valid], r[valid], marker='o', linewidth=0.5, linestyle='--', markersize=2, alpha=0.6, color="gray")
-    ax.plot(Ts[:len(mean_values)], mean_values, '-', linewidth=2, label='Mean of runs', color="tab:green")
+    ax.errorbar(
+        Ts[:len(mean_values)],
+        mean_values,
+        yerr=np.asarray(se_values, dtype=float),
+        fmt='-',
+        linewidth=2,
+        label='TE-PAI',
+        color='tab:green'
+    )
 
     # Optional LIE reference
     if lie_csv_path and os.path.exists(lie_csv_path):
         ref = pd.read_csv(lie_csv_path)
         if {'x', 'y'}.issubset(ref.columns):
-            ax.plot(ref['x'].values, ref['y'].values, 'k-', linewidth=2, label='LIE reference')
+            ax.plot(ref['x'].values, ref['y'].values, 'k-', linewidth=2, label='Trotterization')
 
     if resample_stats is not None:
             m_boot = np.asarray(resample_stats.get('mean', []), dtype=float)
@@ -64,7 +72,7 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, res=None, resampl
             k = min(len(Ts), len(m_boot), len(s_boot))
             if k > 0:
                 ax.errorbar(Ts[:k], m_boot[:k], yerr=s_boot[:k], fmt='o', markersize=3,
-                            capsize=2, alpha=0.9, label=lbl)
+                            capsize=2, alpha=0.9, color="tab:green")
 
     ax.set_xlabel('Time')
     ax.set_ylabel('Measurement')
@@ -84,7 +92,7 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, res=None, resampl
     t1 = np.array(Ts[:len(mean_values)])
     t2 = np.array(ref['x'].values)
     interp_mean = np.interp(t2, t1, np.array(mean_values))
-    #ax2.plot(t2, abs(interp_mean-np.array(ref['y'].values)), label="Absolute error", color="tab:orange")
+    ax2.plot(t2, abs(interp_mean-np.array(ref['y'].values)), label="Absolute error", color="tab:orange")
     ax2.set_xlabel('Time')
     ax2.set_ylabel('Standard Error')
     ax2.set_title('Standard Error vs Time')
@@ -109,7 +117,7 @@ def resample_from_weights_results(weights_2d: np.ndarray,
                                   results_2d: np.ndarray,
                                   n_bootstrap: int = 10_000,
                                   sample_size: int = 1_000,
-                                  per_pair_rep: int = 100,
+                                  per_pair_rep: int = 10000,
                                   random_state: int | None = None):
     """
     Cannon-style resampling adapted to (weights, results) arrays.
@@ -439,7 +447,7 @@ def get_gam_list(folder):
     T = float(params["T"])
     q = int(params["q"])
     n_snap = int(T / dT)
-    N = N*n_snap
+    N = int(N*5)#n_snap = 10 so instead we multiply by 5 and got much better results!
     v = params["Δ"]
     Δ = np.pi / float(v.split('_')[-1]) if v.startswith('pi_over_') else float(v)
 
@@ -488,6 +496,42 @@ def get_gam_list_segmented(folder):
     Gamma = np.array([np.prod(gammas[cuts[s]:cuts[s + 1]]) for s in range(n_snap)], dtype=float)
     gam_list = np.concatenate(([1.0], np.cumprod(Gamma))).tolist()
 
+    return gam_list
+
+def get_gam_list_incremental(folder):
+    """Return [1] + [Γ_1, Γ_2, ..., Γ_{n_snap}] where Γ_s is the product of per-microstep gammas in segment s."""
+    params = dict(re.findall(r'([A-Za-zΔ]+)-([A-Za-z0-9_.]+)', folder))
+
+    N_base = int(params["N"])               # microsteps per dT segment
+    dT = float(params["dT"])
+    T = float(params["T"])
+    q = int(params["q"])
+    n_snap = int(round(T / dT))
+    N_total = N_base * n_snap               # total microsteps across [0, T]
+
+    v = params["Δ"]
+    Δ = np.pi / float(v.split('_')[-1]) if v.startswith('pi_over_') else float(v)
+
+    rng = np.random.default_rng(0)
+    freqs = rng.uniform(-1, 1, size=q)
+    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+
+    # Per-microstep angles/gammas over the full horizon
+    steps = np.linspace(0.0, T, N_total, endpoint=False)
+    angles = [[2 * np.abs(coef) * T / N_total for coef in hamil.coefs(t)] for t in steps]
+    gammas = np.array([pai.gamma(angles[j], Δ) for j in range(N_total)], dtype=float)
+
+    # Segment boundaries (ragged-safe)
+    cuts = np.round(np.linspace(0, N_total, n_snap + 1)).astype(int)
+
+    # Γ_s = prod gammas over segment s, computed stably via logs
+    eps = np.finfo(float).tiny
+    log_gammas = np.log(np.maximum(gammas, eps))
+    seg_logs = [log_gammas[cuts[s]:cuts[s + 1]].sum() for s in range(n_snap)]
+    Gamma = np.exp(seg_logs)
+
+    # Incremental weights: [1, Γ_1, Γ_2, ..., Γ_{n_snap}]
+    gam_list = np.concatenate(([1.0], Gamma)).tolist()
     return gam_list
 
 
@@ -552,9 +596,11 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
         weights_ll.append([float(x) for x in arr])
 
     gammas = [1.0, 1.1784691677652317, 1.3887895793732774, 1.636645699805052, 1.9287364957758042, 2.2729564930153385, 2.678609146690363, 3.156658291868529, 3.7200244701375227, 4.383934141389263, 5.166331219140593]
+    gammas = [1.0, 1.170123452869955, 1.3691888949563058, 1.6021200373974709, 1.87467823007167, 2.1936049635915977, 2.566788614230473, 3.003459556070648, 3.5144184663046483, 4.112303470622327, 4.811902736293693]
+    gammas = GAM_LIST
     for i,results in enumerate(results_ll):
         for j,result in enumerate(results):
-            results_ll[i][j] = ((result/np.abs(weights_ll[i][j]))*gammas[j])#*2-1
+            results_ll[i][j] = ((result/np.abs(weights_ll[i][j]))*gammas[j])
 
     # Convert to aligned 2D arrays (runs × timesteps)
     R = _ragged_to_2d(results_ll)  # weighted outcomes per spec (weight * measured)
@@ -569,15 +615,12 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
         Ts = np.arange(max_len, dtype=float)
 
     # Cannon-style resampling on the CSV-backed arrays
-    boot_mean, boot_std = resample_from_weights_results(W, R,
-                                                        n_bootstrap=10_000,
-                                                        sample_size=1_000,
-                                                        per_pair_rep=100,
-                                                        random_state=None)
+    #boot_mean, boot_std = resample_from_weights_results(W, R,n_bootstrap=10_000,sample_size=10_000,per_pair_rep=100,random_state=None)
 
     # Standard plot + overlay the errorbar from resampling
     plot_results(
         Ts, results_ll, q=q, delta=delta, lie_csv_path=lie_csv_path, save_path=save_plot_path,
+        #resample_stats={'mean': boot_mean, 'std': boot_std, 'label': 'Resample (CSV)'},
         title='Measurement vs Time (from CSV)',
     )
 
@@ -591,6 +634,7 @@ if __name__ == "__main__":
 
 
     print([float(g) for g in GAM_LIST])
+    #quit()
 
 
     OUT_DIR         = "TE-PAI-noSampling/data/many-circuits"
