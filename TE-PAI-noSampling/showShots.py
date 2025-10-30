@@ -40,7 +40,7 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, res=None, resampl
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     # --- Left subplot: runs + mean (+ optional LIE reference) ---
     ax = axes[0]
-    if True:
+    if False:
         for r in arr:
             valid = ~np.isnan(r)
             ax.plot(Ts[valid], r[valid], marker='o', linewidth=0.5, linestyle='--', markersize=2, alpha=0.6, color="gray")
@@ -49,7 +49,8 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, res=None, resampl
     ax2 = axes[1]
     times = Ts[:len(se_values)]
     if q is not None and delta is not None:
-        overhead = [calcOverhead(q, T, delta) / np.sqrt(10000) for T in times]
+        overhead = [calcOverhead(q, T, delta) / np.sqrt(n_runs[0]) for T in times]
+        
         ax2.plot(times, overhead, 'r--', linewidth=2, label='Theoretical Overhead / √shots')
         upper = mean_values + overhead
         lower = mean_values - overhead
@@ -62,6 +63,7 @@ def plot_results(Ts, results, q=None, delta=None, tuples=None, res=None, resampl
             zorder=1,
             label='Theoretical uncertainty band',
         )
+
         # dashed red boundary lines
         ax.plot(Ts[:len(mean_values)], upper, '--', color='red', alpha=0.6, linewidth=1.5, zorder=1)
         ax.plot(Ts[:len(mean_values)], lower, '--', color='red', alpha=0.6, linewidth=1.5, zorder=1)
@@ -245,6 +247,7 @@ def compute_and_save(
     plot_results(Ts, results, tuples=None, lie_csv_path=lie_csv_path, save_path=save_plot_path,
                 title='Measurement vs Time (computed)')
     return Ts, results, csv_path
+
 def compute_and_save_parallel(
     folder="TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_64-q-20-dT-0.2-T-2",
     n_runs_to_plot=100,
@@ -520,10 +523,12 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
 if __name__ == "__main__":
     
     # Config
-    MODE            = "compute"   # "compute" or "from_csv"
-    FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2"
+    MODE            = "from_csv"   # "compute" or "from_csv"
+    #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2"
+    FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2"
+
     GAM_LIST        = get_gam_list(FOLDER)
-    WRONG           = gam_list_for_stitched_time_indep(FOLDER)
+    SHOTS           = 100000
 
     print([float(g) for g in GAM_LIST])
 
@@ -531,9 +536,9 @@ if __name__ == "__main__":
     CSV_BASENAME    = None
     LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-2-q-20.csv"
     OUT_PNG         = "results_vs_time.png"
-    #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
-    CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.2-T-2.csv"
-    MAX_WORKERS     = 4
+    CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
+    #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2.csv"
+    MAX_WORKERS     = 6
     N_RUNS          = None
 
     if MODE == "compute":
