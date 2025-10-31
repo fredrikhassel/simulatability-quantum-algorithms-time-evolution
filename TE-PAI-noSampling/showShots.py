@@ -167,6 +167,7 @@ def compute_and_save(
     lie_csv_path=None,
     save_plot_path='results_vs_time.png',
     gam_list=None,
+    plot=True,
 ):
     """
     Runs the original computation, saves results to CSV (run, indices, signs, weights, results),
@@ -244,8 +245,9 @@ def compute_and_save(
     pd.DataFrame(rows, columns=["run", "indices", "signs", "weights", "results"]).to_csv(csv_path, index=False)
     print(f"Saved runs to: {csv_path}")
     # Plot (agnostic)
-    plot_results(Ts, results, tuples=None, lie_csv_path=lie_csv_path, save_path=save_plot_path,
-                title='Measurement vs Time (computed)')
+    if plot:
+        plot_results(Ts, results, tuples=None, lie_csv_path=lie_csv_path, save_path=save_plot_path,
+                    title='Measurement vs Time (computed)')
     return Ts, results, csv_path
 
 def compute_and_save_parallel(
@@ -257,6 +259,7 @@ def compute_and_save_parallel(
     save_plot_path='results_vs_time.png',
     gam_list=None,
     max_workers=None,  # optional, None -> default to os.cpu_count()-1
+    plot=True,
 ):
     """
     Parallel version of compute_and_save with progress prints.
@@ -357,8 +360,9 @@ def compute_and_save_parallel(
     pd.DataFrame(rows, columns=["run", "indices", "signs", "weights", "results"]).to_csv(csv_path, index=False)
     print(f"Saved runs to: {csv_path}", flush=True)
     # Plot (agnostic)
-    plot_results(Ts, results, tuples, lie_csv_path=lie_csv_path, save_path=save_plot_path,
-                title='Measurement vs Time (computed)')
+    if plot:
+        plot_results(Ts, results, tuples, lie_csv_path=lie_csv_path, save_path=save_plot_path,
+                    title='Measurement vs Time (computed)')
     total_time = time.time() - start_time
     print(f"[Done] All {total} runs finished in {total_time:.1f}s.", flush=True)
     return Ts, results, csv_path
@@ -523,22 +527,24 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
 if __name__ == "__main__":
     
     # Config
-    MODE            = "from_csv"   # "compute" or "from_csv"
+    MODE            = "compute"   # "compute" or "from_csv"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2"
-    FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2"
+    FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5"
+    #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2"
 
     GAM_LIST        = get_gam_list(FOLDER)
-    SHOTS           = 100000
+    SHOTS           = 100
 
     print([float(g) for g in GAM_LIST])
 
     OUT_DIR         = "TE-PAI-noSampling/data/many-circuits"
     CSV_BASENAME    = None
-    LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-2-q-20.csv"
+    #LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-2-q-20.csv"
+    LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-5-q-20.csv"
     OUT_PNG         = "results_vs_time.png"
     CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2.csv"
-    MAX_WORKERS     = 6
+    MAX_WORKERS     = None
     N_RUNS          = None
 
     if MODE == "compute":
@@ -550,7 +556,8 @@ if __name__ == "__main__":
             lie_csv_path=LIE_CSV,
             save_plot_path=OUT_PNG,
             gam_list=GAM_LIST,
-            max_workers=MAX_WORKERS
+            max_workers=MAX_WORKERS,
+            plot=False,
         )
     elif MODE == "from_csv":
         plot_from_csv(
