@@ -920,6 +920,446 @@ def plotMainCalc3(folder, both=True, justLengths=False, aligned=False):
         plt.savefig("cutoffImprovement")
 
 
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+from matplotlib.patches import Rectangle
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+
+def plot_main_calc_simple(
+    tepai_len_per_dt,         # scalar: gates per time step for TE-PAI
+    trotter_len_per_dt,       # scalar: gates per time step for Trotter
+    times,                    # np.array (T,)
+    trotter_bonds,            # np.array (T,)
+    tepai_bonds,              # np.array (T,)
+    trotter_vals,             # np.array (T,)
+    tepai_vals,               # np.array (T,)
+    tepai_stds,               # np.array (T,)
+    *,
+    aligned=False,
+    show=True,
+    savepath=None,
+):
+    """
+    Gate count at time t_k (k steps from t0) is: k * <len_per_dt>.
+    The main Trotter curve is drawn up to the *interpolated* time where its cost
+    first exceeds the TE-PAI final cost (no off-by-one).
+    The inset shows both series shifted by one Δt with identical point counts.
+    """
+    # --- arrays and basics
+    times         = np.asarray(times, float)
+    trotter_bonds = np.asarray(trotter_bonds, float)
+    tepai_bonds   = np.asarray(tepai_bonds, float)
+    trotter_vals  = np.asarray(trotter_vals, float)
+    tepai_vals    = np.asarray(tepai_vals, float)
+    tepai_stds    = np.asarray(tepai_stds, float)
+    if times.size == 0:
+        raise ValueError("`times` must be non-empty.")
+
+    # enforce common length for inset plotting safety
+    n = min(times.size, trotter_bonds.size, tepai_bonds.size,
+            trotter_vals.size, tepai_vals.size, tepai_stds.size)
+    times, trotter_bonds, tepai_bonds = times[:n], trotter_bonds[:n], tepai_bonds[:n]
+    trotter_vals, tepai_vals, tepai_stds = trotter_vals[:n], tepai_vals[:n], tepai_stds[:n]
+
+    t0, t_end = float(times[0]), float(times[-1])
+    dt = np.median(np.diff(times)) if len(times) > 1 else 1.0
+
+    # integer step index for each sample
+    steps = np.rint((times - t0) / dt).astype(int)
+    steps[steps < 0] = 0
+
+    # ---- Gate counts (per-dT length × step index)
+    trotter_gates = steps * float(trotter_len_per_dt)   # (n,)
+    tepai_gates   = steps * float(tepai_len_per_dt)     # (n,)
+
+    # TE-PAI "joined" series starts at 0 gates at t0
+    te_len_times_join = np.r_[t0, times]                # (n+1,)
+    te_len_vals_join  = np.r_[0.0, tepai_gates]         # (n+1,)
+
+    # Bonds (joined): prepend Trotter bond at join
+    bond_at_t0     = float(trotter_bonds[0]) if trotter_bonds.size else 0.0
+    paibond_x_join = np.r_[t0, times]
+    paibond_y_join = np.r_[bond_at_t0, tepai_bonds]
+
+    # Costs (depth) = gates * bond^3
+    trotcost_x = times
+    trotcost_y = trotter_gates * (trotter_bonds ** 3)
+    paicost_x  = te_len_times_join
+    paicost_y  = te_len_vals_join * (paibond_y_join ** 3)
+
+    te_final_cost = float(paicost_y[-1]) if paicost_y.size else 0.0
+
+    # --- Find exact (interpolated) crossing of Trotter cost with TE-PAI final cost
+    mask = trotcost_y > te_final_cost
+    if mask.any():
+        i_cross = int(np.argmax(mask))  # first index where Trotter cost exceeds
+        if i_cross == 0:
+            # crossing occurs before/at first sample
+            t_cut = float(times[0])
+            y_cut = float(trotter_vals[0])
+        else:
+            t1, t2 = times[i_cross-1], times[i_cross]
+            c1, c2 = trotcost_y[i_cross-1], trotcost_y[i_cross]
+            # linear interpolate to cost == te_final_cost
+            frac = 0.0 if c2 == c1 else float((te_final_cost - c1) / (c2 - c1))
+            frac = min(max(frac, 0.0), 1.0)
+            t_cut = float(t1 + frac * (t2 - t1))
+            # also interpolate the plotted observable for a smooth cutoff
+            y1, y2 = trotter_vals[i_cross-1], trotter_vals[i_cross]
+            y_cut = float(y1 + frac * (y2 - y1))
+        adv_time = t_cut
+    else:
+        i_cross = None
+        adv_time = t_end
+
+    # --- Plot styling
+    plt.rcParams.update({
+        'figure.dpi': 200, 'savefig.dpi': 300,
+        'font.size': 8, 'axes.titlesize': 9, 'axes.labelsize': 8,
+        'xtick.labelsize': 7, 'ytick.labelsize': 7, 'legend.fontsize': 7,
+        'axes.linewidth': 0.8,
+    })
+    fig = plt.figure(figsize=(6, 4), constrained_layout=True)
+    gs  = fig.add_gridspec(2, 3, height_ratios=[1.5, 1.0])
+    fig.set_constrained_layout_pads(h_pad=0.02, w_pad=0.02, hspace=0.03, wspace=0.04)
+
+    # ===== A: main
+    ax_main = fig.add_subplot(gs[0, :])
+
+    # Build Trotter line up to the exact crossing point (no off-by-one)
+    if i_cross is None:
+        # never exceeds: draw full Trotter
+        x_trot = times
+        y_trot = trotter_vals
+    elif i_cross == 0:
+        # exceeds at first sample: just draw the (possibly zero-length) cutoff point
+        x_trot = np.array([t_cut])
+        y_trot = np.array([y_cut])
+    else:
+        x_trot = np.r_[times[:i_cross], t_cut]
+        y_trot = np.r_[trotter_vals[:i_cross], y_cut]
+
+    ax_main.plot(x_trot, y_trot, color='black', lw=1.0, label='Trotterization')
+
+    # TE-PAI points with error bars
+    ax_main.errorbar(times, tepai_vals, yerr=tepai_stds, fmt='o', ms=2.2, lw=0.9,
+                     color='tab:green', label='TE-PAI')
+    ax_main.axvline(t_end, linestyle='--', color='tab:green', lw=0.9)
+
+    # Advantage shading from adv_time to end
+    if i_cross is not None:
+        ax_main.axvline(adv_time, linestyle='--', color='black', lw=0.9)
+        ax_main.axvspan(adv_time, t_end, color='tab:green', alpha=0.18, label='TE-PAI advantage')
+
+    ax_main.set_xlim(t0, t_end)
+    ax_main.set_title(r"$\mathbf{A}$: TE-PAI simulation advantage", fontsize=9, pad=3)
+    ax_main.set_xlabel('Time', fontsize=8, labelpad=1)
+    ax_main.set_ylabel(r'$\langle X_0 \rangle$', fontsize=8, labelpad=1)
+    ax_main.tick_params(labelsize=7, pad=1)
+    legend = ax_main.legend(loc='upper right', framealpha=1)
+    legend.get_frame().set_facecolor('white')
+    ax_main.grid(True, alpha=0.25)
+    ax_main.xaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax_main.yaxis.set_major_locator(MaxNLocator(nbins=5))
+
+    # Inset: both series shifted by one Δt, *same number of points*, fully visible
+    if not aligned and times.size:
+        y_min_zoom = min(np.min(trotter_vals), np.min(tepai_vals))
+        y_max_zoom = max(np.max(trotter_vals), np.max(tepai_vals))
+        rect = Rectangle((t0, y_min_zoom), t_end - t0, y_max_zoom - y_min_zoom,
+                         linestyle='--', linewidth=0.8, edgecolor='black', fill=False)
+        ax_main.add_patch(rect)
+
+        inset = inset_axes(ax_main, width='52%', height='36%', loc='lower left')
+
+        cont_x = times[:n] - dt  # identical for both series
+        inset.plot(cont_x, trotter_vals[:n], color='gray', linestyle='--', lw=0.9,
+                   label='Trotterization (continued, shifted)')
+        inset.errorbar(cont_x, tepai_vals[:n], yerr=tepai_stds[:n], fmt='o', ms=1.9, lw=0.8,
+                       color='tab:green', label='_nolegend_')
+
+        inset.set_xlim(float(cont_x.min()), float(cont_x.max()))
+        inset.set_xticks([]); inset.set_yticks([])
+        il = inset.legend(loc='lower left', bbox_to_anchor=(0.0, 1.02), bbox_transform=inset.transAxes,
+                          borderaxespad=0.0, frameon=True, framealpha=1.0, fontsize=6,
+                          handlelength=1.1, handletextpad=0.4)
+        il.get_frame().set_facecolor('white')
+
+    # ===== B: Max bond dimension (joined)
+    axB = fig.add_subplot(gs[1, 0])
+    axB.plot(times, trotter_bonds, color='black', lw=1.0, label='Trotterization')
+    axB.plot(paibond_x_join, paibond_y_join, color='tab:green', lw=1.0, label='TE-PAI')
+    axB.set_ylabel('Dimension')
+    axB.grid(True, alpha=0.25)
+    axB.set_xlabel('Time')
+    axB.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    axB.yaxis.set_major_locator(MaxNLocator(nbins=4))
+
+    # ===== C: Circuit gate count (joined)
+    axC = fig.add_subplot(gs[1, 1])
+    axC.plot(times, trotter_gates, color='black', lw=1.0, label='Trotterization')
+    axC.plot(te_len_times_join, te_len_vals_join, color='tab:green', lw=1.0, label='TE-PAI')
+    axC.set_ylabel('Gates')
+    axC.grid(True, alpha=0.25)
+    axC.set_xlabel('Time')
+    axC.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    axC.yaxis.set_major_locator(MaxNLocator(nbins=4))
+
+    # ===== D: Computational depth (Flops)
+    axD = fig.add_subplot(gs[1, 2])
+    axD.plot(trotcost_x, trotcost_y, color='black', lw=1.0, label='Trotterization')
+    axD.plot(paicost_x, paicost_y, color='tab:green', lw=1.0, label='TE-PAI')
+
+    if i_cross is not None:
+        # extend the gray region from the threshold to the plot top
+        top_y = max(axD.get_ylim()[1],
+                    float(np.nanmax([trotcost_y.max(initial=0),
+                                     paicost_y.max(initial=0),
+                                     te_final_cost])))
+        # determine span on the x-axis where Trotter cost > TE-PAI final
+        x_min = adv_time
+        x_max = float(trotcost_x[mask].max())
+        axD.add_patch(Rectangle((x_min, te_final_cost),
+                                x_max - x_min, top_y - te_final_cost,
+                                color='gray', alpha=0.25))
+        axD.set_ylim(axD.get_ylim()[0], top_y)
+
+    axD.set_ylabel('Flops')
+    axD.set_xlabel('Time')
+    axD.grid(True, alpha=0.25)
+    axD.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    axD.yaxis.set_major_locator(MaxNLocator(nbins=4))
+
+    # Titles & cosmetics
+    for a in (axB, axC, axD):
+        a.title.set_fontsize(8)
+        a.set_xlabel('Time', fontsize=8, labelpad=1)
+        a.set_ylabel(a.get_ylabel(), fontsize=8, labelpad=1)
+        a.tick_params(labelsize=7, pad=1)
+    fig.set_constrained_layout_pads(w_pad=0.025)
+    title_kwargs = dict(fontsize=7, pad=1, loc='left', y=1.1)
+    axB.set_title(r"$\mathbf{B}$: Max bond dimension", **title_kwargs)
+    axC.set_title(r"$\mathbf{C}$: Circuit gate count", **title_kwargs)
+    axD.set_title(r"$\mathbf{D}$: Computational depth", **title_kwargs)
+
+    # Axis-scale suffixing (×10^k prettifier)
+    def _suffix_axis(ax, data, base_label):
+        arr = np.asarray(data, float)
+        if arr.size == 0:
+            return
+        maxval = float(np.nanmax(np.abs(arr)))
+        exp = int(np.floor(np.log10(maxval))) if maxval > 0 else 0
+        if exp > 1:
+            ticks = ax.get_yticks()
+            scaled = ticks / 10**exp
+            ax.set_yticklabels([f"{t:g}" for t in scaled])
+            ax.set_ylabel(rf"{base_label} ($\times10^{{{exp}}}$)")
+        else:
+            ax.set_ylabel(base_label)
+
+    _suffix_axis(axB, paibond_y_join, 'Dimension')
+    _suffix_axis(axC, te_len_vals_join, 'Gates')
+    _suffix_axis(axD, np.r_[trotcost_y, paicost_y], 'Flops')
+
+    if savepath:
+        fig.savefig(savepath, bbox_inches='tight')
+    if show:
+        plt.show()
+    return fig, (ax_main, axB, axC, axD)
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+
+def plot_main_calc_simple_2x1(
+    tepai_len_per_dt,         # scalar: gates per time step for TE-PAI
+    trotter_len_per_dt,       # scalar: gates per time step for Trotter
+    times,                    # np.array (T,)
+    trotter_bonds,            # np.array (T,)
+    tepai_bonds,              # np.array (T,)
+    trotter_vals,             # np.array (T,)
+    tepai_vals,               # np.array (T,)
+    tepai_stds,               # np.array (T,)
+    *,
+    aligned=False,            # kept for signature compatibility (ignored)
+    show=True,
+    savepath=None,
+):
+    """
+    2×1 version:
+      Top: expectation values for Trotter and TE-PAI (full, no cutoff),
+           with TE-PAI advantage region marked. No inset, no horizontal lines.
+      Bottom: depth ν (solid, primary) with χ_max and 𝒞 (both scaled) shown
+              as thin dashed lines, using color for method (black=Trotter, tab:green=TE-PAI)
+              and dash style for quantity (short dashes=χ_max, long dashes=𝒞).
+      Legends sit to the RIGHT of each subplot in a single column.
+    """
+    # --- arrays and basics
+    times         = np.asarray(times, float)
+    trotter_bonds = np.asarray(trotter_bonds, float)
+    tepai_bonds   = np.asarray(tepai_bonds, float)
+    trotter_vals  = np.asarray(trotter_vals, float)
+    tepai_vals    = np.asarray(tepai_vals, float)
+    tepai_stds    = np.asarray(tepai_stds, float)
+    if times.size == 0:
+        raise ValueError("`times` must be non-empty.")
+
+    # enforce common length
+    n = min(times.size, trotter_bonds.size, tepai_bonds.size,
+            trotter_vals.size, tepai_vals.size, tepai_stds.size)
+    times, trotter_bonds, tepai_bonds = times[:n], trotter_bonds[:n], tepai_bonds[:n]
+    trotter_vals, tepai_vals, tepai_stds = trotter_vals[:n], tepai_vals[:n], tepai_stds[:n]
+
+    t0, t_end = float(times[0]), float(times[-1])
+    dt = np.median(np.diff(times)) if len(times) > 1 else 1.0
+
+    # integer step index for each sample
+    steps = np.rint((times - t0) / dt).astype(int)
+    steps[steps < 0] = 0
+
+    # ---- Gate counts (per-dt length × step index)
+    trotter_gates = steps * float(trotter_len_per_dt)
+    tepai_gates   = steps * float(tepai_len_per_dt)
+
+    # TE-PAI bonds/gates "joined" from t0
+    bond_at_t0     = float(trotter_bonds[0]) if trotter_bonds.size else 0.0
+    paibond_x_join = np.r_[t0, times]
+    paibond_y_join = np.r_[bond_at_t0, tepai_bonds]
+
+    te_len_times_join = np.r_[t0, times]
+    te_len_vals_join  = np.r_[0.0, tepai_gates]
+
+    # Costs (depth) = gates * bond^3  -> we call this ν
+    trotcost_x = times
+    trotcost_y = trotter_gates * (trotter_bonds ** 3)
+    paicost_x  = te_len_times_join
+    paicost_y  = te_len_vals_join * (paibond_y_join ** 3)
+    te_final_cost = float(paicost_y[-1]) if paicost_y.size else 0.0
+
+    # --- Find interpolated crossing time where Trotter depth first exceeds TE-PAI final depth
+    mask = trotcost_y > te_final_cost
+    if mask.any():
+        i_cross = int(np.argmax(mask))
+        if i_cross == 0:
+            t_cut = float(times[0])
+        else:
+            t1, t2 = times[i_cross-1], times[i_cross]
+            c1, c2 = trotcost_y[i_cross-1], trotcost_y[i_cross]
+            frac = 0.0 if c2 == c1 else float((te_final_cost - c1) / (c2 - c1))
+            frac = min(max(frac, 0.0), 1.0)
+            t_cut = float(t1 + frac * (t2 - t1))
+        adv_time = t_cut
+    else:
+        i_cross = None
+        adv_time = t_end
+
+    # --- Plot styling
+    plt.rcParams.update({
+        'figure.dpi': 200, 'savefig.dpi': 300,
+        'font.size': 8, 'axes.titlesize': 9, 'axes.labelsize': 8,
+        'xtick.labelsize': 7, 'ytick.labelsize': 7, 'legend.fontsize': 7,
+        'axes.linewidth': 0.8,
+    })
+    fig, axes = plt.subplots(2, 1, figsize=(7.8, 6.2), constrained_layout=True)
+    ax_exp, ax_meta = axes
+
+    # ===== Top: expectation values (full, no cutoff)
+    ax_exp.plot(times, trotter_vals, color='black', lw=1.0, label='Trotterization')
+    ax_exp.errorbar(times, tepai_vals, yerr=tepai_stds, fmt='o', ms=2.2, lw=0.9,
+                    color='tab:green', label='TE-PAI')
+
+    # Advantage markers
+    ax_exp.axvline(t_end, linestyle='--', color='tab:green', lw=0.9)
+    if i_cross is not None:
+        ax_exp.axvline(adv_time, linestyle='--', color='black', lw=0.9)
+        ax_exp.axvspan(adv_time, t_end, color='tab:green', alpha=0.18,
+                       label='TE-PAI advantage')
+
+    ax_exp.set_xlim(t0, t_end)
+    ax_exp.set_xlabel('Time', labelpad=1)
+    ax_exp.set_ylabel(r'$\langle X_0 \rangle$', labelpad=1)
+    ax_exp.grid(True, alpha=0.25)
+    ax_exp.xaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax_exp.yaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax_exp.set_title(r"$\mathbf{A}$: Expectation value and TE-PAI advantage", pad=3)
+
+    # Legend to the right (single column)
+    leg_exp = ax_exp.legend(loc='center left', bbox_to_anchor=(1.02, 0.5),
+                            ncol=1, framealpha=1, borderaxespad=0.0)
+    leg_exp.get_frame().set_facecolor('white')
+
+    # ===== Bottom: ν (solid) with χ_max and 𝒞 (both scaled, dashed)
+    # Depth ν (primary, solid)
+    ax_meta.plot(trotcost_x, trotcost_y, color='black', lw=1.4, label=r'$\mathcal{D}$ — Trotter')
+    ax_meta.plot(paicost_x,  paicost_y,  color='tab:green', lw=1.4, label=r'$\mathcal{D}$ — TE-PAI')
+
+    # Compute scale factors to map χ_max and 𝒞 onto the ν axis
+    def _safe_max(arr):
+        a = np.asarray(arr, float)
+        if a.size == 0 or not np.isfinite(a).any():
+            return 0.0
+        return float(np.nanmax(np.abs(a)))
+
+    depth_max = max(_safe_max(trotcost_y), _safe_max(paicost_y), 1e-12)
+    bonds_max = max(_safe_max(trotter_bonds), _safe_max(paibond_y_join), 1e-12)
+    gates_max = max(_safe_max(trotter_gates), _safe_max(te_len_vals_join), 1e-12)
+    s_bonds = depth_max / bonds_max
+    s_gates = depth_max / gates_max
+
+    # Dash styles: short = χ_max, long = 𝒞
+    ls_bonds = (0, (2.0, 2.0))
+    ls_gates = (0, (5.0, 2.5))
+
+    # χ_max (scaled)
+    ax_meta.plot(times, trotter_bonds * s_bonds,
+                 color='black', linestyle=ls_bonds, lw=0.9, alpha=0.9,
+                 label=r'$\chi_{\max}$ (scaled) — Trotter')
+    ax_meta.plot(paibond_x_join, paibond_y_join * s_bonds,
+                 color='tab:green', linestyle=ls_bonds, lw=0.9, alpha=0.8,
+                 label=r'$\chi_{\max}$ (scaled) — TE-PAI')
+
+    # 𝒞 (scaled) — interpret as circuit gate count scaled onto ν axis
+    ax_meta.plot(times, trotter_gates * s_gates,
+                 color='black', linestyle=ls_gates, lw=0.9, alpha=0.9,
+                 label=r'$\nu$ (scaled) — Trotter')
+    ax_meta.plot(te_len_times_join, te_len_vals_join * s_gates,
+                 color='tab:green', linestyle=ls_gates, lw=0.9, alpha=0.8,
+                 label=r'$\nu$ (scaled) — TE-PAI')
+
+
+    # No shaded region on this panel
+    ax_meta.set_xlabel('Time', labelpad=1)
+    ax_meta.set_ylabel(r'Depth $\mathcal{D}$ (Flops)', labelpad=1)
+    ax_meta.grid(True, alpha=0.25)
+    ax_meta.xaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax_meta.yaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax_meta.set_title(r"$\mathbf{B}$: Computational depth with scaled $\chi_{\max}$ and $\nu$", pad=3)
+
+    # Move scientific offset text inside the axes (top-left) to avoid title collision
+    fig.canvas.draw()
+    off = ax_meta.yaxis.get_offset_text().get_text()
+    if off:
+        ax_meta.yaxis.get_offset_text().set_visible(False)
+        ax_meta.text(0.02, 0.98, off, transform=ax_meta.transAxes,
+                     va='top', ha='left', fontsize=7,
+                     bbox=dict(facecolor='white', alpha=0.8, edgecolor='none', pad=1.5))
+
+    # Legend to the right (single column)
+    leg_meta = ax_meta.legend(loc='center left', bbox_to_anchor=(1.02, 0.5),
+                              ncol=1, framealpha=1, borderaxespad=0.0)
+    leg_meta.get_frame().set_facecolor('white')
+
+    if savepath:
+        fig.savefig(savepath, bbox_inches='tight')
+    if show:
+        plt.show()
+
+    return fig, (ax_exp, ax_meta)
+
+
+
 
 def plotManyCalc(folder, justLengths=False):
     param_parts = folder.split("/")[-1].split("-")
