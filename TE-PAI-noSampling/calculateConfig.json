@@ -1,12 +1,15 @@
 {
-   "generate": {},
-    "simulate": {},
-    "lie": {"1" : {
-        "q": 20,
+   "generate": {"1": {
+        "numQs": 20,
+        "Δ": 7,
         "T": 5,
-        "N": 1000,
-        "n": 10,
-        "Hamiltonian": "SCH" }
-    },
+        "dT": 0.5,
+        "N": 100,
+        "circuit_pool_size": 1000,
+        "Hamiltonian": "SCH"
+        }
+   },
+    "simulate": {},
+    "lie": {},
     "trotterThenTEPAI": {}
-}
+} 
