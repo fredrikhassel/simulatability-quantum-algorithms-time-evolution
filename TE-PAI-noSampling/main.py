@@ -58,6 +58,15 @@ class TE_PAI:
 
         index = batch_sampling(np.array(self.probs), num_circuits)
 
+        # --- quick path: just return generated circuits if no paths provided ---
+        if sign_file_path is None or gates_file_path is None:
+            circuits = []
+            for idx in index:
+                sign, gates_arr = self.gen_rand_cir_with_details(idx, err=err)
+                circuits.append((sign, gates_arr))
+            return circuits
+
+
         # how many chunks of 100?
         chunk = 500
         num_chunks = (num_circuits + chunk-1) // chunk
