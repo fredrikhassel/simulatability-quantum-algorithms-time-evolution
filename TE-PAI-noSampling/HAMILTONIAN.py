@@ -17,9 +17,9 @@ class Hamiltonian:
         print("Number of terms in the Hamiltonian:" + str(len(self.terms)))
 
     @staticmethod
-    def spin_chain_hamil(n, freqs):
+    def spin_chain_hamil(n, freqs, j=0.1):
         def J(t):
-            return 0.1#np.cos(20 * t * np.pi)#0.1#
+            return j#np.cos(20 * t * np.pi)#0.1#
         terms = [
             (gate, [k, (k + 1) % n], J)
             for k, gate in product(range(n), ["XX", "YY", "ZZ"])
@@ -28,11 +28,11 @@ class Hamiltonian:
         return Hamiltonian(n, terms)
     
     @staticmethod
-    def next_nearest_neighbor_hamil(n, freqs):
+    def next_nearest_neighbor_hamil(n, freqs, j1=0.1, j2=0.05):
         def J1(t):
-            return 0.1  #np.cos(20 * t * np.pi)
+            return j1  #np.cos(20 * t * np.pi)
         def J2(t):
-            return 0.05 #np.cos(10 * t * np.pi)
+            return j2 #np.cos(10 * t * np.pi)
         terms = [
             (gate, [k, (k + 1) % n], J1)
             for k, gate in product(range(n), ["XX", "YY", "ZZ"])
