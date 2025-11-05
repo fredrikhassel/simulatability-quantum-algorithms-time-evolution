@@ -292,9 +292,12 @@ def generate_random_indices(pool_size, output_length, entry_length):
     rng = np.random.default_rng()  # Create RNG instance with optional seed
     return [list(rng.integers(0, pool_size, size=entry_length)) for _ in range(output_length)]
 
-def getCircuit(q, flip=False, mps=True):
+def getCircuit(q, flip=False, mps=True, max_bond = None):
     if mps:
-        quimb = qtn.CircuitMPS(q, cutoff = 1e-12)
+        if max_bond is None:
+            quimb = qtn.CircuitMPS(q, cutoff = 1e-12)
+        else:
+            quimb = qtn.CircuitMPS(q, max_bond = max_bond, cutoff = 1e-12)
     else:
         quimb = qtn.Circuit(q)
     for i in range(q):
