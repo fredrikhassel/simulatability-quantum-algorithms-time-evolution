@@ -346,7 +346,10 @@ def applyGates(circuit, gates):
     'ZZ': 'rzz',
     'Z': 'rz'
     }
+    i = 1
     for gate in gates:
+        print(f"Applying gate {i}/{len(gates)}: {gate}")
+        i += 1
         # Getting gate details
         gate_name = gate[0]
         angle = gate[1]
