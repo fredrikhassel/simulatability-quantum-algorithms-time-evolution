@@ -56,7 +56,7 @@ def trotterSimulation(hamil, N, n_snapshot, c, Δ_name, T, numQs):
         print("Skipping Lie-Trotter data generation.")
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
-def generate(params):
+def generate(params,n_workers=None):
     # Parameters
     print(params)
     numQs, Δ, T, dT, N, circuit_pool_size, H_name = params
@@ -137,6 +137,7 @@ def generate(params):
         gates_file_path=gates_file_path,
         overhead=te_pai.overhead,
         verbose=True,
+        n_workers=n_workers
     )
     clearDataFolder('./data')
 
