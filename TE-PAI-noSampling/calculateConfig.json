@@ -1,9 +1,9 @@
 {
    "generate": {"1": {
         "numQs": 20,
-        "Δ": 7,
-        "T": 5,
-        "dT": 0.5,
+        "Δ": 8,
+        "T": 1.0,
+        "dT": 1.0,
         "N": 100,
         "circuit_pool_size": 1000,
         "Hamiltonian": "SCH"
