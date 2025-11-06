@@ -57,7 +57,7 @@ def main():
         # Convert dict values to array (ensure the order matches generate() expectations)
         param_array = list(params.values())
 
-        generate(param_array)
+        generate(param_array, None)
  
         print(f"[GENERATION {key}] Finished.\n")
 
