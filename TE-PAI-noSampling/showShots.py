@@ -50,7 +50,7 @@ def plot_results(
 
     # --- Left subplot: runs + mean (+ optional LIE reference) ---
     ax = axes[0]
-    if True:
+    if False:
         for r in arr:
             valid = ~np.isnan(r)
             ax.plot(Ts[valid], r[valid], marker='o', linewidth=0.5, linestyle='--', markersize=2, alpha=0.6, color="gray")
@@ -599,6 +599,7 @@ if __name__ == "__main__":
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2.csv"
     CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5.csv"
+    #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-1000-Δ-pi_over_128-q-20-dT-0.5-T-5.csv"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100-Δ-pi_over_128-q-20-dT-0.5-T-5.csv"
     MAX_WORKERS     = None
     N_RUNS          = None
