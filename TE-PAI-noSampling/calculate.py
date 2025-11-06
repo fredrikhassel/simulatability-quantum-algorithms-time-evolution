@@ -57,7 +57,7 @@ def main():
         # Convert dict values to array (ensure the order matches generate() expectations)
         param_array = list(params.values())
 
-        generate(param_array, None)
+        generate(param_array, N_WORKERS)
  
         print(f"[GENERATION {key}] Finished.\n")
 
@@ -135,4 +135,7 @@ def main():
 if __name__ == "__main__":
     print("Starting main process...")
     multiprocessing.set_start_method("spawn", force=True)
+    import platform
+    N_WORKERS = None if platform.system() == "Linux" else 4
+
     main()
