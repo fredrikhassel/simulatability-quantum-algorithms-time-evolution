@@ -1,11 +1,11 @@
 {
    "generate": {"1": {
         "numQs": 25,
-        "Δ": 6,
+        "Δ": 10,
         "T": 1,
         "dT": 0.1,
         "N": 100,
-        "circuit_pool_size": 1,
+        "circuit_pool_size": 1000,
         "Hamiltonian": "2D"
         }
    },

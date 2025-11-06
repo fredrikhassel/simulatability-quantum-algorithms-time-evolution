@@ -5,8 +5,10 @@ from scipy.stats import binom
 
 """This module contains the sampling functions used in the TE-PAI paper."""
 
-def batch_sampling(probs, batch_size):
-    return mp.Pool(mp.cpu_count()-2).map(sample_from_prob, [probs] * batch_size)
+def batch_sampling(probs, batch_size, n_workers=None):
+    if n_workers is not None:
+        return mp.Pool(n_workers).map(sample_from_prob, [probs] * batch_size) 
+    return mp.Pool(mp.cpu_count()-1).map(sample_from_prob, [probs] * batch_size)
 
 @jit(nopython=True)
 def custom_random_choice(prob):
