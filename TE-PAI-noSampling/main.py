@@ -51,8 +51,14 @@ class TE_PAI:
         res = batch_sampling(np.array(self.probs), n)
         return [sum(len(r) for r in re) for re in res]
 
-    def run_te_pai(self, num_circuits, sign_file_path, gates_file_path, overhead, err=None):
-        index = batch_sampling(np.array(self.probs), num_circuits)
+    def run_te_pai(self, num_circuits, sign_file_path, gates_file_path, overhead, err=None, verbose=False, n_workers=None):
+
+        if verbose:
+            print(f"Generating {num_circuits} circuits with TE-PAI...")
+
+        index = batch_sampling(np.array(self.probs), num_circuits, n_workers)
+
+        n_pool = mp.cpu_count() if n_workers is None else n_workers
 
         # --- quick path: just return generated circuits if no paths provided ---
         if sign_file_path is None or gates_file_path is None:
@@ -68,6 +74,9 @@ class TE_PAI:
         num_chunks = (num_circuits + chunk-1) // chunk
 
         for chunk_idx in range(num_chunks):
+            if verbose:
+                print(f"Processing chunk {chunk_idx+1}/{num_chunks}...")
+
             # slice of the global index for this chunk
             start = chunk_idx * chunk
             end = min(start + chunk, num_circuits)
@@ -94,7 +103,9 @@ class TE_PAI:
                 f.write('{\n')
                 first_entry = True
 
-                with mp.Pool(4) as pool:
+                with mp.Pool(n_pool) as pool:
+                    if verbose:
+                        print(f"Launching 4 worker processes for chunk {chunk_idx+1}...")
                     for j, (sign_val, circuit) in enumerate(
                         pool.imap_unordered(
                             partial(self.gen_rand_cir_with_details, err=err),
@@ -102,6 +113,10 @@ class TE_PAI:
                         ),
                         start=1
                     ):
+                        
+                        if verbose:
+                            print(f"Processing circuit {j} in chunk {chunk_idx+1}...")
+
                         sign_list.append(sign_val)
 
                         # build the circuit dict exactly as before

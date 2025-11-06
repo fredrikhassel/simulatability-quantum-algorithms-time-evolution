@@ -180,10 +180,9 @@ def HDF5toDict(folder_name):
 
     return extracted_data
 
-def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False, NNN=False):
+def parse(folder, isJSON, draw, saveAndPlot, H_name, optimize=False, flip=False):
     if not os.path.isdir(folder):
         folder = strip_trailing_dot_zero(folder)
-
     if isJSON:
         data_dict = JSONtoDict(folder)
     else:
@@ -211,7 +210,8 @@ def parse(folder, isJSON, draw, saveAndPlot, optimize=False, flip=False, NNN=Fal
 
     pattern = r"dT-([0-9]+(?:\.[0-9]+)?)"
     match = re.search(pattern, folder)
-    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char,NNN)
+    saveData(N,n,c,Δ,Ts,q,float(match.group(1)),averages,stds,char,H_name)
+
     if saveAndPlot:
         trotter(100,10,float(T),int(q),compare=False,save=True, flip=flip)
         plot_data_from_folder("TE-PAI-noSampling/data/plotting")
@@ -360,6 +360,7 @@ def applyGates(circuit, gates):
         if len(qubit_indices) == 1:
             circuit.apply_gate(gate_id=quimb_gate_name, qubits=[qubit_indices[0]], params=[angle])
         elif len(qubit_indices) == 2:
+            #print(f"Applying gate {quimb_gate_name} on qubit {qubit_indices[0]} with angle {angle}")
             circuit.apply_gate(gate_id=quimb_gate_name, qubits=qubit_indices, params=[angle])
         else:
             raise ValueError(f"Unsupported number of qubits for gate {quimb_gate_name}: {len(qubit_indices)}")
@@ -524,14 +525,18 @@ def fullCalc(tepaiPath, T, N, n, flip=True, skip_trotter=False):
     m = re.match(pattern, params['Δ'])
     divisor = float(m.group(1))
     Δ = np.pi / divisor
-    NNN = "NNN_" in tepaiPath
+    H_name = "SCH"
     base_dir = 'TE-PAI-noSampling/data/plotting'
-    if NNN:
+    if "NNN_" in tepaiPath:
+        H_name == "NNN"
         base_dir = 'TE-PAI-noSampling/NNN_data/plotting'
+    if "2D_" in tepaiPath:
+        H_name == "2D"
+        base_dir = 'TE-PAI-noSampling/2D_data/plotting'
 
     # Performing main trotterization
     if not skip_trotter:
-        ts1, res1, comp1, circuits = trotter(N=N, n_snapshot=n, T=T, q=int(q), compare=False, save=True, draw=False, flip=flip, circuitList=True, NNN=NNN)
+        ts1, res1, comp1, circuits = trotter(N=N, n_snapshot=n, T=T, q=int(q), compare=False, save=True, draw=False, flip=flip, circuitList=True)
         save_trotter(ts1, comp1[0], comp1[1], N, n, T, q, base_dir=base_dir)
 
     # Performing TE-PAI
@@ -544,7 +549,7 @@ def fullCalc(tepaiPath, T, N, n, flip=True, skip_trotter=False):
     circ1 = circuit.copy()
     Ts = np.linspace(0,T,len(averages))
 
-    saveData(params['N'],params['n'],params['p'],params['Δ'],Ts,q,dT,averages,stds,"p", NNN=NNN)
+    saveData(params['N'],params['n'],params['p'],params['Δ'],Ts,q,dT,averages,stds,"p", H_name)
     circ2 = circuits[-1].copy()
 
     # Saving TEPAI costs
@@ -562,10 +567,15 @@ def fullCalc(tepaiPath, T, N, n, flip=True, skip_trotter=False):
     len2 = len(circ2.gates)
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
-    if not NNN:
+    if H_name == "SCH":
         hamil = Hamiltonian.spin_chain_hamil(q, freqs)
-    if NNN:
+        target_base = Path("TE-PAI-noSampling/data/fullCalc")
+    if H_name == "NNN":
         hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
+        target_base = Path("TE-PAI-noSampling/NNN_data/fullCalc")
+    if H_name == "2D":
+        hamil = Hamiltonian.lattice_2d_hamil(q, freqs=freqs)
+        target_base = Path("TE-PAI-noSampling/2D_data/fullCalc")
     te_pai = TE_PAI(hamil, q, Δ, params['dT'], 1000, 1)
     lentep = te_pai.expected_num_gates
     n1 = int(n1)
@@ -579,9 +589,6 @@ def fullCalc(tepaiPath, T, N, n, flip=True, skip_trotter=False):
         writer.writerow(['trotter1', 'trotter2', 'TEPAI'])
         writer.writerow([lengths1, lengths2, lengthstep])
 
-    target_base = Path("TE-PAI-noSampling/data/fullCalc")
-    if NNN:
-        target_base = Path("TE-PAI-noSampling/NNN_data/fullCalc")
     organize_trotter_tepai(plotting_dir=Path(base_dir), target_base=target_base)
 
 def manyCalc(tepaiPath, Tf, Tis, N, n, flip=True,):
@@ -807,7 +814,7 @@ def trotterSimulation(hamil, N, n_snapshot, c, Δ_name, T, numQs):
     res, gates_arr = trotter.run()
     return res, gates_arr
 
-def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True, circuitList = False, NNN=False):
+def trotter(N, n_snapshot, T, q, compare, H_name, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True, circuitList = False):
     print(f"Running Trotter for N={N}, n_snapshot={n_snapshot}, T={T}, q={q}")
     circuit = None
     circuits = []
@@ -816,10 +823,14 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
     Ts = np.linspace(startTime+dT, startTime+float(T), int(n_snapshot))
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
-    if not NNN:
+    if H_name == "SCH":
         hamil = Hamiltonian.spin_chain_hamil(q, freqs)
-    else:
+    if H_name == "NNN":
         hamil = Hamiltonian.next_nearest_neighbor_hamil(q, freqs)
+    if H_name == "2D":
+        hamil = Hamiltonian.lattice_2d_hamil(q, freqs=freqs)
+    
+    # Precompute all terms for each time step
     terms = [hamil.get_term(t) for t in times]
     gates = []
     n = int(N / n_snapshot)
@@ -830,8 +841,7 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
         gates[-1] += [
             (pauli, 2 * coef * T / N, ind)
             for (pauli, ind, coef) in terms[i]
-        ]
-
+        ]    
     
     if fixedCircuit == None:
         res = []#[1]
@@ -868,10 +878,12 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
     lengths = [l*bonds[i]**3 for i,l in enumerate(lengths)]
 
     if save:
-        if not NNN:
+        if H_name == "SCH":
             save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
-        else:
+        if H_name == "NNN":
             save_path = os.path.join("TE-PAI-noSampling", "NNN_data", "plotting")
+        if H_name == "2D":
+            save_path = os.path.join("TE-PAI-noSampling", "2D_data", "plotting")
         os.makedirs(save_path, exist_ok=True)
         if fixedCircuit == None:
             file_name = f"lie-N-{N}-T-{T}-q-{q}.csv"
@@ -885,10 +897,12 @@ def trotter(N, n_snapshot, T, q, compare, startTime=0, save=False, draw=False, f
             writer.writerows(zip(Ts, res))
         print(f"Lie data saved to {file_path}")
 
-        if not NNN:
+        if H_name == "SCH":
             save_path = os.path.join("TE-PAI-noSampling", "data", "plotting")
-        else:
+        if H_name == "NNN":
             save_path = os.path.join("TE-PAI-noSampling", "NNN_data", "plotting")
+        if H_name == "2D":
+            save_path = os.path.join("TE-PAI-noSampling", "2D_data", "plotting")
         os.makedirs(save_path, exist_ok=True)
         file_name = f"lie-bond-N-{N}-T-{T}-q-{q}.csv"
         file_path = os.path.join(save_path, file_name)
