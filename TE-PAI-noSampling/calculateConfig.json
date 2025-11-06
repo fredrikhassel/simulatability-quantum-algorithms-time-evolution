@@ -2,7 +2,7 @@
    "generate": {"1": {
         "numQs": 20,
         "Δ": 8,
-        "T": 1.0,
+        "T": 10.0,
         "dT": 1.0,
         "N": 100,
         "circuit_pool_size": 1000,
