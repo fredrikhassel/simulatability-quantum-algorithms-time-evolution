@@ -3634,6 +3634,7 @@ def show_otimization(path, indices, flip=True):
 
     plt.show()
 
+
 def compare_optimization(qc, qc_opt):
     # before and after
     before = Counter(qc.count_ops())
