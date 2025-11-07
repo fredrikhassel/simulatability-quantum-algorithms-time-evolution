@@ -23,6 +23,9 @@ import matplotlib.pyplot as plt
 from helpers import saveData, save_trotter, strip_trailing_dot_zero, organize_trotter_tepai, quimb_to_qiskit
 from plotting import plot_data_from_folder
 from qiskit import QuantumCircuit, transpile
+import sys
+import numpy as np
+import multiprocessing as mp
 
 
 # --- Data loading and parsing ---
@@ -196,7 +199,7 @@ def parse(folder, isJSON, draw, saveAndPlot, H_name, optimize=False, flip=False)
     if pool:
         dT = extract_dT_value(folder)
         char = "p"
-        averages, stds, circuit, costs = getPool(data_arrs, params,dT, draw, optimize, flip=flip)
+        averages, stds, circuit, costs = getPool_mp(data_arrs, params,dT, draw, optimize, flip=flip)
         Ts = np.linspace(0,T,len(averages))
         if draw:
             circuit.psi.draw(color=['PSI0', 'RZ', 'RZZ', 'RXX', 'RYY', 'H'], layout="kamada_kawai")
@@ -779,6 +782,146 @@ def getPool(data_arrs,params, dT, draw, optimize=None, flip=False, fixedCircuit=
         return averages,stds, quimb, [bonds,costs]
     else:
         return averages,stds, quimb, [bonds,costs]
+    
+# --- worker globals set via pool initializer ---
+_CIRCUIT_POOL = None
+_SIGN_POOL = None
+_Q = None
+_FLIP = None
+_FIXED_CIRCUIT = None
+_OPTIMIZE = None
+_START = None
+
+def _init_pool(circuit_pool, sign_pool, q, flip, fixedCircuit, optimize, start):
+    """Initializer to set globals in worker processes (avoids re-sending big arrays)."""
+    global _CIRCUIT_POOL, _SIGN_POOL, _Q, _FLIP, _FIXED_CIRCUIT, _OPTIMIZE, _START
+    _CIRCUIT_POOL = circuit_pool
+    _SIGN_POOL = sign_pool
+    _Q = int(q)
+    _FLIP = bool(flip)
+    _FIXED_CIRCUIT = fixedCircuit
+    _OPTIMIZE = optimize
+    _START = start
+
+def _single_run(run_indices):
+    """Execute one run (one sequence of timesteps). Returns per-timestep scalars."""
+    # Build circuit state for this run
+    if _FIXED_CIRCUIT is None:
+        quimb = getCircuit(_Q, flip=_FLIP)
+    else:
+        quimb = _FIXED_CIRCUIT.copy()
+
+    bonds_run = []
+    costs_run = []
+    results_run = []
+
+    # Advance through timesteps
+    for idx in run_indices:
+        circuit = _CIRCUIT_POOL[idx]
+        sign = _SIGN_POOL[idx]
+        applyGates(quimb, circuit)
+        bond, cost = getComplexity(quimb)
+        bonds_run.append(bond)
+        costs_run.append(cost)
+        results_run.append(measure(quimb, _Q, _OPTIMIZE) * sign)
+
+        if _START is not None:
+            # Keep this print to preserve original side-effect behavior
+            print(f"Starting tol: {_START} versus {cost}")
+            if cost > _START:
+                break
+
+    return bonds_run, costs_run, results_run
+
+
+def getPool_mp(data_arrs, params, dT, draw, optimize=None, flip=False, fixedCircuit=None, start=None):
+    """
+    Parallel version of getPool:
+    - Uses multiprocessing to parallelize runs.
+    - Worker count: Linux=mp.cpu_count(), Windows=4.
+    - Preserves return values, shapes, and side effects as in the original.
+    """
+    N, n, c, Δ, T, q = params  # keep unpack to match original expectations
+    print(f"Pool with: T:{T}, dT:{dT}")
+    T = float(T)
+    q = int(q)
+
+    circuit_pool, sign_pool = data_arrs[0]
+    n_timesteps = round(T / dT)
+    results = [[] for _ in range(n_timesteps)]
+    bonds = [[] for _ in range(n_timesteps)]
+    costs = [[] for _ in range(n_timesteps)]
+    n_circuits = int(len(sign_pool) / n_timesteps)
+    Ts = np.arange(0, T + dT, dT)  # preserved even if unused, to avoid behavior change
+
+    indices = generate_random_indices(len(circuit_pool), n_circuits, n_timesteps)
+
+    print(f"Running pool for {len(indices)} runs")
+
+    # Decide worker count based on platform
+    if sys.platform.startswith("win"):
+        n_workers = 4
+        ctx = mp.get_context("spawn")
+    elif sys.platform.startswith("linux"):
+        n_workers = mp.cpu_count()
+        # 'fork' is efficient on Linux; fall back to default if unavailable
+        try:
+            ctx = mp.get_context("fork")
+        except ValueError:
+            ctx = mp.get_context()
+    else:
+        n_workers = mp.cpu_count()
+        ctx = mp.get_context()  # sensible default for other OSes
+
+    # Run all runs in parallel, preserving input order for deterministic aggregation
+    with ctx.Pool(
+        processes=n_workers,
+        initializer=_init_pool,
+        initargs=(circuit_pool, sign_pool, q, flip, fixedCircuit, optimize, start),
+        maxtasksperchild=None,
+    ) as pool:
+        for run_idx, (b_run, c_run, r_run) in enumerate(pool.imap(_single_run, indices, chunksize=1), start=1):
+            # Preserve the original "Run: X" output (printed once per completed run)
+            print(f"Run: {run_idx}")
+            # Aggregate per-timestep scalars from this run
+            for i in range(len(r_run)):
+                bonds[i].append(b_run[i])
+                costs[i].append(c_run[i])
+                results[i].append(r_run[i])
+
+    # Compute statistics per timestep (robust to occasional early breaks)
+    # Using per-list means matches the original when all lists are equal length,
+    # and is safer if any run exits early due to `start`.
+    costs = np.array([np.mean(x) if len(x) > 0 else np.nan for x in costs])
+    bonds = np.array([np.mean(x) if len(x) > 0 else np.nan for x in bonds])
+    averages = np.array([np.mean(x) if len(x) > 0 else np.nan for x in results])
+    stds = np.array([np.std(x) if len(x) > 0 else np.nan for x in results])
+
+    # Insert t=0 values exactly as the original does
+    if fixedCircuit is None:
+        averages = np.insert(averages, 0, 1)
+    else:
+        averages = np.insert(averages, 0, measure(fixedCircuit.copy(), q, optimize))
+    stds = np.insert(stds, 0, 0)
+
+    # To preserve the original return shape/meaning of `quimb`, rebuild the
+    # last run's circuit state deterministically in the parent.
+    if fixedCircuit is None:
+        quimb = getCircuit(q, flip=flip)
+    else:
+        quimb = fixedCircuit.copy()
+    last_run_indices = indices[-1]
+    for idx in last_run_indices:
+        applyGates(quimb, circuit_pool[idx])
+        _, cost = getComplexity(quimb)
+        if start is not None and cost > start:
+            break
+
+    # Return values match the original function exactly
+    if draw:
+        return averages, stds, quimb, [bonds, costs]
+    else:
+        return averages, stds, quimb, [bonds, costs]
 
 # --- Utility functions ---
 def extract_dT_value(string):
