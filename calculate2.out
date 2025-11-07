@@ -8,17 +8,26 @@ Starting generation phase...
 
 [GENERATION 1] Starting with parameters:
 {
-    "numQs": 20,
-    "\u0394": 8,
-    "T": 5,
-    "dT": 0.5,
-    "N": 100,
-    "circuit_pool_size": 1000,
-    "Hamiltonian": "SCH"
+    "numQs": 25,
+    "\u0394": 10,
+    "T": 1,
+    "dT": 0.1,
+    "N": 1000,
+    "circuit_pool_size": 1,
+    "Hamiltonian": "2D"
 }
-[20, 8, 5, 0.5, 100, 1000, 'SCH']
-The number of qubit:20
-Number of terms in the Hamiltonian:80
+[25, 10, 1, 0.1, 1000, 1, '2D']
+The number of qubit:25
+Number of terms in the Hamiltonian:175
+[Info] Wrote /home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/2D_data/circuits/N-1000-n-1-p-1-Δ-pi_over_1024-q-25-dT-0.1-T-1/hamil_meta-N-1000-n-1-p-1-Δ-pi_over_1024-T-1-q-25.csv
+Generating 1 circuits with TE-PAI...
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+calculate.py loaded
+Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
+Processing chunk 1/1...
 calculate.py loaded
 Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
 calculate.py loaded
@@ -27,117 +36,40 @@ calculate.py loaded
 Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
 calculate.py loaded
 Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
-Wrote 10/500 circuits in chunk 1/2
-Wrote 20/500 circuits in chunk 1/2
-Wrote 30/500 circuits in chunk 1/2
-Wrote 40/500 circuits in chunk 1/2
-Wrote 50/500 circuits in chunk 1/2
-Wrote 60/500 circuits in chunk 1/2
-Wrote 70/500 circuits in chunk 1/2
-Wrote 80/500 circuits in chunk 1/2
-Wrote 90/500 circuits in chunk 1/2
-Wrote 100/500 circuits in chunk 1/2
-Wrote 110/500 circuits in chunk 1/2
-Wrote 120/500 circuits in chunk 1/2
-Wrote 130/500 circuits in chunk 1/2
-Wrote 140/500 circuits in chunk 1/2
-Wrote 150/500 circuits in chunk 1/2
-Wrote 160/500 circuits in chunk 1/2
-Wrote 170/500 circuits in chunk 1/2
-Wrote 180/500 circuits in chunk 1/2
-Wrote 190/500 circuits in chunk 1/2
-Wrote 200/500 circuits in chunk 1/2
-Wrote 210/500 circuits in chunk 1/2
-Wrote 220/500 circuits in chunk 1/2
-Wrote 230/500 circuits in chunk 1/2
-Wrote 240/500 circuits in chunk 1/2
-Wrote 250/500 circuits in chunk 1/2
-Wrote 260/500 circuits in chunk 1/2
-Wrote 270/500 circuits in chunk 1/2
-Wrote 280/500 circuits in chunk 1/2
-Wrote 290/500 circuits in chunk 1/2
-Wrote 300/500 circuits in chunk 1/2
-Wrote 310/500 circuits in chunk 1/2
-Wrote 320/500 circuits in chunk 1/2
-Wrote 330/500 circuits in chunk 1/2
-Wrote 340/500 circuits in chunk 1/2
-Wrote 350/500 circuits in chunk 1/2
-Wrote 360/500 circuits in chunk 1/2
-Wrote 370/500 circuits in chunk 1/2
-Wrote 380/500 circuits in chunk 1/2
-Wrote 390/500 circuits in chunk 1/2
-Wrote 400/500 circuits in chunk 1/2
-Wrote 410/500 circuits in chunk 1/2
-Wrote 420/500 circuits in chunk 1/2
-Wrote 430/500 circuits in chunk 1/2
-Wrote 440/500 circuits in chunk 1/2
-Wrote 450/500 circuits in chunk 1/2
-Wrote 460/500 circuits in chunk 1/2
-Wrote 470/500 circuits in chunk 1/2
-Wrote 480/500 circuits in chunk 1/2
-Wrote 490/500 circuits in chunk 1/2
-Wrote 500/500 circuits in chunk 1/2
-Sign list successfully saved to /home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5/sign_list1-N-100-n-1-p-1000-Δ-pi_over_256-T-5-q-20.json
-calculate.py loaded
-Current working directory: /home/hasselgren/simulatability-quantum-algorithms-time-evolution
-Wrote 10/500 circuits in chunk 2/2
-Wrote 20/500 circuits in chunk 2/2
-Wrote 30/500 circuits in chunk 2/2
-Wrote 40/500 circuits in chunk 2/2
-Wrote 50/500 circuits in chunk 2/2
-Wrote 60/500 circuits in chunk 2/2
-Wrote 70/500 circuits in chunk 2/2
-Wrote 80/500 circuits in chunk 2/2
-Wrote 90/500 circuits in chunk 2/2
-Wrote 100/500 circuits in chunk 2/2
-Wrote 110/500 circuits in chunk 2/2
-Wrote 120/500 circuits in chunk 2/2
-Wrote 130/500 circuits in chunk 2/2
-Wrote 140/500 circuits in chunk 2/2
-Wrote 150/500 circuits in chunk 2/2
-Wrote 160/500 circuits in chunk 2/2
-Wrote 170/500 circuits in chunk 2/2
-Wrote 180/500 circuits in chunk 2/2
-Wrote 190/500 circuits in chunk 2/2
-Wrote 200/500 circuits in chunk 2/2
-Wrote 210/500 circuits in chunk 2/2
-Wrote 220/500 circuits in chunk 2/2
-Wrote 230/500 circuits in chunk 2/2
-Wrote 240/500 circuits in chunk 2/2
-Wrote 250/500 circuits in chunk 2/2
-Wrote 260/500 circuits in chunk 2/2
-Wrote 270/500 circuits in chunk 2/2
-Wrote 280/500 circuits in chunk 2/2
-Wrote 290/500 circuits in chunk 2/2
-Wrote 300/500 circuits in chunk 2/2
-Wrote 310/500 circuits in chunk 2/2
-Wrote 320/500 circuits in chunk 2/2
-Wrote 330/500 circuits in chunk 2/2
-Wrote 340/500 circuits in chunk 2/2
-Wrote 350/500 circuits in chunk 2/2
-Wrote 360/500 circuits in chunk 2/2
-Wrote 370/500 circuits in chunk 2/2
-Wrote 380/500 circuits in chunk 2/2
-Wrote 390/500 circuits in chunk 2/2
-Wrote 400/500 circuits in chunk 2/2
-Wrote 410/500 circuits in chunk 2/2
-Wrote 420/500 circuits in chunk 2/2
-Wrote 430/500 circuits in chunk 2/2
-Wrote 440/500 circuits in chunk 2/2
-Wrote 450/500 circuits in chunk 2/2
-Wrote 460/500 circuits in chunk 2/2
-Wrote 470/500 circuits in chunk 2/2
-Wrote 480/500 circuits in chunk 2/2
-Wrote 490/500 circuits in chunk 2/2
-Wrote 500/500 circuits in chunk 2/2
-Sign list successfully saved to /home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5/sign_list2-N-100-n-1-p-1000-Δ-pi_over_256-T-5-q-20.json
+Launching 4 worker processes for chunk 1...
+Processing circuit 1 in chunk 1...
+Sign list successfully saved to /home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/2D_data/circuits/N-1000-n-1-p-1-Δ-pi_over_1024-q-25-dT-0.1-T-1/sign_list1-N-1000-n-1-p-1-Δ-pi_over_1024-T-1-q-25.json
 Cleanup complete.
 [GENERATION 1] Finished.
 
 Starting simulation phase...
 
-Starting Lie phase...
+[SIMULATION 1] Simulating for path: TE-PAI-noSampling/2D_data/circuits/N-1000-n-1-p-1000-Δ-pi_over_1024-q-25-dT-0.1-T-1.0
+Traceback (most recent call last):
+  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/calculations.py", line 31, in JSONtoDict
+    files = os.listdir(folder_name)
+            ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'TE-PAI-noSampling/2D_data/circuits/N-1000-n-1-p-1000-Δ-pi_over_1024-q-25-dT-0.1-T-1'
 
-Starting trotterThenTEPAI phase...
+During handling of the above exception, another exception occurred:
 
-All tasks completed.
+Traceback (most recent call last):
+  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/calculations.py", line 43, in JSONtoDict
+    files = os.listdir(folder_name+".0")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'TE-PAI-noSampling/2D_data/circuits/N-1000-n-1-p-1000-Δ-pi_over_1024-q-25-dT-0.1-T-1.0'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/calculate.py", line 141, in <module>
+    main()
+  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/calculate.py", line 70, in main
+    costs = parse(
+            ^^^^^^
+  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/calculations.py", line 187, in parse
+    data_dict = JSONtoDict(folder)
+                ^^^^^^^^^^^^^^^^^^
+  File "/home/hasselgren/simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/calculations.py", line 46, in JSONtoDict
+    raise FileNotFoundError(f"'{folder_name}' could not be found.")
+FileNotFoundError: 'TE-PAI-noSampling/2D_data/circuits/N-1000-n-1-p-1000-Δ-pi_over_1024-q-25-dT-0.1-T-1' could not be found.
