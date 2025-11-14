@@ -25,7 +25,7 @@ class Trotter:
         data = [[2 * x / sn - 1, sn / 2 * val] for x, val in zip(x, pdf)]
         return zip(*data)
 
-    def run(self, err=None):
+    def run(self, err=None, getGates = False):
         noisy = "_noisy" if err is not None else ""
         filename = f"TE-PAI-noSampling/data/plotting/lie-N-{self.N}-n-{self.n_snapshot}-c-{self.c}-Δ-{self.Δ_name}-T-{self.T}-q-{self.numQs}{noisy}.csv"
         gates_arr = []
@@ -38,9 +38,15 @@ class Trotter:
                     (pauli, 2 * coef * self.T / self.N, ind)
                     for (pauli, ind, coef) in self.terms[i]
                 ]
-            res = SIMULATOR.get_probs(self.numQs, gates_arr, self.n_snapshot, err=err)
-            pd.DataFrame(res).to_csv(filename, index=False)
-            return res, gates_arr
+            if not getGates:
+                res = SIMULATOR.get_probs(self.numQs, gates_arr, self.n_snapshot, err=err)
+                pd.DataFrame(res).to_csv(filename, index=False)
+                return res, gates_arr
+            else:
+                return gates_arr
         else:
-            data = pd.read_csv(filename).values
-            return data[:, 0], gates_arr
+            if not getGates:
+                data = pd.read_csv(filename).values
+                return data[:, 0], gates_arr
+            else:
+                return gates_arr

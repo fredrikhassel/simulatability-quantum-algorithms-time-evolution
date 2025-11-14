@@ -424,6 +424,7 @@ def compute_and_save_parallel(
     total_time = time.time() - start_time
     print(f"[Done] All {total} runs finished in {total_time:.1f}s.", flush=True)
     return Ts, results, csv_path
+
 def _compute_single_run(run_indices, q, circuits, signs, gam_list):
     """
     Compute a single run: apply gates across all timesteps, collect measurements,
@@ -443,9 +444,10 @@ def _compute_single_run(run_indices, q, circuits, signs, gam_list):
         weights.append(1.0)
     current_sign = +1
     for time_idx, (circuit, sign) in enumerate(zip(circuits, signs)):
+        print(f"Running {time_idx+1} out of {len(circuits)}")
         current_sign *= sign
         calc.applyGates(quimb, circuit)
-        measured = calc.measure(quimb, int(q), None)
+        measured = calc.measure(quimb)
         gamma_factor = gam_list[time_idx + 1] if gam_list is not None else 1.0
         weight = current_sign * gamma_factor
         results_run.append(measured*weight)
@@ -453,9 +455,10 @@ def _compute_single_run(run_indices, q, circuits, signs, gam_list):
         tuples_contrib.append((weight, measured))
     return run_indices, signs, weights, results_run, tuples_contrib
 
-def get_gam_list(folder):
+def get_gam_list(folder, params=None):
     """Compute the gam_list for given parameters."""
-    params = dict(re.findall(r'([A-Za-zΔ]+)-([A-Za-z0-9_.]+)', folder))
+    if params is None:
+        params = dict(re.findall(r'([A-Za-zΔ]+)-([A-Za-z0-9_.]+)', folder))
     N = int(params["N"])
     dT = float(params["dT"])
     T = float(params["T"])

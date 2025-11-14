@@ -30,23 +30,8 @@ import multiprocessing as mp
 
 # --- Data loading and parsing ---
 def JSONtoDict(folder_name):
-    try:
-        files = os.listdir(folder_name)
-    except FileNotFoundError:
-        # fallback from “folder.0” → “folder”
-        if folder_name.endswith('.0'):
-            fallback_name = folder_name[:-2]
-            try:
-                files = os.listdir(fallback_name)
-                folder_name = fallback_name
-            except FileNotFoundError:
-                raise FileNotFoundError(f"Neither '{folder_name}' nor '{fallback_name}' could be found.")
-        else:
-            try:
-                files = os.listdir(folder_name+".0")
-                folder_name = folder_name+".0"
-            except FileNotFoundError:
-                raise FileNotFoundError(f"'{folder_name}' could not be found.")
+
+    files = os.listdir(folder_name)
 
     # Regex: optional batch digits after prefix, then the six parameters
     gates_pattern = re.compile(
@@ -368,7 +353,7 @@ def applyGates(circuit, gates):
         else:
             raise ValueError(f"Unsupported number of qubits for gate {quimb_gate_name}: {len(qubit_indices)}")
 
-def measure(circuit,q=0, optimize=False):
+def measure(circuit):
     val = np.real(circuit.local_expectation(qu.pauli('X'), (0)))
     return (val+1)/2
 
