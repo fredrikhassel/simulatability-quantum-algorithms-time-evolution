@@ -56,7 +56,7 @@ def trotterSimulation(hamil, N, n_snapshot, c, Δ_name, T, numQs):
         print("Skipping Lie-Trotter data generation.")
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
-def generate(params,n_workers=None):
+def generate(params,n_workers=None, j=None, out=None):
     # Parameters
     print(params)
     numQs, Δ, T, dT, N, circuit_pool_size, H_name = params
@@ -70,13 +70,24 @@ def generate(params,n_workers=None):
     freqs = rng.uniform(-1, 1, size=numQs)
 
     if H_name == "SCH":
-        hamil = Hamiltonian.spin_chain_hamil(numQs, freqs)
+        if j is None:
+            j = 0.1
+        hamil = Hamiltonian.spin_chain_hamil(numQs, freqs, j=j)
     elif H_name == "NNN":
-        hamil = Hamiltonian.next_nearest_neighbor_hamil(numQs, freqs)
+        if j is None:
+            j1 = 0.1
+            j2 = 0.05
+        else:
+            j1 = j[0]
+            j2 = j[1]
+        hamil = Hamiltonian.next_nearest_neighbor_hamil(numQs, freqs, j1=j1, j2=j2)
     elif H_name == "2D":
-        hamil = Hamiltonian.lattice_2d_hamil(numQs, freqs=freqs)
+        if j is None:
+            j = 1
+        hamil = Hamiltonian.lattice_2d_hamil(numQs, freqs=freqs, J = j)
     else:
         raise ValueError(f"Hamiltonian '{H_name}' not recognized.")
+
 
     # Prepping output directory
     if H_name == "NNN":
@@ -85,6 +96,9 @@ def generate(params,n_workers=None):
         output_dir = os.path.join(current_dir, "data", "circuits")
     elif H_name == "2D":
         output_dir = os.path.join(current_dir, "2D_data", "circuits")
+
+    if out is not None:
+        output_dir = out#os.path.join(current_dir, out)
 
     os.makedirs(output_dir, exist_ok=True)
 
