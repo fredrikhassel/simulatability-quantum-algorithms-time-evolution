@@ -270,37 +270,55 @@ def per_shot_se_from_csv(csv_path: str, lie_csv_path: str, folder) -> np.ndarray
     return np.sqrt(np.nanmean(diffs**2, axis=0))
 
 
-def plot_rmse_three(per_shot_errors, timesteps, epsilon: float, N_max: int = 10_000, figsize=(12, 3.4), eps_x: float = 0.65, show=True):
-    """Plot three RMSE-vs-shots subplots (y = σ_per_shot / sqrt(N_s)), draw ε lines and intersection points; return (fig, axes)."""
+def plot_rmse_three(per_shot_errors, timesteps, epsilon: float, N_max: int = 10_000,
+                    figsize=(12, 3.4), eps_x: float = 0.65, show=True):
+    """Plot three RMSE-vs-shots subplots (y = σ_per_shot / sqrt(N_s)), draw ε lines and intersection points;
+    Also print the N_s required to reach ε for each timestep (even if beyond plotting range)."""
     import numpy as np, matplotlib.pyplot as plt
+
     if len(per_shot_errors) != 3 or len(timesteps) != 3:
         raise ValueError("Provide exactly three per-shot errors and three timesteps.")
+
     Ns = np.arange(1, N_max + 1, dtype=float)
     fig, axes = plt.subplots(1, 3, sharey=False, figsize=figsize)
+
     for ax, se, t in zip(axes, per_shot_errors, timesteps):
         se = float(se) if se is not None else np.nan
         if np.isfinite(se) and se > 0:
             rmse = se / np.sqrt(Ns)
             ax.plot(Ns, rmse, color="tab:green", lw=3)
+
+            # Compute N* for reaching epsilon
             N_star = int(np.ceil((se / epsilon) ** 2)) if epsilon > 0 else None
+
+            # --- Print N_star regardless of whether it's plotted ---
+            if N_star is not None:
+                print(f"t = {t:>6}:  Required N_s to reach ε = {epsilon:g} is {N_star:,}")
+
+            # --- Plot point only if within range ---
             if N_star is not None and 1 <= N_star <= N_max:
-                ax.scatter([N_star], [epsilon], s=40, zorder=3, color="tab:green", edgecolors="black")
+                ax.scatter([N_star], [epsilon], s=40, zorder=3,
+                           color="tab:green", edgecolors="black")
 
         ax.axhline(epsilon, color="black", ls="--", lw=1.5)
         ymax = max(float(se) if np.isfinite(se) else 0.0, float(epsilon))
         ax.set_ylim(0, 1.1 * ymax if ymax > 0 else 1)
 
-        # --- ε annotation: x in axes-fraction, y in data -> slide with `eps_x`
+        # --- ε annotation ---
         ypad = 0.02 * (ax.get_ylim()[1] - ax.get_ylim()[0])
         trans = _btf(ax.transAxes, ax.transData)
         ax.text(eps_x, epsilon + ypad, r"$\epsilon$ = " + f"{epsilon:g}",
                 transform=trans, ha="left", va="bottom")
 
-        ax.text(0.98, 0.95, f"t = {t}", transform=ax.transAxes, ha="right", va="top")
-        ax.text(0.1, 0.95, rf"$\sigma_s$ = {se:.2g}", transform=ax.transAxes, ha="left", va="top")
+        ax.text(0.98, 0.95, f"t = {t}", transform=ax.transAxes,
+                ha="right", va="top")
+        ax.text(0.1, 0.95, rf"$\sigma_s$ = {se:.2g}", transform=ax.transAxes,
+                ha="left", va="top")
         ax.set_xlabel(r"$N_s$")
+
     fig.supylabel("RMSE")
     fig.tight_layout()
+
     if show:
         plt.show()
     else:
@@ -435,7 +453,7 @@ if __name__ == "__main__":
     #gen_good_circuits(params, Delta=8, p=10)
     #run_good_circuits(params, Delta=8)
     #plot_full_epsilon_three(params, [1.5, 3.0, 5.0], epsilon=0.01, eps_x=0.2)
-    plot_rmse_three([0.59, 1.05, 1.43], [1.5, 3.0, 5.0], epsilon=5e-5, N_max=1000000)
+    plot_rmse_three([0.59, 1.05, 1.43], [1.5, 3.0, 5.0], epsilon=1e-3, N_max=1000)
     #se = per_shot_se_from_csv(
     #    csv_path = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5.csv",
     #    lie_csv_path = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-5-q-20.csv",
