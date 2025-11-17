@@ -56,7 +56,7 @@ def parse_resource_estimation_folder(path: str) -> dict:
     return {parts[i]: parts[i + 1] for i in range(0, len(parts), 2)}
 
 
-def plot(params):
+def plot(params, last=False):
     folder_path = get_resource_estimation_folder(params)
     fig, axes = plt.subplots(2, 1, figsize=(7, 8), sharex=False)
 
@@ -83,6 +83,7 @@ def plot(params):
         raise ValueError("No cannon_*.csv file found in folder.")
     x_ref, y_ref = cannon_data
 
+    last_diff = []
     # --- Iterate over Trotter runs ---
     for file in os.listdir(folder_path):
         if file.startswith("runs_trotter") and file.endswith(".csv"):
@@ -106,6 +107,7 @@ def plot(params):
 
                 # Compute difference and its stats
                 diff = np.abs(y_trotter - y_ref_interp)
+                last_diff.append(diff[-1])
                 mean_diff = np.mean(diff)
                 std_diff = np.std(diff)
 
@@ -120,7 +122,10 @@ def plot(params):
     ax_main.set_title("Trotter vs. Cannon trajectories")
 
     # --- Second subplot: mean ± std error vs N ---
-    ax_err.errorbar(Ns, mean_errors, yerr=std_errors, fmt='o-', capsize=5, color='tab:red')
+    if not last:
+        ax_err.errorbar(Ns, mean_errors, yerr=std_errors, fmt='o-', capsize=5, color='tab:red')
+    else:
+        ax_err.plot(Ns, last_diff, color="tab:red")
     ax_err.set_xlabel("Trotter steps (N)")
     ax_err.set_ylabel("Mean |Trotter - Cannon| ± std")
     ax_err.set_title("Trotterization error vs N")
@@ -134,6 +139,8 @@ def plot(params):
 def perform_trotter(trotter, q, X, progress=True):
     circ = calc.getCircuit(q, max_bond=X)
     measurements = [calc.measure(circ)]
+
+
     for i, gates in  enumerate(trotter):
         if progress:
             print(f"Starting part {i+1}/{len(trotter)} with gates {len(gates)}")
@@ -206,6 +213,7 @@ def estimate_trotter_resources(params: dict, N_grid, epsilon: float, progress=Fa
             trotter = Trotter(hamil=hamil, N=int(N), T=T, numQs=q, n_snapshot=10, c=None, Δ_name=None)
             # perform_trotter should return an iterable of values with same length as times
             values = perform_trotter(trotter.run(getGates=True), q, params["X"])
+            #values = perform_trotter(trotter.run2(), q, params["X"])
             # convert to floats
             vals = [float(v) for v in values]
 
@@ -412,11 +420,11 @@ if __name__ == "__main__":
     #test_trots()
 
     params = {
-    "q"     : 12,
+    "q"     : 20,
     "H"     : "SCH",
-    "j"     : 0.3,
-    "T"     : 25,
-    "C"     : 2000,
+    "j"     : 0.1,
+    "T"     : 5,
+    "C"     : 5000,
     "X"     : 0
     }
 
@@ -427,14 +435,14 @@ if __name__ == "__main__":
     #gen_good_circuits(params, Delta=8, p=10)
     #run_good_circuits(params, Delta=8)
     #plot_full_epsilon_three(params, [1.5, 3.0, 5.0], epsilon=0.01, eps_x=0.2)
-    #plot_rmse_three([0.59, 1.05, 1.43], [1.5, 3.0, 5.0], epsilon=0.1, N_max=1000)
+    plot_rmse_three([0.59, 1.05, 1.43], [1.5, 3.0, 5.0], epsilon=5e-5, N_max=1000000)
     #se = per_shot_se_from_csv(
     #    csv_path = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5.csv",
     #    lie_csv_path = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-5-q-20.csv",
     #    folder = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_128-q-20-dT-0.5-T-5"
     #)
     #make_cannon(params, progress=True)
-    #estimate_trotter_resources(params, N_grid=[700,800,900], epsilon=0.1, progress=True)
-    plot(params)
+    #estimate_trotter_resources(params, N_grid=[100, 200, 300, 400, 500, 600, 700, 800, 900, 1000], epsilon=0.1, progress=True)
+    #plot(params, True)
     #make_cannon(params, progress=True)
     #get_resource_estimation_folder(params)
