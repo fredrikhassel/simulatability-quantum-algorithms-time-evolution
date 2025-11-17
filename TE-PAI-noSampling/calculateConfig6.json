@@ -1,0 +1,8 @@
+{
+   "generate": {},
+    "simulate": {
+     "1": "TE-PAI-noSampling/2D_data/circuits/N-1000-n-1-p-50-Δ-pi_over_1024-q-25-dT-0.1-T-1"
+    },
+    "lie": {},
+    "trotterThenTEPAI": {}
+}

@@ -50,3 +50,34 @@ class Trotter:
                 return data[:, 0], gates_arr
             else:
                 return gates_arr
+            
+    def run2(self):
+        print("ding")
+        "Build and return the second-order (Strang) Trotter gate sequence grouped into n_snapshot blocks."
+        gates_arr = []
+        n = max(1, int(self.N / self.n_snapshot))
+        dt_angle = 2 * self.T / self.N
+
+        for s in range(self.n_snapshot):
+            start = s * n
+            end = self.N if s == self.n_snapshot - 1 else min((s + 1) * n, self.N)
+            block = []
+
+            # Forward half-steps
+            for i in range(start, max(start, end - 1)):
+                for (pauli, ind, coef) in self.terms[i]:
+                    block.append((pauli, coef * dt_angle * 0.5, ind))
+
+            # Middle full-step (if the block has at least one element)
+            if end > start:
+                for (pauli, ind, coef) in self.terms[end - 1]:
+                    block.append((pauli, coef * dt_angle, ind))
+
+            # Backward half-steps
+            for i in range(end - 2, start - 1, -1):
+                for (pauli, ind, coef) in self.terms[i]:
+                    block.append((pauli, coef * dt_angle * 0.5, ind))
+
+            gates_arr.append(block)
+
+        return gates_arr
