@@ -159,13 +159,13 @@ def generate(params,n_workers=None, j=None, out=None):
 if __name__ == '__main__':
     if True:
         # Example parameters
-        numQs = 12
-        Δ = 6
+        numQs = 20
+        Δ = 8
         T = 1.0
         dT = 0.1
-        N = 1000
-        circuit_pool_size = 10
-        H_name = "2D"
+        N = 100
+        circuit_pool_size = 10000
+        H_name = "SCH"
         # Generate circuits with the specified parameters
-        generate((numQs, Δ, T, dT, N, circuit_pool_size, H_name))
+        generate((numQs, Δ, T, dT, N, circuit_pool_size, H_name),j=1.1)
     

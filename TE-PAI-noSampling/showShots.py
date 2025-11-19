@@ -12,9 +12,204 @@ from scipy.stats import binom
 from plotting import calcOverhead
 import math
 from fractions import Fraction
-from typing import Tuple, Optional
+from typing import Tuple, Optional, NamedTuple, List
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
+
+# API For TEPAI-execution
+class MeasurementResults(NamedTuple):
+    """Container for per-timestep measurement stats and metadata."""
+    Ts: np.ndarray
+    unweighted_runs: List[List[float]]
+    unweighted_mean: np.ndarray
+    unweighted_std: np.ndarray
+    weighted_runs: List[List[float]]
+    weighted_mean: np.ndarray
+    weighted_std: np.ndarray
+    csv_path: str
+
+def _load_runs_csv(csv_path: str) -> tuple[list[list[float]], list[list[float]], np.ndarray]:
+    """Load weighted runs and weights from a saved CSV and rebuild the time axis."""
+    df = pd.read_csv(csv_path)
+    if not {'results', 'weights'}.issubset(df.columns):
+        raise ValueError("CSV must include 'results' and 'weights' columns.")
+    weighted_runs = [[float(x) for x in json.loads(s)] for s in df['results'].astype(str)]
+    weights_runs  = [[float(x) for x in json.loads(s)] for s in df['weights'].astype(str)]
+    R = _ragged_to_2d(weighted_runs)
+    dT, T, _, _ = _parse_T_and_dT_from_name(csv_path, all=True)
+    max_len = R.shape[1]
+    Ts = np.arange(0, max_len * dT, dT)[:max_len] if (dT is not None and T is not None) else np.arange(max_len, dtype=float)
+    return weighted_runs, weights_runs, Ts
+
+def _runs_to_unweighted(weighted_runs: list[list[float]], weights_runs: list[list[float]]) -> list[list[float]]:
+    """Convert weighted runs to unweighted runs by per-step division, robust to zero weights."""
+    out: list[list[float]] = []
+    for wrun, wts in zip(weighted_runs, weights_runs):
+        run = []
+        for r, w in zip(wrun, wts):
+            run.append(r / w if w != 0 else np.nan)
+        out.append(run)
+    return out
+
+def _mean_std_ragged(ll: list[list[float]]) -> tuple[np.ndarray, np.ndarray]:
+    """Compute per-timestep mean and std over ragged runs, using ddof=1 where count>=2 else 0."""
+    A = _ragged_to_2d(ll)
+    means = np.nanmean(A, axis=0)
+    cnts  = np.sum(~np.isnan(A), axis=0).astype(float)
+    diffs = A - means
+    diffs[np.isnan(diffs)] = 0.0
+    ss    = np.sum(diffs * diffs, axis=0)
+    denom = np.where(cnts >= 2, cnts - 1.0, cnts)  # 1->0 (std=0); 0->0 (std=nan)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        vars_ = np.where(denom > 0, ss / denom, np.nan)
+    stds = np.sqrt(vars_)
+    stds = np.where(cnts == 1, 0.0, stds)
+    return means, stds
+
+def compute_and_save_parallel_ext(
+    folder: str,
+    n_runs_to_plot: int | None,
+    out_dir: str,
+    csv_basename: str | None = None,
+    gam_list: list[float] | None = None,
+    max_workers: int | None = None,
+    max_bond: int | None = None,
+) -> tuple[np.ndarray, str]:
+    """Parallel compute identical CSV artifacts as the original, with configurable max_bond."""
+    data_dict = calc.JSONtoDict(folder)
+    data_arrs, Ts_input, params, pool = calc.DictToArr(data_dict, True)
+    N, n, c, Δ, T, q = params
+    q = int(q); T = float(T)
+    dT = calc.extract_dT_value(folder)
+    circuit_pool, sign_pool = data_arrs[0]
+    n_timesteps = round(T / dT)
+    n_circuits  = int(len(sign_pool) / n_timesteps)
+    indices_all = calc.generate_random_indices(len(circuit_pool), n_circuits, n_timesteps)
+    Ts = np.arange(0, T + dT, dT)
+
+    if gam_list is not None and len(gam_list) != len(Ts):
+        raise ValueError(f"gam_list length ({len(gam_list)}) must equal len(Ts) ({len(Ts)}).")
+
+    if n_runs_to_plot is None:
+        n_runs_to_plot = len(indices_all)
+
+    kept_indices  = [None] * n_runs_to_plot
+    kept_signs    = [None] * n_runs_to_plot
+    kept_weights  = [None] * n_runs_to_plot
+    results       = [[] for _ in range(n_runs_to_plot)]
+    tuples        = [[] for _ in range(n_timesteps)]
+
+    selected = [[int(ii) for ii in run_indices] for run_indices in indices_all[:n_runs_to_plot]]
+    for run_idx, run_indices in enumerate(selected):
+        signs = [sign_pool[idx] for idx in run_indices]
+        print(f"Starting run {run_idx + 1} with signs: {signs}", flush=True)
+
+    with ProcessPoolExecutor(max_workers=max_workers) as ex:
+        futs = {
+            ex.submit(
+                _compute_single_run,
+                run_indices,
+                q,
+                [circuit_pool[index] for index in run_indices],
+                [sign_pool[index]   for index in run_indices],
+                gam_list,
+                max_bond if (max_bond is not None) else 2,
+            ): i
+            for i, run_indices in enumerate(selected)
+        }
+        for fut in as_completed(futs):
+            i = futs[fut]
+            run_indices, signs, weights, results_run, tuples_contrib = fut.result()
+            kept_indices[i] = run_indices
+            kept_signs[i]   = signs
+            kept_weights[i] = weights
+            results[i]      = results_run
+            for t_idx, wm in enumerate(tuples_contrib):
+                tuples[t_idx].append(wm)
+
+    os.makedirs(out_dir, exist_ok=True)
+    if csv_basename is None:
+        tail = os.path.basename(folder.rstrip("/\\"))
+        csv_basename = f"runs-{tail}.csv"
+    csv_path = os.path.join(out_dir, csv_basename)
+
+    rows = [{
+        "run": i + 1,
+        "indices": json.dumps(kept_indices[i]),
+        "signs":   json.dumps(kept_signs[i]),
+        "weights": json.dumps(kept_weights[i]),
+        "results": json.dumps(results[i]),
+    } for i in range(n_runs_to_plot)]
+    pd.DataFrame(rows, columns=["run", "indices", "signs", "weights", "results"]).to_csv(csv_path, index=False)
+    print(f"Saved runs to: {csv_path}", flush=True)
+    return Ts, csv_path
+
+def compute_or_load_measurement_stats(
+    folder: str,
+    out_dir: str,
+    gam_list: list[float] | None = None,
+    hamil: Hamiltonian | None = None,
+    csv_basename: str | None = None,
+    n_runs: int | None = None,
+    max_workers: int | None = None,
+    max_bond: int | None = None,
+    use_parallel: bool = True,
+    allow_cached: bool = True,
+) -> MeasurementResults:
+    """Compute or load runs CSV, then return unweighted & weighted runs with per-timestep mean/std."""
+    if csv_basename is None:
+        tail = os.path.basename(folder.rstrip("/\\"))
+        csv_basename = f"runs-{tail}.csv"
+    csv_path = os.path.join(out_dir, csv_basename)
+
+    if allow_cached and os.path.exists(csv_path):
+        weighted_runs, weights_runs, Ts = _load_runs_csv(csv_path)
+    else:
+        if gam_list is None:
+            gam_list = get_gam_list(folder, hamil=hamil)
+        if use_parallel:
+            Ts, csv_path = compute_and_save_parallel_ext(
+                folder=folder,
+                n_runs_to_plot=n_runs,
+                out_dir=out_dir,
+                csv_basename=csv_basename,
+                gam_list=gam_list,
+                max_workers=max_workers,
+                max_bond=max_bond,
+            )
+        else:
+            Ts, _, _ = compute_and_save(
+                folder=folder,
+                n_runs_to_plot=n_runs if n_runs is not None else 100,
+                out_dir=out_dir,
+                csv_basename=csv_basename,
+                lie_csv_path=None,
+                save_plot_path='results_vs_time.png',
+                gam_list=gam_list,
+                plot=False,
+            )
+        weighted_runs, weights_runs, Ts = _load_runs_csv(csv_path)
+
+    unweighted_runs = _runs_to_unweighted(weighted_runs, weights_runs)
+    uw_mean, uw_std = _mean_std_ragged(unweighted_runs)
+    w_mean,  w_std  = _mean_std_ragged(weighted_runs)
+
+    return MeasurementResults(
+        Ts=Ts,
+        unweighted_runs=unweighted_runs,
+        unweighted_mean=uw_mean,
+        unweighted_std=uw_std,
+        weighted_runs=weighted_runs,
+        weighted_mean=w_mean,
+        weighted_std=w_std,
+        csv_path=csv_path,
+    )
+
+
+
+
+
+
 # --------------------------- Plotting (agnostic) --------------------------- #
 def plot_results(
     Ts, results, q=None, delta=None, tuples=None, res=None, resample_stats=None,
@@ -88,10 +283,17 @@ def plot_results(
     # Optional LIE reference
     ref = None
     if lie_csv_path and os.path.exists(lie_csv_path):
-        tmp = pd.read_csv(lie_csv_path)
+        tmp = pd.read_csv(lie_csv_path, header=None)
+        # If the CSV has headers, 'x' and 'y' will be in tmp.columns
+        # If not, rename the first two columns to 'x' and 'y'
         if {'x', 'y'}.issubset(tmp.columns):
             ref = tmp
+        elif tmp.shape[1] >= 2:
+            tmp = tmp.rename(columns={0: 'x', 1: 'y'})
+            ref = tmp
+        if ref is not None:
             ax.plot(ref['x'].values, ref['y'].values, 'k-', linewidth=2, label='Trotterization')
+
 
     if resample_stats is not None:
         m_boot = np.asarray(resample_stats.get('mean', []), dtype=float)
@@ -175,6 +377,7 @@ def _ragged_to_2d(list_of_lists, fill_value=np.nan):
     for i, x in enumerate(list_of_lists):
         arr[i, :len(x)] = np.asarray(x, dtype=float)
     return arr
+
 def resample_from_weights_results(weights_2d: np.ndarray,
                                 results_2d: np.ndarray,
                                 n_bootstrap: int = 10_000,
@@ -400,6 +603,8 @@ def compute_and_save_parallel(
             print(f"\n[Error] A worker raised an exception: {e}", flush=True)
             ex.shutdown(cancel_futures=True)
             raise
+   
+   
     # Save CSV (lists are JSON-encoded strings), identical schema & filename pattern
     os.makedirs(out_dir, exist_ok=True)
     if csv_basename is None:
@@ -425,13 +630,13 @@ def compute_and_save_parallel(
     print(f"[Done] All {total} runs finished in {total_time:.1f}s.", flush=True)
     return Ts, results, csv_path
 
-def _compute_single_run(run_indices, q, circuits, signs, gam_list):
+def _compute_single_run(run_indices, q, circuits, signs, gam_list, max_bond=2):
     """
     Compute a single run: apply gates across all timesteps, collect measurements,
     weights, and per-timestep (weight, measured) tuples for aggregation.
     Returns: (run_indices, signs, weights, results_run, tuples_contrib)
     """
-    quimb = calc.getCircuit(int(q), True)
+    quimb = calc.getCircuit(int(q), True, max_bond=max_bond)
     results_run = []
     weights     = []
     tuples_contrib = []  # list of (weight, measured) per time index
@@ -455,7 +660,7 @@ def _compute_single_run(run_indices, q, circuits, signs, gam_list):
         tuples_contrib.append((weight, measured))
     return run_indices, signs, weights, results_run, tuples_contrib
 
-def get_gam_list(folder, params=None):
+def get_gam_list(folder, params=None, hamil=None):
     """Compute the gam_list for given parameters."""
     if params is None:
         params = dict(re.findall(r'([A-Za-zΔ]+)-([A-Za-z0-9_.]+)', folder))
@@ -473,7 +678,8 @@ def get_gam_list(folder, params=None):
 
     rng = np.random.default_rng(0)
     freqs = rng.uniform(-1, 1, size=q)
-    hamil = Hamiltonian.spin_chain_hamil(q, freqs)
+    if hamil is None:
+        hamil = Hamiltonian.spin_chain_hamil(q, freqs)
     steps = np.linspace(0, T, N)
     angles = [[2 * np.abs(coef) * T / N for coef in hamil.coefs(t)] for t in steps]
     n = int(N / n_snap)
@@ -541,6 +747,7 @@ def _parse_T_and_dT_from_name(path: str, all=False) -> Tuple[Optional[float], Op
     if not all:
         return dT, T
     return dT, T, q, delta
+
 def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.png'):
     """
     Reads a previously saved CSV of (run, indices, signs, results, weights), reconstructs the runs,
@@ -587,7 +794,7 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
 if __name__ == "__main__":
     
     # Config
-    MODE            = "compute"   # "compute" or "from_csv"
+    MODE            = "from_csv"   # "compute" or "from_csv"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_128-q-20-dT-0.5-T-5"
@@ -608,6 +815,11 @@ if __name__ == "__main__":
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100-Δ-pi_over_128-q-20-dT-0.5-T-5.csv"
     MAX_WORKERS     = None
     N_RUNS          = None
+
+    FOLDER          = "TE-PAI-noSampling/Truncation/N-100-n-1-p-100-Δ-pi_over_1024-q-20-dT-0.1-T-1.0"
+    LIE_CSV         = "TE-PAI-noSampling/Truncation/Lie-N-100-T-1-q-20-X-0.csv"
+    CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100-Δ-pi_over_1024-q-20-dT-0.1-T-1.0.csv"
+    GAM_LIST = np.ones(11)
 
     if MODE == "compute":
         compute_and_save_parallel(
