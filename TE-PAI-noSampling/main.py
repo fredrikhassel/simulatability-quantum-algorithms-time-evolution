@@ -105,7 +105,7 @@ class TE_PAI:
 
                 with mp.Pool(n_pool) as pool:
                     if verbose:
-                        print(f"Launching 4 worker processes for chunk {chunk_idx+1}...")
+                        print(f"Launching {n_pool} worker processes for chunk {chunk_idx+1}...")
                     for j, (sign_val, circuit) in enumerate(
                         pool.imap_unordered(
                             partial(self.gen_rand_cir_with_details, err=err),
