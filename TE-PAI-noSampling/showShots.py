@@ -794,7 +794,7 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
 if __name__ == "__main__":
     
     # Config
-    MODE            = "from_csv"   # "compute" or "from_csv"
+    MODE            = "compute"   # "compute" or "from_csv"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_128-q-20-dT-0.5-T-5"
@@ -816,10 +816,10 @@ if __name__ == "__main__":
     MAX_WORKERS     = None
     N_RUNS          = None
 
-    FOLDER          = "TE-PAI-noSampling/Truncation/N-100-n-1-p-100-Δ-pi_over_1024-q-20-dT-0.1-T-1.0"
-    LIE_CSV         = "TE-PAI-noSampling/Truncation/Lie-N-100-T-1-q-20-X-0.csv"
-    CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100-Δ-pi_over_1024-q-20-dT-0.1-T-1.0.csv"
-    GAM_LIST = np.ones(11)
+    #FOLDER          = "TE-PAI-noSampling/Truncation/N-100-n-1-p-100-Δ-pi_over_1024-q-20-dT-0.1-T-1.0"
+    #LIE_CSV         = "TE-PAI-noSampling/Truncation/Lie-N-100-T-1-q-20-X-0.csv"
+    #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100-Δ-pi_over_1024-q-20-dT-0.1-T-1.0.csv"
+    #GAM_LIST = np.ones(11)
 
     if MODE == "compute":
         compute_and_save_parallel(
