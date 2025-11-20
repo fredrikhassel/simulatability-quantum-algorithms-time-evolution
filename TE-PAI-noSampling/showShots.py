@@ -214,86 +214,32 @@ def compute_or_load_measurement_stats(
 def plot_results(
     Ts, results, q=None, delta=None, tuples=None, res=None, resample_stats=None,
     lie_csv_path=None, save_path='results_vs_time.png', title='Measurement vs Time',
-    error_mode=0
+    error_mode=1
 ):
-    """
-    Plot per-run trajectories + mean (left) and standard error over time (right).
+    """Plot run mean (left) and per-shot RMS error vs Trotter with overhead comparison (right)."""
 
-    Ts: 1D array-like of time points (length must match each run's length).
-    results: list[list[float]] where each inner list is a run across time.
-    lie_csv_path: optional path to a CSV with columns 'x' and 'y' for LIE reference (Trotterization).
-    error_mode: 0=plot absolute error (as-is), 1=plot per-timepoint RMSE (across runs), 2=plot both.
-    """
-    # Robust ragged handling (pad with NaN if needed)
     max_len = max(len(r) for r in results)
     arr = np.full((len(results), max_len), np.nan, dtype=float)
     for i, r in enumerate(results):
         arr[i, :len(r)] = np.asarray(r, dtype=float)
 
-    # Mean and SE across runs per time index
     mean_values = np.nanmean(arr, axis=0)
-    n_runs = np.sum(~np.isnan(arr), axis=0)
-    std_values = np.nanstd(arr, axis=0, ddof=1)
-    with np.errstate(invalid='ignore', divide='ignore'):
-        se_values = std_values / np.sqrt(n_runs)
+    std_values  = np.nanstd(arr, axis=0, ddof=1)
 
-    # Time vector defensiveness
-    Ts = np.asarray(Ts, dtype=float)
-    Ts = Ts[:max_len]
-
+    Ts = np.asarray(Ts, dtype=float)[:max_len]
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-    # --- Left subplot: runs + mean (+ optional LIE reference) ---
     ax = axes[0]
-    if False:
-        for r in arr:
-            valid = ~np.isnan(r)
-            ax.plot(Ts[valid], r[valid], marker='o', linewidth=0.5, linestyle='--', markersize=2, alpha=0.6, color="gray")
+    ax.plot(Ts[:len(mean_values)], mean_values, '-', linewidth=2, label='TE-PAI', color='tab:green')
+    ax.errorbar(Ts[:len(mean_values)], mean_values, yerr=np.asarray(std_values, float),
+                fmt='none', ecolor='tab:green', alpha=0.6, capsize=2)
 
-    # --- Right subplot: standard error over time ---
-    ax2 = axes[1]
-    times = Ts[:len(se_values)]
-    if q is not None and delta is not None:
-        overhead = [calcOverhead(q, T, delta) / np.sqrt(n_runs[0]) for T in times]
-        ax2.plot(times, overhead, 'r--', linewidth=2, label='Theoretical Overhead / √shots')
-        upper = mean_values + overhead
-        lower = mean_values - overhead
-        ax.fill_between(
-            Ts[:len(mean_values)],
-            lower,
-            upper,
-            color='red',
-            alpha=0.15,
-            zorder=1,
-            label='Theoretical uncertainty band',
-        )
-        ax.plot(Ts[:len(mean_values)], upper, '--', color='red', alpha=0.6, linewidth=1.5, zorder=1)
-        ax.plot(Ts[:len(mean_values)], lower, '--', color='red', alpha=0.6, linewidth=1.5, zorder=1)
-
-    ax.errorbar(
-        Ts[:len(mean_values)],
-        mean_values,
-        yerr=np.asarray(se_values, dtype=float),
-        fmt='-',
-        linewidth=2,
-        label='TE-PAI',
-        color='tab:green'
-    )
-
-    # Optional LIE reference
     ref = None
     if lie_csv_path and os.path.exists(lie_csv_path):
         tmp = pd.read_csv(lie_csv_path)
-        # If the CSV has headers, 'x' and 'y' will be in tmp.columns
-        # If not, rename the first two columns to 'x' and 'y'
         if {'x', 'y'}.issubset(tmp.columns):
-            ref = tmp
-        elif tmp.shape[1] >= 2:
-            tmp = tmp.rename(columns={0: 'x', 1: 'y'})
-            ref = tmp
-        if ref is not None:
+            ref = tmp[['x','y']].dropna()
             ax.plot(ref['x'].values, ref['y'].values, 'k-', linewidth=2, label='Trotterization')
-
 
     if resample_stats is not None:
         m_boot = np.asarray(resample_stats.get('mean', []), dtype=float)
@@ -303,26 +249,28 @@ def plot_results(
             ax.errorbar(Ts[:k], m_boot[:k], yerr=s_boot[:k], fmt='o', markersize=3,
                         capsize=2, alpha=0.9, color="tab:green")
 
+    if q is not None and delta is not None:
+        times = Ts[:len(mean_values)]
+        overhead = np.array([calcOverhead(q, T, delta) for T in times], dtype=float)
+        upper = mean_values[:len(times)] + overhead
+        lower = mean_values[:len(times)] - overhead
+        ax.fill_between(times, lower, upper, color='red', alpha=0.15, zorder=1, label='Theoretical uncertainty band (per shot)')
+        ax.plot(times, upper, '--', color='red', alpha=0.6, linewidth=1.5, zorder=1)
+        ax.plot(times, lower, '--', color='red', alpha=0.6, linewidth=1.5, zorder=1)
+
     ax.set_xlabel('Time')
     ax.set_ylabel('Measurement')
     ax.set_title(title)
     ax.grid(True, alpha=0.3)
     ax.legend(loc='best', fontsize='small', ncol=2)
 
-    # Right plot: Standard Error (preserved)
-    ax2.plot(times, se_values, '-', linewidth=2, label='Standard Error', color="tab:green")
+    ax2 = axes[1]
+    ax2.set_xlabel('Time')
+    ax2.set_ylabel('Error (per shot)')
+    ax2.set_title('RMS Error vs Trotter and Overhead')
+    ax2.grid(True, alpha=0.3)
 
-    # --- Error vs Trotterization (absolute / per-timepoint RMSE across runs) ---
     if ref is not None:
-        t1 = np.array(Ts[:len(mean_values)], dtype=float)        # TE-PAI grid
-        t2 = np.array(ref['x'].values, dtype=float)              # Trotter grid
-        trotter_y = np.array(ref['y'].values, dtype=float)
-
-        # Absolute error "as-is" (preserve original behavior)
-        interp_mean_abs = np.interp(t2, t1, mean_values)
-        abs_err = np.abs(interp_mean_abs - trotter_y)
-
-         # Trotter (reference) values on the TE-PAI time grid (no extrapolation)
         trotter_on_ts = np.interp(
             Ts,
             np.asarray(ref['x'].values, dtype=float),
@@ -330,42 +278,27 @@ def plot_results(
             left=np.nan, right=np.nan
         )
 
-        # Accumulate squared diffs per timestep across runs
-        n_runs_total = arr.shape[0]
-        diff = np.zeros_like(Ts, dtype=float)
-
-        for i in range(n_runs_total):
+        rss = np.zeros_like(Ts, dtype=float)
+        for i in range(arr.shape[0]):
             run = arr[i, :len(Ts)]
-            # Only use timesteps where both run and trotter are defined
             m = (~np.isnan(run)) & (~np.isnan(trotter_on_ts))
             d = run[m] - trotter_on_ts[m]
-            diff[m] += d * d
+            rss[m] += d * d
 
-        # Mean of squares w.r.t. number of runs, then root
-        means_squared = diff / float(n_runs_total)
-        root_means_squared = np.sqrt(means_squared)
+        rms_per_shot = np.sqrt(rss)
+        valid = ~np.isnan(rms_per_shot)
+        ax2.plot(Ts[valid], rms_per_shot[valid], '-', linewidth=2, color='tab:green', label='RMS error vs Trotter')
 
-        # Plot RMSE curve
-        valid = ~np.isnan(root_means_squared)
+    if q is not None and delta is not None:
+        times = Ts[:len(mean_values)]
+        overhead = np.array([calcOverhead(q, T, delta) for T in times], dtype=float)
+        ax2.plot(times, overhead, '--', linewidth=2, color='tab:red', label='Overhead (per shot)')
 
-        # Plot based on mode
-        if error_mode in (0, 2):
-            ax2.plot(t2, abs_err, label="Absolute error", color="tab:orange")
-        if error_mode in (1, 2):
-            ax2.plot(Ts[valid], root_means_squared[valid], label="RMS error (per-timepoint, across runs)", linestyle='--', linewidth=2, color="tab:red")
-
-    # Preserve original axis text
-    ax2.set_xlabel('Time')
-    ax2.set_ylabel('Standard Error')
-    ax2.set_title('Standard Error vs Time')
-    ax2.grid(True, alpha=0.3)
     ax2.legend()
 
     plt.tight_layout()
     plt.savefig(save_path, dpi=200)
     plt.show()
-
-
 
 
 def _ragged_to_2d(list_of_lists, fill_value=np.nan):
@@ -806,7 +739,8 @@ if __name__ == "__main__":
     OUT_DIR         = "TE-PAI-noSampling/data/many-circuits"
     CSV_BASENAME    = None
     #LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-2-q-20.csv"
-    LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-5-q-20.csv"
+    #LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-5-q-20.csv"
+    LIE_CSV         = "TE-PAI-noSampling/Truncation/Lie-N-100-T-5-q-20-X-16.csv"
     OUT_PNG         = "results_vs_time.png"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2.csv"

@@ -319,6 +319,35 @@ def _merge_overrides(base: Dict, overrides: Dict) -> Dict:
     merged.update({k: v for k, v in overrides.items() if v is not None})
     return merged
 
+def run_trotter_truncated_and_plot(params: Dict) -> Path:
+    """Run truncated Trotterization, save CSV, and plot expectation/bond vs time."""
+    csv_path, t, y, b = compute_trotter_truncated(params)
+
+    X = int(params.get("max_bond", 16))
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2))
+    ax0, ax1 = axes
+
+    ax0.plot(t, y, linestyle="--", color="gray", label=f"Trotter (X={X})")
+    ax0.set_xlabel("Time")
+    ax0.set_ylabel("Expectation value")
+    ax0.set_title("Truncated Trotter: Expectation vs Time")
+    ax0.legend()
+    ax0.grid(True, alpha=0.25)
+
+    if b is not None:
+        ax1.plot(t, b, linestyle="--", color="gray", label=f"X={X} bond dim")
+    ax1.set_xlabel("Time")
+    ax1.set_ylabel("Bond dimension")
+    ax1.set_title("Truncated Trotter: Bond dimension vs Time")
+    ax1.legend()
+    ax1.grid(True, alpha=0.25)
+
+    if bool(params.get("show", True)):
+        plt.show()
+    plt.close(fig)
+
+    return csv_path
+
 
 def main() -> None:
     """CLI: parse args, build params, run the experiment."""
@@ -357,10 +386,11 @@ def main() -> None:
     run_experiment(params)
 
 if __name__ == "__main__":
-    main()
-    quit()
-    params = { "q": 20, "T": 1.0, "N_trotter": 100, "max_bond": 2, "seed": 0, "j": 2.0, "show": True, 
+    #main()
+    #quit()
+    params = { "q": 20, "T": 5.0, "N_trotter": 100, "max_bond": 16, "seed": 0, "j": 1.0, "show": True, 
             "trotter_csv": "TE-PAI-noSampling/Truncation/Lie-N-100-T-1-q-20-X-0.csv",
             "out_dir": "TE-PAI-noSampling/Truncation",
-            } 
-    test_trotter_only(params)
+            }
+    print(run_trotter_truncated_and_plot(params))
+    #test_trotter_only(params)
