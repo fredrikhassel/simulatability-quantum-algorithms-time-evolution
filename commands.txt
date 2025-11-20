@@ -1,0 +1,12 @@
+python simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/truncation.py \
+  --q 20 \
+  --T 1 \
+  --N_trotter 1000 \
+  --N_tepai 100 \
+  --max_bond 2 \
+  --delta 1024 \
+  --num_circuits 50 \
+  --j 1.1 \
+  --show \
+  --trotter_csv "simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/Truncation/Lie-N-100-T-1-q-20-X-0.csv" \
+  --tepai_circuits_dir "simulatability-quantum-algorithms-time-evolution/TE-PAI-noSampling/Truncation/N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.1-T-1.0"
