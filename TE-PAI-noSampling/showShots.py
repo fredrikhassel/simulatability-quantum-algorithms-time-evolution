@@ -212,38 +212,57 @@ def compute_or_load_measurement_stats(
 
 # --------------------------- Plotting (agnostic) --------------------------- #
 def plot_results(
-    Ts, results, q=None, delta=None, tuples=None, res=None, resample_stats=None,
-    lie_csv_path=None, save_path='results_vs_time.png', title='Measurement vs Time',
-    error_mode=1
+    Ts,
+    results,
+    resample_stats=None,
+    lie_csv_path=None,
+    save_path='results_vs_time.png',
+    title='Measurement vs Time',
+    error_mode=1,
+    q=None,
+    delta=None,
+    plot_runs=True,
+    run_alpha=0.12,
+    plot_median_line=False,
 ):
-    """Plot run mean (left) and per-shot RMS error vs Trotter with overhead comparison (right)."""
-
+    """Plot run mean (left) and per-shot RMS error vs Trotter with optional individual-run traces."""
     max_len = max(len(r) for r in results)
     arr = np.full((len(results), max_len), np.nan, dtype=float)
     for i, r in enumerate(results):
         arr[i, :len(r)] = np.asarray(r, dtype=float)
 
     mean_values = np.nanmean(arr, axis=0)
-    std_values  = np.nanstd(arr, axis=0, ddof=1)
+    std_values = np.nanstd(arr, axis=0, ddof=1)
 
     Ts = np.asarray(Ts, dtype=float)[:max_len]
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
     ax = axes[0]
+    if plot_runs:
+        for i in range(arr.shape[0]):
+            run = arr[i, :len(Ts)]
+            valid = ~np.isnan(run)
+            if np.any(valid):
+                ax.plot(Ts[valid], run[valid], linewidth=0.8, alpha=run_alpha, zorder=0, color='gray')
+
     ax.plot(Ts[:len(mean_values)], mean_values, '-', linewidth=2, label='TE-PAI', color='tab:green')
     ax.errorbar(Ts[:len(mean_values)], mean_values, yerr=np.asarray(std_values, float),
                 fmt='none', ecolor='tab:green', alpha=0.6, capsize=2)
+
+    if plot_median_line:
+        median_values = np.nanmedian(arr, axis=0)
+        ax.plot(Ts[:len(median_values)], median_values, '-', linewidth=1.0, alpha=0.35, color='gray', label='Median (runs)')
 
     ref = None
     if lie_csv_path and os.path.exists(lie_csv_path):
         tmp = pd.read_csv(lie_csv_path)
         if {'x', 'y'}.issubset(tmp.columns):
-            ref = tmp[['x','y']].dropna()
+            ref = tmp[['x', 'y']].dropna()
             ax.plot(ref['x'].values, ref['y'].values, 'k-', linewidth=2, label='Trotterization')
 
     if resample_stats is not None:
         m_boot = np.asarray(resample_stats.get('mean', []), dtype=float)
-        s_boot = np.asarray(resample_stats.get('std',  []), dtype=float)
+        s_boot = np.asarray(resample_stats.get('std', []), dtype=float)
         k = min(len(Ts), len(m_boot), len(s_boot))
         if k > 0:
             ax.errorbar(Ts[:k], m_boot[:k], yerr=s_boot[:k], fmt='o', markersize=3,
@@ -285,7 +304,7 @@ def plot_results(
             d = run[m] - trotter_on_ts[m]
             rss[m] += d * d
 
-        rms_per_shot = np.sqrt(rss)
+        rms_per_shot = np.sqrt(rss) / np.sqrt(arr.shape[0])
         valid = ~np.isnan(rms_per_shot)
         ax2.plot(Ts[valid], rms_per_shot[valid], '-', linewidth=2, color='tab:green', label='RMS error vs Trotter')
 
@@ -727,11 +746,11 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
 if __name__ == "__main__":
     
     # Config
-    MODE            = "compute"   # "compute" or "from_csv"
+    MODE            = "from_csv"   # "compute" or "from_csv"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2"
-    #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5"
+    FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_128-q-20-dT-0.5-T-5"
-    FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_1024-q-20-dT-0.5-T-5.0"
+    #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_1024-q-20-dT-0.5-T-5.0"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-1.0-T-10.0"
     GAM_LIST        = get_gam_list(FOLDER)
@@ -739,8 +758,8 @@ if __name__ == "__main__":
     OUT_DIR         = "TE-PAI-noSampling/data/many-circuits"
     CSV_BASENAME    = None
     #LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-2-q-20.csv"
-    #LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-5-q-20.csv"
-    LIE_CSV         = "TE-PAI-noSampling/Truncation/Lie-N-100-T-5-q-20-X-16.csv"
+    LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-5.0-q-20.csv"
+
     OUT_PNG         = "results_vs_time.png"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2.csv"

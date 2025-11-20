@@ -51,8 +51,21 @@ class TE_PAI:
         res = batch_sampling(np.array(self.probs), n)
         return [sum(len(r) for r in re) for re in res]
 
-    def run_te_pai(self, num_circuits, sign_file_path, gates_file_path, overhead, err=None, verbose=False, n_workers=None):
-
+    def run_te_pai(
+        self,
+        num_circuits,
+        sign_file_path,
+        gates_file_path,
+        overhead,
+        err=None,
+        verbose=False,
+        n_workers=None,
+        circuits_per_file: int = 200,
+    ):
+        """Generate TE-PAI circuits and save them in smaller per-file chunks to avoid huge files.
+        If sign_file_path or gates_file_path is None the generated circuits are returned instead of saved.
+        circuits_per_file controls how many circuits are written into each output file (default 500).
+        """
         if verbose:
             print(f"Generating {num_circuits} circuits with TE-PAI...")
 
@@ -60,7 +73,7 @@ class TE_PAI:
 
         n_pool = mp.cpu_count() if n_workers is None else n_workers
 
-        # --- quick path: just return generated circuits if no paths provided ---
+        # quick path: just return generated circuits if no paths provided
         if sign_file_path is None or gates_file_path is None:
             circuits = []
             for idx in index:
@@ -68,36 +81,38 @@ class TE_PAI:
                 circuits.append((sign, gates_arr))
             return circuits
 
+        # sanitize circuits_per_file
+        if circuits_per_file is None or circuits_per_file <= 0:
+            circuits_per_file = num_circuits
 
-        # how many chunks of 100?
-        chunk = 500
-        num_chunks = (num_circuits + chunk-1) // chunk
+        chunk = int(circuits_per_file)
+        num_chunks = (num_circuits + chunk - 1) // chunk
 
         for chunk_idx in range(num_chunks):
             if verbose:
-                print(f"Processing chunk {chunk_idx+1}/{num_chunks}...")
+                print(f"Processing chunk {chunk_idx + 1}/{num_chunks}...")
 
-            # slice of the global index for this chunk
             start = chunk_idx * chunk
             end = min(start + chunk, num_circuits)
             idx_chunk = index[start:end]
             chunk_size = end - start
 
-            # --- build per-chunk gates filename with suffix right after 'gates_arr' ---
+            # build per-chunk filenames; if only one chunk, keep original names unchanged
             g_dir, g_base = os.path.split(gates_file_path)
-            head_g, tail_g = g_base.split('-N-', 1)               # head_g == 'gates_arr'
-            #suffix = '' if chunk_idx == 0 else str(chunk_idx + 1)
-            suffix = str(chunk_idx + 1)
-            this_gates_name = f"{head_g}{suffix}-N-{tail_g}"     # e.g. 'gates_arr2-N-...'
-            this_gates_path = os.path.join(g_dir, this_gates_name)
-
-            # --- same for sign_list ---
             s_dir, s_base = os.path.split(sign_file_path)
-            head_s, tail_s = s_base.split('-N-', 1)              # head_s == 'sign_list'
-            this_sign_name = f"{head_s}{suffix}-N-{tail_s}"
-            this_sign_path = os.path.join(s_dir, this_sign_name)
 
-            # generate this chunk’s gate JSON
+            if num_chunks == 1:
+                this_gates_path = gates_file_path
+                this_sign_path = sign_file_path
+            else:
+                head_g, tail_g = g_base.split('-N-', 1)
+                head_s, tail_s = s_base.split('-N-', 1)
+                suffix = str(chunk_idx + 1)
+                this_gates_name = f"{head_g}{suffix}-N-{tail_g}"
+                this_sign_name = f"{head_s}{suffix}-N-{tail_s}"
+                this_gates_path = os.path.join(g_dir, this_gates_name)
+                this_sign_path = os.path.join(s_dir, this_sign_name)
+
             sign_list = []
             with open(this_gates_path, 'w') as f:
                 f.write('{\n')
@@ -105,21 +120,16 @@ class TE_PAI:
 
                 with mp.Pool(n_pool) as pool:
                     if verbose:
-                        print(f"Launching {n_pool} worker processes for chunk {chunk_idx+1}...")
+                        print(f"Launching {n_pool} worker processes for chunk {chunk_idx + 1}...")
                     for j, (sign_val, circuit) in enumerate(
-                        pool.imap_unordered(
-                            partial(self.gen_rand_cir_with_details, err=err),
-                            idx_chunk
-                        ),
+                        pool.imap_unordered(partial(self.gen_rand_cir_with_details, err=err), idx_chunk),
                         start=1
                     ):
-                        
                         if verbose:
-                            print(f"Processing circuit {j} in chunk {chunk_idx+1}...")
+                            print(f"Processing circuit {j} in chunk {chunk_idx + 1}...")
 
                         sign_list.append(sign_val)
 
-                        # build the circuit dict exactly as before
                         circuit_dict = {}
                         for snap_idx, snapshot in enumerate(circuit, start=1):
                             snapshot_dict = {}
@@ -144,17 +154,16 @@ class TE_PAI:
                         f.flush()
                         os.fsync(f.fileno())
 
-                        # free memory
                         del circuit_dict
                         del circuit
                         gc.collect()
 
-                        if j % 10 == 0:
-                            print(f"Wrote {j}/{chunk_size} circuits in chunk {chunk_idx+1}/{num_chunks}")
+                        if j % 10 == 0 and verbose:
+                            print(f"Wrote {j}/{chunk_size} circuits in chunk {chunk_idx + 1}/{num_chunks}")
 
                 f.write('\n}')
 
-            # now save this chunk’s sign list
+            # save this chunk's sign list
             sign_data = {"overhead": overhead}
             for k, sign_val in enumerate(sign_list, start=1):
                 sign_data[str(k)] = sign_val
@@ -162,9 +171,12 @@ class TE_PAI:
             try:
                 with open(this_sign_path, 'w') as file:
                     json.dump(sign_data, file, indent=4)
-                print(f"Sign list successfully saved to {this_sign_path}")
+                if verbose:
+                    print(f"Sign list successfully saved to {this_sign_path}")
             except Exception as e:
                 print(f"Error saving sign list file: {e}")
+
+
 
     def gen_rand_cir_with_details(self, index, err=None):
         (gates_arr, sign, n) = ([], 1, int(self.N / self.n_snap))
