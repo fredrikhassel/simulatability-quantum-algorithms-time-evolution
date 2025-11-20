@@ -996,7 +996,7 @@ def trotter(N, n_snapshot, T, q, compare, H_name, startTime=0, save=False, draw=
 
         # Measure immediately after applying
         bond, cost = getComplexity(circuit)
-        result = measure(circuit, q, False)
+        result = measure(circuit)
         costs.append(cost)
         bonds.append(bond)
         res.append(result)
