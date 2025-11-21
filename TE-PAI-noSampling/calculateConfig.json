@@ -3,12 +3,12 @@
     "simulate": {},
     "lie": {
         "1": {
-            "q": 10,
-            "T": 1.0,
+            "q": 20,
+            "T": 10.0,
             "N": 1000,
             "n": 10,
             "Hamiltonian": "SCH",
-            "X": 2
+            "X": 64
         }
     },
     "trotterThenTEPAI": {}

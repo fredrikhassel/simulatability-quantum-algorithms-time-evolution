@@ -473,6 +473,7 @@ def compute_and_save_parallel(
     gam_list=None,
     max_workers=None,  # optional, None -> default to os.cpu_count()-1
     plot=True,
+    max_bond=None,
 ):
     """
     Parallel version of compute_and_save with progress prints.
@@ -521,7 +522,7 @@ def compute_and_save_parallel(
     with ProcessPoolExecutor(max_workers=max_workers) as ex:
         # keep run index so we can store results in order even if completion is out-of-order
         future_to_idx = {
-            ex.submit(_compute_single_run, run_indices, q, [circuit_pool[index] for index in run_indices], [sign_pool[index] for index in run_indices], gam_list): i
+            ex.submit(_compute_single_run, run_indices, q, [circuit_pool[index] for index in run_indices], [sign_pool[index] for index in run_indices], gam_list, max_bond): i
             for i, run_indices in enumerate(selected)
         }
         completed = 0
@@ -561,7 +562,10 @@ def compute_and_save_parallel(
     os.makedirs(out_dir, exist_ok=True)
     if csv_basename is None:
         tail = os.path.basename(folder.rstrip("/\\"))
-        csv_basename = f"runs-{tail}.csv"
+        if max_bond is None:
+            csv_basename = f"runs-{tail}.csv"
+        else:
+            csv_basename = f"runs-{tail}-X-{max_bond}.csv"
     csv_path = os.path.join(out_dir, csv_basename)
     rows = []
     for i in range(n_runs_to_plot):
@@ -769,6 +773,7 @@ if __name__ == "__main__":
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100-Δ-pi_over_128-q-20-dT-0.5-T-5.csv"
     MAX_WORKERS     = None
     N_RUNS          = None
+    MAX_BOND        = None
 
     #FOLDER          = "TE-PAI-noSampling/Truncation/N-100-n-1-p-100-Δ-pi_over_1024-q-20-dT-0.1-T-1.0"
     #LIE_CSV         = "TE-PAI-noSampling/Truncation/Lie-N-100-T-1-q-20-X-0.csv"
@@ -786,6 +791,7 @@ if __name__ == "__main__":
             gam_list=GAM_LIST,
             max_workers=MAX_WORKERS,
             plot=False,
+            max_bond = MAX_BOND
         )
     elif MODE == "from_csv":
         plot_from_csv(
