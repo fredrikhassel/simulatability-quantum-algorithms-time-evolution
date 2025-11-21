@@ -942,7 +942,7 @@ def trotterSimulation(hamil, N, n_snapshot, c, Δ_name, T, numQs):
     res, gates_arr = trotter.run()
     return res, gates_arr
 
-def trotter(N, n_snapshot, T, q, compare, H_name, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True, circuitList = False):
+def trotter(N, n_snapshot, T, q, compare, H_name, startTime=0, save=False, draw=False, flip=False, fixedCircuit=None, mps=True, circuitList = False, X=None):
     print(f"Running Trotter for N={N}, n_snapshot={n_snapshot}, T={T}, q={q}")
     circuit = None
     circuits = []
@@ -984,7 +984,7 @@ def trotter(N, n_snapshot, T, q, compare, H_name, startTime=0, save=False, draw=
 
         # Fresh circuit each time
         if fixedCircuit == None:
-            circuit = getCircuit(q, flip=flip, mps=mps)
+            circuit = getCircuit(q, flip=flip, mps=mps, max_bond=X)
         else:
             circuit = fixedCircuit.copy()
         if draw:
@@ -1014,7 +1014,10 @@ def trotter(N, n_snapshot, T, q, compare, H_name, startTime=0, save=False, draw=
             save_path = os.path.join("TE-PAI-noSampling", "2D_data", "plotting")
         os.makedirs(save_path, exist_ok=True)
         if fixedCircuit == None:
-            file_name = f"lie-N-{N}-T-{T}-q-{q}.csv"
+            if X is None:
+                file_name = f"lie-N-{N}-T-{T}-q-{q}.csv"
+            else:
+                file_name = f"lie-N-{N}-T-{T}-q-{q}-X-{X}.csv"
         else:
             file_name = f"lie-N-{N}-T-{T+1000}-q-{q}-fixedCircuit.csv"
         file_path = os.path.join(save_path, file_name)
@@ -1032,11 +1035,13 @@ def trotter(N, n_snapshot, T, q, compare, H_name, startTime=0, save=False, draw=
         if H_name == "2D":
             save_path = os.path.join("TE-PAI-noSampling", "2D_data", "plotting")
         os.makedirs(save_path, exist_ok=True)
-        file_name = f"lie-bond-N-{N}-T-{T}-q-{q}.csv"
+        if X is None:
+            file_name = f"lie-bond-N-{N}-T-{T}-q-{q}.csv"
+        else:
+            file_name = f"lie-bond-N-{N}-T-{T}-q-{q}-X-{X}.csv"
         file_path = os.path.join(save_path, file_name)
         
         #Ts = [t+float(T/n_snapshot) for t in Ts]
-
         with open(file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["x", "y", "z", "l"])

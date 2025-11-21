@@ -84,25 +84,34 @@ def main():
         print(f"[SIMULATION {key}] Finished.\n")
 
      # Process "simulate" configurations
-    
     print("Starting Lie phase...\n")
     for key, params in config["lie"].items():
         print(f"[LIE {key}] generating for path: {params}")
+
         q = params["q"]
         T = params["T"]
         N = params["N"]
         n = params["n"]
         H_name = params["Hamiltonian"]
 
-        trotter(N=N,
-        n_snapshot=n, 
-        T=T, 
-        q=q, 
-        compare=False, 
-        save=True, 
-        draw=False, 
-        flip=True,
-        H_name=H_name)
+        kwargs = {
+            "N": N,
+            "n_snapshot": n,
+            "T": T,
+            "q": q,
+            "compare": False,
+            "save": True,
+            "draw": False,
+            "flip": True,
+            "H_name": H_name,
+        }
+
+        # Safely check for optional X parameter
+        X = params.get("X")
+        if X is not None:
+            kwargs["X"] = X
+
+        trotter(**kwargs)
 
     print("Starting trotterThenTEPAI phase...\n")
     for key, params in config["trotterThenTEPAI"].items():
