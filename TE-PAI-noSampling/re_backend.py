@@ -453,7 +453,7 @@ if __name__ == "__main__":
     #gen_good_circuits(params, Delta=8, p=10)
     #run_good_circuits(params, Delta=8)
     #plot_full_epsilon_three(params, [1.5, 3.0, 5.0], epsilon=0.01, eps_x=0.2)
-    plot_rmse_three([0.59, 1.05, 1.43], [1.5, 3.0, 5.0], epsilon=1e-3, N_max=1000)
+    plot_rmse_three([0.18, 0.16, 0.19], [1.5, 3.0, 5.0], epsilon=1e-2, N_max=1000)
     #se = per_shot_se_from_csv(
     #    csv_path = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5.csv",
     #    lie_csv_path = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-5-q-20.csv",

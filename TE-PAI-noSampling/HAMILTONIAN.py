@@ -18,6 +18,7 @@ class Hamiltonian:
 
     @staticmethod
     def spin_chain_hamil(n, freqs, j=0.1):
+        print(f"Creating a SCH with J={j}")
         def J(t):
             if j == 1.0:
                 return np.cos(20 * t * np.pi)

@@ -629,6 +629,7 @@ def get_gam_list(folder, params=None, hamil=None):
     v = params["Δ"]
     Δ = np.pi / float(v.split('_')[-1]) if v.startswith('pi_over_') else float(v)
 
+
     #N=int(N/5); T=dT; n_snap=1; 
     print(f"N:{N}, dT:{dT}, T:{T}, q:{q}, n_snap:{n_snap}, v:{v}, Δ:{Δ}")
 
@@ -750,27 +751,31 @@ def plot_from_csv(csv_path, lie_csv_path=None, save_plot_path='results_vs_time.p
 if __name__ == "__main__":
     
     # Config
-    MODE            = "compute"   # "compute" or "from_csv"
+    MODE            = "from_csv"   # "compute" or "from_csv"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_128-q-20-dT-0.5-T-5"
     FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-10000-Δ-pi_over_1024-q-20-dT-0.5-T-5.0"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2"
     #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-1.0-T-10.0"
+    #FOLDER          = "TE-PAI-noSampling/data/circuits/N-100-n-1-p-100-Δ-pi_over_4096-q-20-dT-0.5-T-5.0"
+    
     GAM_LIST        = get_gam_list(FOLDER)
 
     OUT_DIR         = "TE-PAI-noSampling/data/many-circuits"
     CSV_BASENAME    = None
-    #LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-2-q-20.csv"
     LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-1000-T-5.0-q-20.csv"
+    #LIE_CSV         = "TE-PAI-noSampling/data/plotting/lie-N-100-T-5.0-q-20.csv"
 
     OUT_PNG         = "results_vs_time.png"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100000-Δ-pi_over_64-q-20-dT-0.2-T-2.csv"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-10000-Δ-pi_over_256-q-20-dT-0.2-T-2.csv"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-1000-Δ-pi_over_256-q-20-dT-0.5-T-5.csv"
-    CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-1000-Δ-pi_over_1024-q-20-dT-0.5-T-5.0.csv"
+    CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-10000-Δ-pi_over_1024-q-20-dT-0.5-T-5.0.csv"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-1000-Δ-pi_over_128-q-20-dT-0.5-T-5.csv"
     #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100-Δ-pi_over_128-q-20-dT-0.5-T-5.csv"
+    #CSV_PATH        = "TE-PAI-noSampling/data/many-circuits/runs-N-100-n-1-p-100-Δ-pi_over_4096-q-20-dT-0.5-T-5.0.csv"
+   
     MAX_WORKERS     = None
     N_RUNS          = None
     MAX_BOND        = None
@@ -790,7 +795,7 @@ if __name__ == "__main__":
             save_plot_path=OUT_PNG,
             gam_list=GAM_LIST,
             max_workers=MAX_WORKERS,
-            plot=False,
+            plot=True,
             max_bond = MAX_BOND
         )
     elif MODE == "from_csv":
