@@ -386,8 +386,10 @@ def main() -> None:
     run_experiment(params)
 
 if __name__ == "__main__":
-    #main()
-    #quit()
+    
+    
+    main()
+    quit()
     params = { "q": 20, "T": 5.0, "N_trotter": 100, "max_bond": 16, "seed": 0, "j": 1.0, "show": True, 
             "trotter_csv": "TE-PAI-noSampling/Truncation/Lie-N-100-T-1-q-20-X-0.csv",
             "out_dir": "TE-PAI-noSampling/Truncation",
